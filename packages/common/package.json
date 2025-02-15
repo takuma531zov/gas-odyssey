@@ -1,0 +1,10 @@
+{
+  "name": "@gas-monorepo/common",
+  "version": "1.0.0",
+  "dependencies": {
+    "lodash-es": "^4.17.21"
+  },
+  "devDependencies": {
+    "@types/lodash-es": "^4.17.12"
+  }
+}
