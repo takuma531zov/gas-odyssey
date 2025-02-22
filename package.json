@@ -6,7 +6,9 @@
   "scripts": {
     "clone": "node scripts/clone.js",
     "build:piyo": "node ./scripts/build.js piyo",
+    "build:sample": "node ./scripts/build.js sample",
     "deploy:dev:piyo": "node ./scripts/deploy.js dev piyo",
+    "deploy:sample": "node ./scripts/deploy.js prod sample",
     "format": "biome format --write ./packages",
     "format:common": "biome format --write ./packages/common",
     "lint": "biome lint ./packages"
