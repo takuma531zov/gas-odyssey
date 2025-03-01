@@ -7,9 +7,9 @@ export function myFunction() {
   //4.falseのデータを別シートに保存
   console.log("Hello");
 }
-function runWorkflow() {
+export function runWorkflow() {
   var url = "http://16c7-153-194-40-105.ngrok-free.app/v1/workflows/run";
-  var apiKey = "YOUR_API_KEY"; // 実際のAPIキーに置き換えてください
+  var apiKey = "app-iO1ZuzLz0lRpgOb7d4HhpT7g"; // 実際のAPIキーに置き換えてください
 
   var requestData = {
     inputs: {}, // 必要に応じて入力データを指定
