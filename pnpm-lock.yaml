@@ -41,6 +41,8 @@ importers:
 
   packages/hoge: {}
 
+  packages/sm-judgment-availability: {}
+
 packages:
 
   '@biomejs/biome@1.9.3':
