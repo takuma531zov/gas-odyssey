@@ -13,7 +13,7 @@ global.main = myFunction;
 const url = "http://16c7-153-194-40-105.ngrok-free.app/v1/workflows/run";
 const apiKey = "{app-iO1ZuzLz0lRpgOb7d4HhpT7g}";
 
-const runWorkflow = () => {
+const runWorkflow = async () => {
   try {
     const response = await fetch(url, {
       method: "POST",
