@@ -10,12 +10,17 @@ const myFunction = () => {
 declare let global: any;
 global.main = myFunction;
 
-const url = "http://16c7-153-194-40-105.ngrok-free.app/v1/workflows/run";
-const apiKey = "{app-iO1ZuzLz0lRpgOb7d4HhpT7g}";
-
 function runWorkflow() {
   var url = "http://16c7-153-194-40-105.ngrok-free.app/v1/workflows/run";
   var apiKey = "app-iO1ZuzLz0lRpgOb7d4HhpT7g"; // `{}` を削除
+
+  var requestBody = {
+    inputs: {
+      input: "りんご",
+    },
+    response_mode: "blocking", // streaming ではなく blocking を推奨
+    user: "abc-123",
+  };
 
   var options = {
     method: "post",
@@ -23,12 +28,8 @@ function runWorkflow() {
       Authorization: "Bearer " + apiKey,
       "Content-Type": "application/json",
     },
-    payload: JSON.stringify({
-      inputs: {},
-      response_mode: "streaming",
-      user: "abc-123",
-    }),
-    muteHttpExceptions: true, // エラーレスポンスを取得するために追加
+    payload: JSON.stringify(requestBody),
+    muteHttpExceptions: true, // エラー時にレスポンスを取得する
   };
 
   try {
