@@ -9,10 +9,10 @@ const myFunction = () => {
 };
 declare let global: any;
 global.main = myFunction;
-
+//API連携確認
 function runWorkflow() {
   var url = "http://16c7-153-194-40-105.ngrok-free.app/v1/workflows/run";
-  var apiKey = "app-iO1ZuzLz0lRpgOb7d4HhpT7g"; // `{}` を削除
+  var apiKey = PropertiesService.getScriptProperties().getProperty("API_KEY");
 
   var requestBody = {
     inputs: {
