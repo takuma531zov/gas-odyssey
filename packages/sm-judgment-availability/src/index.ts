@@ -1,4 +1,4 @@
-export function myFunction() {
+const myFunction = () => {
   //1.スプレッドシートのデータ取得
   //指定した範囲のデータを取得し、各行ごとにDify APIにリクエストを送る。
   //2.Dify APIへのリクエスト
@@ -6,11 +6,14 @@ export function myFunction() {
   //3.判定結果をスプレッドシートに書き込む
   //4.falseのデータを別シートに保存
   console.log("Hello");
-}
+};
+declare let global: any;
+global.main = myFunction;
+
 const url = "http://16c7-153-194-40-105.ngrok-free.app/v1/workflows/run";
 const apiKey = "{app-iO1ZuzLz0lRpgOb7d4HhpT7g}";
 
-async function runWorkflow() {
+const runWorkflow = () => {
   try {
     const response = await fetch(url, {
       method: "POST",
@@ -34,6 +37,8 @@ async function runWorkflow() {
   } catch (error) {
     console.error("Error:", error);
   }
-}
+};
+declare let global: any;
+global.main = runWorkflow;
 
 runWorkflow();
