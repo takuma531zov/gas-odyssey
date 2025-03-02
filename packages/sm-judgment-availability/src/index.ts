@@ -44,3 +44,28 @@ declare let global: any;
 global.main = runWorkflow;
 
 runWorkflow();
+//スプシ情報取得
+function getSpreadsheetData() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("シート1"); // シート名を指定
+  var data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 5).getValues(); // A～E列を取得
+
+  var headers = ["名称１", "名称２", "名称3", "名称4", "名称5"]; // 列名の仮のヘッダー
+
+  var records = data.map((row) => {
+    var record = {};
+    headers.forEach((key, index) => {
+      record[key] = row[index];
+    });
+    return record;
+  });
+
+  return records;
+}
+
+function prepareRequestData(records) {
+  return {
+    inputs: { records: records },
+    response_mode: "blocking",
+    user: "abc-123",
+  };
+}
