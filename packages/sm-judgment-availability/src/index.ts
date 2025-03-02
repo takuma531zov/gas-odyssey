@@ -13,31 +13,32 @@ global.main = myFunction;
 const url = "http://16c7-153-194-40-105.ngrok-free.app/v1/workflows/run";
 const apiKey = "{app-iO1ZuzLz0lRpgOb7d4HhpT7g}";
 
-const runWorkflow = async () => {
+function runWorkflow() {
+  var url = "http://16c7-153-194-40-105.ngrok-free.app/v1/workflows/run";
+  var apiKey = "app-iO1ZuzLz0lRpgOb7d4HhpT7g"; // `{}` を削除
+
+  var options = {
+    method: "post",
+    headers: {
+      Authorization: "Bearer " + apiKey,
+      "Content-Type": "application/json",
+    },
+    payload: JSON.stringify({
+      inputs: {},
+      response_mode: "streaming",
+      user: "abc-123",
+    }),
+    muteHttpExceptions: true, // エラーレスポンスを取得するために追加
+  };
+
   try {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        inputs: {},
-        response_mode: "streaming",
-        user: "abc-123",
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
-    }
-
-    const data = await response.json();
-    console.log("Response:", data);
+    var response = UrlFetchApp.fetch(url, options);
+    var data = JSON.parse(response.getContentText());
+    Logger.log("Response: " + JSON.stringify(data));
   } catch (error) {
-    console.error("Error:", error);
+    Logger.log("Error: " + error.message);
   }
-};
+}
 declare let global: any;
 global.main = runWorkflow;
 
