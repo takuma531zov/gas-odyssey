@@ -172,6 +172,7 @@ https://script.google.com/home/usersettings にアクセスして、Google Apps 
   - ビルド不能やユーザー影響等致命的な不具合の際、修正ブランチとして切る
 
 ## Dofy の起動方法
+
 1. ディレクトリ移動
    ```
    cd dify/docker
@@ -180,14 +181,17 @@ https://script.google.com/home/usersettings にアクセスして、Google Apps 
    ```
    cp .env.example .env
    ```
-3. Dockerアプリを起動
+3. Docker アプリを起動
 4. コンテナ起動
+
 ```
 docker compose up -d
 ```
+
 5. http://localhost/apps にアクセス
-5. dsl/[パッケージ名]に一致するフォルダ内にあるDSL形式のYMLファイルと資料をGUI上からインポート&アップロード
-6. コンテナ停止
+6. dsl/[パッケージ名]に一致するフォルダ内にある DSL 形式の YML ファイルと資料を GUI 上からインポート&アップロード
+7. コンテナ停止
+
 ```
 docker compose down
 ```
