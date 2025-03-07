@@ -11,7 +11,7 @@ declare let global: any;
 global.main = myFunction;
 //API連携確認
 function runWorkflow() {
-  var url = "http://16c7-153-194-40-105.ngrok-free.app/v1/workflows/run";
+  var url = "http://d1dc-60-87-94-224.ngrok-free.app/v1/workflows/run";
   var apiKey = PropertiesService.getScriptProperties().getProperty("API_KEY");
 
   var requestBody = {
@@ -49,23 +49,69 @@ function getSpreadsheetData() {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("シート1"); // シート名を指定
   var data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 5).getValues(); // A～E列を取得
 
-  var headers = ["名称１", "名称２", "名称3", "名称4", "名称5"]; // 列名の仮のヘッダー
+  if (data.length === 0 || data[0].every((cell) => cell === "")) {
+    Logger.log("データがありません");
+    return null;
+  }
 
-  var records = data.map((row) => {
-    var record = {};
-    headers.forEach((key, index) => {
-      record[key] = row[index];
-    });
-    return record;
-  });
+  // 各行のセルを結合し、フレーズリストに変換
+  var records = data
+    .map((row) => row.filter((cell) => cell !== "").join(" ")) // 空セルを除外し結合
+    .filter((phrase) => phrase !== ""); // 空のフレーズを削除
 
-  return records;
+  Logger.log("取得データ: " + JSON.stringify(records)); // **取得データをログ出力**
+  return records.length > 0 ? records : null;
 }
 
-function prepareRequestData(records) {
+function prepareRequestData(recordArray) {
+  if (!recordArray || recordArray.length === 0) {
+    Logger.log("入力データがありません");
+    return null;
+  }
+
   return {
-    inputs: { records: records },
+    inputs: { text: recordArray }, // **リストとして送信**
     response_mode: "blocking",
     user: "abc-123",
   };
+}
+
+function sendDataToDify(requestBody) {
+  if (!requestBody) {
+    Logger.log("リクエストデータが不正です");
+    return;
+  }
+
+  Logger.log("送信データ: " + JSON.stringify(requestBody)); // **送信データをログ出力**
+
+  var url = "http://d1dc-60-87-94-224.ngrok-free.app/v1/workflows/run";
+  var apiKey =
+    PropertiesService.getScriptProperties().getProperty("CHECK_API_KEY");
+
+  var options = {
+    method: "post",
+    headers: {
+      Authorization: "Bearer " + apiKey,
+      "Content-Type": "application/json",
+    },
+    payload: JSON.stringify(requestBody),
+    muteHttpExceptions: true,
+  };
+
+  try {
+    var response = UrlFetchApp.fetch(url, options);
+    var responseText = response.getContentText();
+    Logger.log("Raw Response: " + responseText);
+
+    var responseData = JSON.parse(responseText);
+    Logger.log("Parsed JSON: " + JSON.stringify(responseData));
+  } catch (error) {
+    Logger.log("Error: " + error.message);
+  }
+}
+
+function runWorkflow() {
+  var recordArray = getSpreadsheetData();
+  var requestBody = prepareRequestData(recordArray);
+  sendDataToDify(requestBody);
 }
