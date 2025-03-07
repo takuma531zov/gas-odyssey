@@ -11,7 +11,7 @@ declare let global: any;
 global.main = myFunction;
 //API連携確認
 function runWorkflow() {
-  var url = "http://d1dc-60-87-94-224.ngrok-free.app/v1/workflows/run";
+  var url = "https://ec47-103-5-140-129.ngrok-free.app/v1/workflows/run";
   var apiKey = PropertiesService.getScriptProperties().getProperty("API_KEY");
 
   var requestBody = {
@@ -70,7 +70,7 @@ function prepareRequestData(recordArray) {
   }
 
   return {
-    inputs: { text: recordArray }, // **リストとして送信**
+    inputs: { text: JSON.stringify(recordArray) }, // **リストとして送信**
     response_mode: "blocking",
     user: "abc-123",
   };
@@ -84,7 +84,7 @@ function sendDataToDify(requestBody) {
 
   Logger.log("送信データ: " + JSON.stringify(requestBody)); // **送信データをログ出力**
 
-  var url = "http://d1dc-60-87-94-224.ngrok-free.app/v1/workflows/run";
+  var url = "https://ec47-103-5-140-129.ngrok-free.app/v1/workflows/run";
   var apiKey =
     PropertiesService.getScriptProperties().getProperty("CHECK_API_KEY");
 
