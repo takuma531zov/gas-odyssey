@@ -67,7 +67,6 @@ function prepareRequestData(record) {
   }
   return {
     inputs: { text: JSON.stringify([record]) },
-    // **リストとして送信**
     response_mode: "blocking",
     user: "abc-123",
   };
@@ -104,11 +103,26 @@ function sendDataToDify(requestBody, rowIndex) {
 }
 
 function writeResultsToSpreadsheet(rowIndex, responseData) {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("シート1");
+  var sheet1 = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("シート1");
+  var sheet2 = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("シート2");
+
+  if (!sheet2) {
+    sheet2 = SpreadsheetApp.getActiveSpreadsheet().insertSheet("シート2");
+  }
+
   if (responseData.data && responseData.data.outputs.text) {
     var resultText = responseData.data.outputs.text.trim();
-    sheet.getRange(rowIndex + 2, 5).setValue(resultText); // rowIndexを使用
+    sheet1.getRange(rowIndex + 2, 5).setValue(resultText);
     Logger.log("結果を書き込みました: " + resultText);
+
+    // "FALSE" の場合、シート2に書き出す
+    if (resultText === "false") {
+      var rowData = sheet1.getRange(rowIndex + 2, 1, 1, 4).getValues()[0]; // 元データを取得
+      sheet2.appendRow(rowData); // シート2に追加
+      Logger.log(
+        "FALSEのデータをシート2に書き込みました: " + JSON.stringify(rowData)
+      );
+    }
   } else {
     Logger.log("エラー: Difyのレスポンスが不正です");
   }
@@ -120,15 +134,13 @@ function runWorkflow() {
     Logger.log("データ取得に失敗しました");
     return;
   }
-
-  // 各行ごとに処理を行う
   for (var i = 0; i < records.length; i++) {
-    var record = records[i].split(" "); // 行ごとに空白で分割して送信
+    var record = records[i].split(" ");
     var requestBody = prepareRequestData(record);
     if (!requestBody) {
       Logger.log("リクエストデータの作成に失敗しました");
       continue;
     }
-    sendDataToDify(requestBody, i); // 行番号iを渡す
+    sendDataToDify(requestBody, i);
   }
 }
