@@ -47,48 +47,41 @@ runWorkflow();
 
 //スプシ情報取得
 function getSpreadsheetData() {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("シート1"); // シート名を指定
-  var data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 4).getValues(); // A～D列を取得
-
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("シート1");
+  var data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 4).getValues();
   if (data.length === 0 || data[0].every((cell) => cell === "")) {
     Logger.log("データがありません");
     return null;
   }
-
-  // 各行のセルを結合し、フレーズリストに変換
   var records = data
-    .map((row) => row.filter((cell) => cell !== "").join(" ")) // 空セルを除外し結合
-    .filter((phrase) => phrase !== ""); // 空のフレーズを削除
-
-  Logger.log("取得データ: " + JSON.stringify(records)); // **取得データをログ出力**
+    .map((row) => row.filter((cell) => cell !== "").join(" "))
+    .filter((phrase) => phrase !== "");
+  Logger.log("取得データ: " + JSON.stringify(records));
   return records.length > 0 ? records : null;
 }
 
-function prepareRequestData(recordArray) {
-  if (!recordArray || recordArray.length === 0) {
+function prepareRequestData(record) {
+  if (!record || record.length === 0) {
     Logger.log("入力データがありません");
     return null;
   }
-
   return {
-    inputs: { text: JSON.stringify(recordArray) }, // **リストとして送信**
+    inputs: { text: JSON.stringify([record]) },
+    // **リストとして送信**
     response_mode: "blocking",
     user: "abc-123",
   };
 }
 
-function sendDataToDify(requestBody, recordCount) {
+function sendDataToDify(requestBody, rowIndex) {
   if (!requestBody) {
     Logger.log("リクエストデータが不正です");
     return;
   }
-
-  Logger.log("送信データ: " + JSON.stringify(requestBody)); // **送信データをログ出力**
-
+  Logger.log("送信データ: " + JSON.stringify(requestBody));
   var url = "https://ec47-103-5-140-129.ngrok-free.app/v1/workflows/run";
   var apiKey =
     PropertiesService.getScriptProperties().getProperty("CHECK_API_KEY");
-
   var options = {
     method: "post",
     headers: {
@@ -98,29 +91,23 @@ function sendDataToDify(requestBody, recordCount) {
     payload: JSON.stringify(requestBody),
     muteHttpExceptions: true,
   };
-
   try {
     var response = UrlFetchApp.fetch(url, options);
     var responseText = response.getContentText();
     Logger.log("Raw Response: " + responseText);
-
     var responseData = JSON.parse(responseText);
     Logger.log("Parsed JSON: " + JSON.stringify(responseData));
-
-    // Difyのレスポンスをスプレッドシートに書き込む
-    writeResultsToSpreadsheet(recordCount, responseData);
+    writeResultsToSpreadsheet(rowIndex, responseData);
   } catch (error) {
     Logger.log("Error: " + error.message);
   }
 }
 
-function writeResultsToSpreadsheet(recordCount, responseData) {
+function writeResultsToSpreadsheet(rowIndex, responseData) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("シート1");
   if (responseData.data && responseData.data.outputs.text) {
     var resultText = responseData.data.outputs.text.trim();
-    for (var i = 0; i < recordCount; i++) {
-      sheet.getRange(i + 2, 5).setValue(resultText); // E列（5列目）に書き込み（2行目以降）
-    }
+    sheet.getRange(rowIndex + 2, 5).setValue(resultText); // rowIndexを使用
     Logger.log("結果を書き込みました: " + resultText);
   } else {
     Logger.log("エラー: Difyのレスポンスが不正です");
@@ -128,17 +115,20 @@ function writeResultsToSpreadsheet(recordCount, responseData) {
 }
 
 function runWorkflow() {
-  var recordArray = getSpreadsheetData();
-  if (!recordArray) {
+  var records = getSpreadsheetData();
+  if (!records) {
     Logger.log("データ取得に失敗しました");
     return;
   }
 
-  var requestBody = prepareRequestData(recordArray);
-  if (!requestBody) {
-    Logger.log("リクエストデータの作成に失敗しました");
-    return;
+  // 各行ごとに処理を行う
+  for (var i = 0; i < records.length; i++) {
+    var record = records[i].split(" "); // 行ごとに空白で分割して送信
+    var requestBody = prepareRequestData(record);
+    if (!requestBody) {
+      Logger.log("リクエストデータの作成に失敗しました");
+      continue;
+    }
+    sendDataToDify(requestBody, i); // 行番号iを渡す
   }
-
-  sendDataToDify(requestBody, recordArray.length);
 }
