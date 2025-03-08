@@ -48,7 +48,7 @@ runWorkflow();
 //スプシ情報取得
 function getSpreadsheetData() {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("シート1"); // シート名を指定
-  var data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 5).getValues(); // A～E列を取得
+  var data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 4).getValues(); // A～D列を取得
 
   if (data.length === 0 || data[0].every((cell) => cell === "")) {
     Logger.log("データがありません");
