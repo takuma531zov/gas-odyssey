@@ -1,0 +1,237 @@
+app:
+  description: ''
+  icon: 🤖
+  icon_background: '#FFEAD5'
+  mode: workflow
+  name: 可否判断チェック
+  use_icon_as_answer_icon: false
+dependencies:
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: langgenius/openai:0.0.13@9caa0421b5519db036aaccdbf1980d1071550767d6c59e9d9388dd386a92e9f6
+kind: app
+version: 0.1.5
+workflow:
+  conversation_variables: []
+  environment_variables: []
+  features:
+    file_upload:
+      allowed_file_extensions:
+      - .JPG
+      - .JPEG
+      - .PNG
+      - .GIF
+      - .WEBP
+      - .SVG
+      allowed_file_types:
+      - image
+      allowed_file_upload_methods:
+      - local_file
+      - remote_url
+      enabled: false
+      fileUploadConfig:
+        audio_file_size_limit: 50
+        batch_count_limit: 5
+        file_size_limit: 15
+        image_file_size_limit: 10
+        video_file_size_limit: 100
+        workflow_file_upload_limit: 10
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+      number_limits: 3
+    opening_statement: ''
+    retriever_resource:
+      enabled: true
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: end
+      id: 1742388936803-source-1742388940054-target
+      source: '1742388936803'
+      sourceHandle: source
+      target: '1742388940054'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: start
+        targetType: knowledge-retrieval
+      id: 1742388926565-source-1742389857985-target
+      source: '1742388926565'
+      sourceHandle: source
+      target: '1742389857985'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: knowledge-retrieval
+        targetType: llm
+      id: 1742389857985-source-1742388936803-target
+      source: '1742389857985'
+      sourceHandle: source
+      target: '1742388936803'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    nodes:
+    - data:
+        desc: ''
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: text
+          max_length: null
+          options: []
+          required: true
+          type: text-input
+          variable: text
+      height: 90
+      id: '1742388926565'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        context:
+          enabled: true
+          variable_selector:
+          - '1742388926565'
+          - text
+        desc: ''
+        model:
+          completion_params:
+            frequency_penalty: 0.5
+            presence_penalty: 0.5
+            temperature: 0.2
+            top_p: 0.75
+          mode: chat
+          name: gpt-4o-mini
+          provider: langgenius/openai/openai
+        prompt_template:
+        - id: 29a56805-6d8f-4040-a4bb-673d7f8d1d19
+          role: system
+          text: ''
+        - id: 31beb582-5f39-4dcc-a255-e34bf0936618
+          role: user
+          text: "## 指示  \nGASから与えられたリスト内のフレーズ（{{#context#}}）が、すべて同じ号棟および号室を示しているかを判定してください。\
+            \  \n\n## 判定条件  \n＃特定の表記は「*」で示されている：リスト内のフレーズに含まれる以下の表記は、すべて「*」に変換されている。\
+            \  \n   -「棟」「号棟」「号室」「-」「－」「ー」「　」（半角・全角スペース） \n#表記揺れを考慮する：以下の違いは相違と安直に捉えず意味的に判断する\
+            \ \n   - ローマ数字⇔アラビア数字 \n   - 「*」の有無 \n 例）「3*202」＝「Ⅲ202」 \n#ナレッジを考慮：既存の知識（ナレッジ）も参考に判断する。\
+            \  \n\n## 出力形式  \ntrue：リスト内フレーズがすべて同じ号棟および号室を示している。  \nfalse：リスト内に異なる号棟または号室を示すフレーズが存在する。\
+            \  \n\n出力は「 true」または 「false」のみとし、余計な情報は含めないこと。 \n"
+        selected: false
+        title: LLM
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 90
+      id: '1742388936803'
+      position:
+        x: 684
+        y: 282
+      positionAbsolute:
+        x: 684
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        desc: ''
+        outputs:
+        - value_selector:
+          - '1742388936803'
+          - text
+          variable: text
+        selected: false
+        title: 終了
+        type: end
+      height: 90
+      id: '1742388940054'
+      position:
+        x: 988
+        y: 282
+      positionAbsolute:
+        x: 988
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        dataset_ids:
+        - bf912db5-e1c4-4bf3-83a2-6253eaaa0ec5
+        desc: ''
+        multiple_retrieval_config:
+          reranking_enable: true
+          reranking_mode: weighted_score
+          reranking_model:
+            model: ''
+            provider: ''
+          score_threshold: null
+          top_k: 4
+          weights:
+            keyword_setting:
+              keyword_weight: 0
+            vector_setting:
+              embedding_model_name: text-embedding-3-large
+              embedding_provider_name: langgenius/openai/openai
+              vector_weight: 1
+        query_variable_selector:
+        - '1742388926565'
+        - text
+        retrieval_mode: multiple
+        selected: true
+        title: 知識取得
+        type: knowledge-retrieval
+      height: 92
+      id: '1742389857985'
+      position:
+        x: 384
+        y: 282
+      positionAbsolute:
+        x: 384
+        y: 282
+      selected: true
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    viewport:
+      x: -34.97041208944961
+      y: -28.939843218812598
+      zoom: 1.0584843948751355
