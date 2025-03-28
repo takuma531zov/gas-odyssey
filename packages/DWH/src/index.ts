@@ -151,19 +151,30 @@ function formatString(str: string): string {
   return formatted;
 }
 // フォーマット化されたデータを比較し結果をスプレッドシートへ出力s
-function compareColumnsAndWriteResults(): void {
-  const sheet = getSheet("FM"); // 対象のシートを取得
-  const data: string[][] = sheet.getDataRange().getValues(); // シート全体のデータを取得
+function compareAndWriteResults(): void {
+  const data: string[][] = sheet.getDataRange().getValues();
 
-  // 結果を格納する配列
-  const results = data.map((row) => {
-    const compareIK = row[8] === row[10] ? "TRUE" : "FALSE"; // I列(9-1) と K列(11-1) を比較
-    const compareNP = row[13] === row[15] ? "TRUE" : "FALSE"; // N列(14-1) と P列(16-1) を比較
-    return [compareIK, compareNP];
-  });
+  const resultsL: string[][] = [];
+  const resultsQ: string[][] = [];
 
-  // L列（12番目）と Q列（17番目）に結果を書き込む
-  sheet.getRange(2, 12, results.length, 2).setValues(results);
+  for (let i = 0; i < data.length; i++) {
+    const postCodeFM = formatString(data[i][8] ?? ""); // I列（9-1=8）
+    const postCodeDWH = formatString(data[i][10] ?? ""); // K列（11-1=10）
+    const adressFM = formatString(data[i][14] ?? ""); // N列（15-1=14）
+    const adressDWH = formatString(data[i][16] ?? ""); // P列（17-1=16）
+
+    // L列（I列とK列の比較結果）
+    resultsL.push([postCodeFM === postCodeDWH ? "TRUE" : "FALSE"]);
+
+    // Q列（N列とP列の比較結果）
+    resultsQ.push([adressFM === adressDWH ? "TRUE" : "FALSE"]);
+  }
+
+  // L列（12番目）に結果を書き込む
+  sheet.getRange(2, 12, resultsL.length, 1).setValues(resultsL);
+
+  // Q列（17番目）に結果を書き込む
+  sheet.getRange(2, 17, resultsQ.length, 1).setValues(resultsQ);
 }
 /**
  * メイン関数
@@ -179,7 +190,7 @@ function main(): void {
   // 結果を Logger に出力（デバッグ用）
   Logger.log(formattedData);
 
-  compareColumnsAndWriteResults();
+  compareAndWriteResults();
 }
 
 // メイン関数を実行
