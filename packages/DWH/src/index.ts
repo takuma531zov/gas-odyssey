@@ -53,7 +53,7 @@ function formatTargetColumnsToVariables(): {
 } {
   const data: string[][] = sheet.getDataRange().getValues(); // シート全体のデータを取得
   const newdata = data.slice(1);
-  // 各列のデータをフォーマットして変数に格納し、空文字を除外
+  // 各列のデータをフォーマットして変数に格納
   const postCodeFM = newdata.map((row) => {
     return formatString(row[7]); // H列（8-1=7）
   });
