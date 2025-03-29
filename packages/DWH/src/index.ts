@@ -31,11 +31,12 @@ function checkId(): void {
   const results = data.map(([id, plan]) => {
     for (const [rulePlan, requiredId] of Object.entries(rules)) {
       if (plan.includes(rulePlan)) {
-        return [[id.includes(requiredId)]]; // 2次元配列として返す
+        return [id.includes(requiredId)]; //
       }
     }
-    return [[false]]; // ルールに一致しない場合は false を返す
+    return [false]; // ルールに一致しない場合は false を返す
   });
+  console.log(results);
 
   // D列に結果を書き込む（ヘッダー行を考慮し、2行目から）
   sheet.getRange(2, 4, results.length, 1).setValues(results);
@@ -51,35 +52,23 @@ function formatTargetColumnsToVariables(): {
   adressDWH: string[];
 } {
   const data: string[][] = sheet.getDataRange().getValues(); // シート全体のデータを取得
-
+  const newdata = data.slice(1);
   // 各列のデータをフォーマットして変数に格納し、空文字を除外
-  const postCodeFM = data
-    .map((row) => {
-      const formatted = formatString(row[7] ?? ""); // H列（8-1=7）
-      return formatted !== row[7] ? formatted : row[7];
-    })
-    .filter((val) => val !== ""); // 空文字を除外
+  const postCodeFM = newdata.map((row) => {
+    return formatString(row[7]); // H列（8-1=7）
+  });
 
-  const postCodeDWH = data
-    .map((row) => {
-      const formatted = formatString(row[9] ?? ""); // J列
-      return formatted !== row[9] ? formatted : row[9];
-    })
-    .filter((val) => val !== ""); // 空文字を除外
+  const postCodeDWH = newdata.map((row) => {
+    return formatString(row[9]); // J列
+  });
 
-  const adressFM = data
-    .map((row) => {
-      const formatted = formatString(row[12] ?? ""); // M列
-      return formatted !== row[12] ? formatted : row[12];
-    })
-    .filter((val) => val !== ""); // 空文字を除外
+  const adressFM = newdata.map((row) => {
+    return formatString(row[12]); // M列
+  });
 
-  const adressDWH = data
-    .map((row) => {
-      const formatted = formatString(row[14] ?? ""); // O列
-      return formatted !== row[14] ? formatted : row[14];
-    })
-    .filter((val) => val !== ""); // 空文字を除外
+  const adressDWH = newdata.map((row) => {
+    return formatString(row[14]); // O列s
+  });
 
   // 結果をスプレッドシートに出力
   // それぞれの配列が空でない場合に書き込む
@@ -119,11 +108,9 @@ function toHalfWidth(str: string): string {
   if (typeof str !== "string") {
     return ""; // 文字列以外の場合、空文字列を返す
   }
-  return str
-    .replace(/[！-～]/g, (match: string) => {
-      return String.fromCharCode(match.charCodeAt(0) - 0xfee0);
-    })
-    .replace(/　/g, " "); // 全角スペースを半角スペースに変換
+  return str.replace(/[！-～]/g, (match: string) => {
+    return String.fromCharCode(match.charCodeAt(0) - 0xfee0);
+  });
 }
 
 /**
@@ -139,6 +126,9 @@ function formatString(str: string): string {
   // 全角を半角に変換
   let formatted = toHalfWidth(str);
 
+  // 空白（全角・半角問わず）を削除
+  formatted = formatted.replace(/\s+/g, "");
+
   // 数字以外を "*" に置換
   formatted = formatted.replace(/[^0-9]/g, "*");
 
@@ -147,27 +137,35 @@ function formatString(str: string): string {
 
   // 先頭・末尾の "*" を削除
   formatted = formatted.replace(/^\*+|\*+$/g, "");
-
   return formatted;
 }
 // フォーマット化されたデータを比較し結果をスプレッドシートへ出力s
-function compareAndWriteResults(): void {
+function compareAndWriteResults(formattedData: {
+  postCodeFM: string[];
+  postCodeDWH: string[];
+  adressFM: string[];
+  adressDWH: string[];
+}): void {
   const data: string[][] = sheet.getDataRange().getValues();
 
   const resultsL: string[][] = [];
   const resultsQ: string[][] = [];
 
-  for (let i = 0; i < data.length; i++) {
-    const postCodeFM = formatString(data[i][8] ?? ""); // I列（9-1=8）
-    const postCodeDWH = formatString(data[i][10] ?? ""); // K列（11-1=10）
-    const adressFM = formatString(data[i][14] ?? ""); // N列（15-1=14）
-    const adressDWH = formatString(data[i][16] ?? ""); // P列（17-1=16）
-
+  for (let i = 1; i <= data.length - 1; i++) {
     // L列（I列とK列の比較結果）
-    resultsL.push([postCodeFM === postCodeDWH ? "TRUE" : "FALSE"]);
+    resultsL.push([
+      removeAsterisk(formattedData.postCodeFM[i]) ===
+      removeAsterisk(formattedData.postCodeDWH[i])
+        ? "TRUE"
+        : "FALSE",
+    ]);
 
     // Q列（N列とP列の比較結果）
-    resultsQ.push([adressFM === adressDWH ? "TRUE" : "FALSE"]);
+    resultsQ.push([
+      formattedData.adressFM[i] === formattedData.adressDWH[i]
+        ? "TRUE"
+        : "FALSE",
+    ]);
   }
 
   // L列（12番目）に結果を書き込む
@@ -176,6 +174,19 @@ function compareAndWriteResults(): void {
   // Q列（17番目）に結果を書き込む
   sheet.getRange(2, 17, resultsQ.length, 1).setValues(resultsQ);
 }
+
+/**
+ * "*" を取り除く関数
+ * @param str 文字列
+ * @returns "*"を取り除いた文字列
+ */
+function removeAsterisk(str: string): string {
+  if (typeof str === "string") {
+    return str.replace(/\*/g, ""); // "*" をすべて取り除く
+  }
+  return str; // 文字列でない場合はそのまま返す
+}
+
 /**
  * メイン関数
  * 全ての処理をまとめて実行
@@ -190,8 +201,5 @@ function main(): void {
   // 結果を Logger に出力（デバッグ用）
   Logger.log(formattedData);
 
-  compareAndWriteResults();
+  compareAndWriteResults(formattedData);
 }
-
-// メイン関数を実行
-main();
