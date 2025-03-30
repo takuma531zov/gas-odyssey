@@ -28,7 +28,7 @@ function checkId(): void {
     住設通信: "SGM",
   };
 
-  const results = data.map(([id, plan]) => {
+  const resultsD = data.map(([id, plan]) => {
     for (const [rulePlan, requiredId] of Object.entries(rules)) {
       if (plan.includes(rulePlan)) {
         return [id.includes(requiredId)]; //
@@ -36,16 +36,16 @@ function checkId(): void {
     }
     return [false]; // ルールに一致しない場合は false を返す
   });
-  console.log(results);
 
   // D列に結果を書き込む（ヘッダー行を考慮し、2行目から）
-  sheet.getRange(2, 4, results.length, 1).setValues(results);
+  sheet.getRange(2, 4, resultsD.length, 1).setValues(resultsD);
 }
-
 /**
  * 住所や郵便番号のデータをフォーマットして変数に格納
  */
 function formatTargetColumnsToVariables(): {
+  nameFM: string[];
+  nameDWH: string[];
   postCodeFM: string[];
   postCodeDWH: string[];
   adressFM: string[];
@@ -54,6 +54,12 @@ function formatTargetColumnsToVariables(): {
   const data: string[][] = sheet.getDataRange().getValues(); // シート全体のデータを取得
   const newdata = data.slice(1);
   // 各列のデータをフォーマットして変数に格納し、空文字を除外
+  const nameFM = newdata.map((row) => {
+    return formatName(row[4]); // E列
+  });
+  const nameDWH = newdata.map((row) => {
+    return formatName(row[5]); // F列
+  });
   const postCodeFM = newdata.map((row) => {
     return formatString(row[7]); // H列（8-1=7）
   });
@@ -96,7 +102,7 @@ function formatTargetColumnsToVariables(): {
       .setValues(adressDWH.map((value) => [value])); // P列
   }
 
-  return { postCodeFM, postCodeDWH, adressFM, adressDWH };
+  return { nameFM, nameDWH, postCodeFM, postCodeDWH, adressFM, adressDWH };
 }
 
 /**
@@ -118,6 +124,10 @@ function toHalfWidth(str: string): string {
  * @param str 変換対象の文字列
  * @returns 変換後の文字列
  */
+function formatName(str: string): string {
+  return str.replace(/\s+/g, ""); // 空白をすべて削除
+}
+
 function formatString(str: string): string {
   if (typeof str !== "string") {
     return str; // 文字列以外の場合、そのまま返す
@@ -139,8 +149,10 @@ function formatString(str: string): string {
   formatted = formatted.replace(/^\*+|\*+$/g, "");
   return formatted;
 }
-// フォーマット化されたデータを比較し結果をスプレッドシートへ出力s
+// フォーマット化されたデータを比較し結果をスプレッドシートへ出力
 function compareAndWriteResults(formattedData: {
+  nameFM: string[];
+  nameDWH: string[];
   postCodeFM: string[];
   postCodeDWH: string[];
   adressFM: string[];
@@ -148,10 +160,17 @@ function compareAndWriteResults(formattedData: {
 }): void {
   const data: string[][] = sheet.getDataRange().getValues();
 
+  const resultsG: string[][] = [];
   const resultsL: string[][] = [];
   const resultsQ: string[][] = [];
 
   for (let i = 1; i <= data.length - 1; i++) {
+    const falseItems: string[] = [];
+
+    //G列
+    resultsG.push([
+      formattedData.nameFM[i] === formattedData.nameDWH[i] ? "TRUE" : "FALSE",
+    ]);
     // L列（I列とK列の比較結果）
     resultsL.push([
       removeAsterisk(String(formattedData.postCodeFM[i])) ===
@@ -167,7 +186,8 @@ function compareAndWriteResults(formattedData: {
         : "FALSE",
     ]);
   }
-
+  // G列に結果を書き込む
+  sheet.getRange(2, 7, resultsG.length, 1).setValues(resultsG);
   // L列（12番目）に結果を書き込む
   sheet.getRange(2, 12, resultsL.length, 1).setValues(resultsL);
 
@@ -187,6 +207,8 @@ function removeAsterisk(str: string): string {
  * メイン関数
  * 全ての処理をまとめて実行
  */
+function totalLesults() {}
+
 function main(): void {
   // ID チェック処理
   checkId();
