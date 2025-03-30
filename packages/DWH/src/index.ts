@@ -165,6 +165,7 @@ function compareAndWriteResults(formattedData: {
   const resultsL: string[][] = [];
   const resultsQ: string[][] = [];
   const resultsR: string[][] = [];
+  const resultsS: string[][] = [];
   for (let i = 0; i <= data.length - 2; i++) {
     //G列
     resultsG.push([
@@ -208,10 +209,25 @@ function compareAndWriteResults(formattedData: {
 
     // 結果を R列に格納
     resultsR.push([finalResult]);
+    // "ERROR" の場合、"FALSE" が発生した項目を記録
+    if (finalResult === "ERROR") {
+      const falseItems: string[] = [];
+      if (resultsD[i][0] === "FALSE") falseItems.push("D列");
+      if (resultsG[i][0] === "FALSE") falseItems.push("G列");
+      if (resultsL[i][0] === "FALSE") falseItems.push("L列");
+      if (resultsQ[i][0] === "FALSE") falseItems.push("Q列");
+      // S列に "FALSE" を発生させた項目を格納
+      resultsS.push([falseItems.join(", ")]);
+    } else {
+      resultsS.push([""]); // "OK" の場合、S列は空にする
+    }
   }
 
   // R列（18番目）に結果を書き込む
-  sheet.getRange(2, 18, resultsR.length, 1).setValues(resultsR); // 2行目から最終結果を書き込み
+  sheet.getRange(2, 18, resultsR.length, 1).setValues(resultsR);
+
+  // S列（19番目）に "FALSE" の項目を出力
+  sheet.getRange(2, 19, resultsS.length, 1).setValues(resultsS);
 }
 
 /**
