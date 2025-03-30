@@ -18,7 +18,7 @@ const sheet = getSheet("FM");
 /**
  * ID チェック処理
  */
-function checkId(): void {
+function checkId(): string[][] {
   const lastRow = sheet.getLastRow();
   const data: string[][] = sheet.getRange(2, 2, lastRow - 1, 2).getValues(); // A列とB列のデータを取得
 
@@ -31,14 +31,15 @@ function checkId(): void {
   const resultsD = data.map(([id, plan]) => {
     for (const [rulePlan, requiredId] of Object.entries(rules)) {
       if (plan.includes(rulePlan)) {
-        return [id.includes(requiredId)]; //
+        return [id.includes(requiredId) ? "TRUE" : "FALSE"];
       }
     }
-    return [false]; // ルールに一致しない場合は false を返す
+    return ["FALSE"]; // ルールに一致しない場合は false を返す
   });
 
   // D列に結果を書き込む（ヘッダー行を考慮し、2行目から）
   sheet.getRange(2, 4, resultsD.length, 1).setValues(resultsD);
+  return resultsD;
 }
 /**
  * 住所や郵便番号のデータをフォーマットして変数に格納
@@ -159,7 +160,7 @@ function compareAndWriteResults(formattedData: {
   adressDWH: string[];
 }): void {
   const data: string[][] = sheet.getDataRange().getValues();
-
+  const resultsD: string[][] = checkId();
   const resultsG: string[][] = [];
   const resultsL: string[][] = [];
   const resultsQ: string[][] = [];
@@ -188,6 +189,8 @@ function compareAndWriteResults(formattedData: {
   }
   // G列に結果を書き込む
   sheet.getRange(2, 7, resultsG.length, 1).setValues(resultsG);
+  // G列に結果を書き込む
+  sheet.getRange(2, 7, resultsG.length, 1).setValues(resultsG);
   // L列（12番目）に結果を書き込む
   sheet.getRange(2, 12, resultsL.length, 1).setValues(resultsL);
 
@@ -207,7 +210,6 @@ function removeAsterisk(str: string): string {
  * メイン関数
  * 全ての処理をまとめて実行
  */
-function totalLesults() {}
 
 function main(): void {
   // ID チェック処理
