@@ -53,7 +53,7 @@ function formatTargetColumnsToVariables(): {
 } {
   const data: string[][] = sheet.getDataRange().getValues(); // シート全体のデータを取得
   const newdata = data.slice(1);
-  // 各列のデータをフォーマットして変数に格納
+  // 各列のデータをフォーマットして変数に格納し、空文字を除外
   const postCodeFM = newdata.map((row) => {
     return formatString(row[7]); // H列（8-1=7）
   });
@@ -154,8 +154,8 @@ function compareAndWriteResults(formattedData: {
   for (let i = 1; i <= data.length - 1; i++) {
     // L列（I列とK列の比較結果）
     resultsL.push([
-      removeAsterisk(formattedData.postCodeFM[i]) ===
-      removeAsterisk(formattedData.postCodeDWH[i])
+      removeAsterisk(String(formattedData.postCodeFM[i])) ===
+      removeAsterisk(String(formattedData.postCodeDWH[i]))
         ? "TRUE"
         : "FALSE",
     ]);
@@ -181,12 +181,8 @@ function compareAndWriteResults(formattedData: {
  * @returns "*"を取り除いた文字列
  */
 function removeAsterisk(str: string): string {
-  if (typeof str === "string") {
-    return str.replace(/\*/g, ""); // "*" をすべて取り除く
-  }
-  return str; // 文字列でない場合はそのまま返す
+  return str.replace(/\*/g, ""); // "*" を削除
 }
-
 /**
  * メイン関数
  * 全ての処理をまとめて実行
