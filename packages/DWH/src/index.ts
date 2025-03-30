@@ -164,10 +164,8 @@ function compareAndWriteResults(formattedData: {
   const resultsG: string[][] = [];
   const resultsL: string[][] = [];
   const resultsQ: string[][] = [];
-
-  for (let i = 1; i <= data.length - 1; i++) {
-    const falseItems: string[] = [];
-
+  const resultsR: string[][] = [];
+  for (let i = 0; i <= data.length - 2; i++) {
     //G列
     resultsG.push([
       formattedData.nameFM[i] === formattedData.nameDWH[i] ? "TRUE" : "FALSE",
@@ -196,6 +194,24 @@ function compareAndWriteResults(formattedData: {
 
   // Q列（17番目）に結果を書き込む
   sheet.getRange(2, 17, resultsQ.length, 1).setValues(resultsQ);
+  // R列（最終結果）
+  for (let i = 0; i < data.length - 1; i++) {
+    const allResults = [
+      resultsD[i][0], // checkIdの結果
+      resultsG[i][0], // nameFM と nameDWH の比較
+      resultsL[i][0], // postCodeFM と postCodeDWH の比較
+      resultsQ[i][0], // adressFM と adressDWH の比較
+    ];
+
+    // 1つでも "FALSE" があれば "ERROR" を出力、それ以外は "OK"
+    const finalResult = allResults.includes("FALSE") ? "ERROR" : "OK";
+
+    // 結果を R列に格納
+    resultsR.push([finalResult]);
+  }
+
+  // R列（18番目）に結果を書き込む
+  sheet.getRange(2, 18, resultsR.length, 1).setValues(resultsR); // 2行目から最終結果を書き込み
 }
 
 /**
