@@ -13,8 +13,10 @@
 import { getSheet } from "../../common/src/spreadsheet";
 
 // Sheetの取得（スプレッドシートからシートを取得）
-const sheet = getSheet("FM");
+const sheet = getSheet("CheckData");
+const errorSheet = getSheet("ErrorList");
 const lastRow = sheet.getLastRow(); // 最終行を取得（データがある行まで）
+
 //スプレッドシートの H, J, M, O 列（8, 10, 13, 15列目）を、2行目以降すべて文字列に変換
 function convertColumnsToText(): void {
   if (lastRow < 2) return; // データがなければ処理を終了
@@ -144,7 +146,7 @@ function compareAndWriteResults(formattedData: {
   postCodeDWH: string[];
   adressFM: string[];
   adressDWH: string[];
-}): void {
+}): string[][] {
   const data: string[][] = sheet.getDataRange().getValues();
   const resultID: string[][] = checkId();
   const resultName: string[][] = [];
@@ -152,6 +154,8 @@ function compareAndWriteResults(formattedData: {
   const resultAdress: string[][] = [];
   const resultFinal: string[][] = [];
   const resultErrorItems: string[][] = [];
+  const errorRows: string[][] = [];
+
   for (let i = 0; i <= data.length - 2; i++) {
     //G列
     resultName.push([
@@ -195,6 +199,9 @@ function compareAndWriteResults(formattedData: {
       if (resultAdress[i][0] === "FALSE") falseItems.push("住所");
       // K列に "FALSE" を発生させた項目を格納
       resultErrorItems.push([falseItems.join(", ")]);
+
+      // "ERROR" の場合、元データの行をエラーシートに追加
+      errorRows.push(data[i + 1]);
     } else {
       resultErrorItems.push([""]);
     }
@@ -205,8 +212,8 @@ function compareAndWriteResults(formattedData: {
 
   // ERROR項目
   sheet.getRange(2, 11, resultErrorItems.length, 1).setValues(resultErrorItems);
+  return errorRows;
 }
-
 /**
  * "*" を取り除く関数
  * @param str 文字列
@@ -219,6 +226,31 @@ function removeAsterisk(str: string): string {
  * メイン関数
  * 全ての処理をまとめて実行
  */
+
+function writeErrorRowsToSheet(errorRows: string[][]): void {
+  if (errorRows.length === 0) return;
+
+  const startRow = 2; // A2から出力
+  const startCol = 1; // A列（1列目）にB列のデータを配置
+  const filteredErrorRows = errorRows.map((row) => row.slice(1)); // A列を除外
+
+  // A2 から出力する
+  errorSheet
+    .getRange(
+      startRow,
+      startCol,
+      filteredErrorRows.length,
+      filteredErrorRows[0].length
+    )
+    .setValues(filteredErrorRows);
+
+  // 余分なデータを削除する（既存データの行が多い場合）
+  const lastDataRow = startRow + filteredErrorRows.length - 1;
+  const sheetLastRow = errorSheet.getLastRow();
+  if (sheetLastRow > lastDataRow) {
+    errorSheet.deleteRows(lastDataRow + 1, sheetLastRow - lastDataRow);
+  }
+}
 
 function main(): void {
   //数字→文字
@@ -233,4 +265,6 @@ function main(): void {
   Logger.log(formattedData);
 
   compareAndWriteResults(formattedData);
+  const errorRows = compareAndWriteResults(formattedData);
+  writeErrorRowsToSheet(errorRows);
 }
