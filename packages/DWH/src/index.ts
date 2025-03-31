@@ -49,8 +49,8 @@ function checkId(): string[][] {
     return ["FALSE"]; // ルールに一致しない場合は false を返す
   });
 
-  // D列に結果を書き込む（ヘッダー行を考慮し、2行目から）
-  sheet.getRange(2, 4, resultsD.length, 1).setValues(resultsD);
+  // // D列に結果を書き込む（ヘッダー行を考慮し、2行目から）
+  // sheet.getRange(2, 4, resultsD.length, 1).setValues(resultsD);
   return resultsD;
 }
 /**
@@ -68,52 +68,26 @@ function formatTargetColumnsToVariables(): {
   const newdata = data.slice(1);
   // 各列のデータをフォーマットして変数に格納し、空文字を除外
   const nameFM = newdata.map((row) => {
-    return formatName(row[4]); // E列
+    return formatName(row[3]);
   });
   const nameDWH = newdata.map((row) => {
-    return formatName(row[5]); // F列
+    return formatName(row[6]);
   });
   const postCodeFM = newdata.map((row) => {
-    return formatString(row[7]); // H列（8-1=7）
+    return formatString(row[4]);
   });
 
   const postCodeDWH = newdata.map((row) => {
-    return formatString(row[9]); // J列
+    return formatString(row[7]);
   });
 
   const adressFM = newdata.map((row) => {
-    return formatString(row[12]); // M列
+    return formatString(row[5]);
   });
 
   const adressDWH = newdata.map((row) => {
-    return formatString(row[14]); // O列s
+    return formatString(row[8]);
   });
-
-  // 結果をスプレッドシートに出力
-  // それぞれの配列が空でない場合に書き込む
-  if (postCodeFM.length > 0) {
-    sheet
-      .getRange(2, 9, postCodeFM.length, 1)
-      .setValues(postCodeFM.map((value) => [value])); // I列
-  }
-
-  if (postCodeDWH.length > 0) {
-    sheet
-      .getRange(2, 11, postCodeDWH.length, 1)
-      .setValues(postCodeDWH.map((value) => [value])); // K列
-  }
-
-  if (adressFM.length > 0) {
-    sheet
-      .getRange(2, 14, adressFM.length, 1)
-      .setValues(adressFM.map((value) => [value])); // N列
-  }
-
-  if (adressDWH.length > 0) {
-    sheet
-      .getRange(2, 16, adressDWH.length, 1)
-      .setValues(adressDWH.map((value) => [value])); // P列
-  }
 
   return { nameFM, nameDWH, postCodeFM, postCodeDWH, adressFM, adressDWH };
 }
@@ -172,19 +146,19 @@ function compareAndWriteResults(formattedData: {
   adressDWH: string[];
 }): void {
   const data: string[][] = sheet.getDataRange().getValues();
-  const resultsD: string[][] = checkId();
-  const resultsG: string[][] = [];
-  const resultsL: string[][] = [];
-  const resultsQ: string[][] = [];
-  const resultsR: string[][] = [];
-  const resultsS: string[][] = [];
+  const resultID: string[][] = checkId();
+  const resultName: string[][] = [];
+  const resultPostCode: string[][] = [];
+  const resultAdress: string[][] = [];
+  const resultFinal: string[][] = [];
+  const resultErrorItems: string[][] = [];
   for (let i = 0; i <= data.length - 2; i++) {
     //G列
-    resultsG.push([
+    resultName.push([
       formattedData.nameFM[i] === formattedData.nameDWH[i] ? "TRUE" : "FALSE",
     ]);
     // L列（I列とK列の比較結果）
-    resultsL.push([
+    resultPostCode.push([
       removeAsterisk(String(formattedData.postCodeFM[i])) ===
       removeAsterisk(String(formattedData.postCodeDWH[i]))
         ? "TRUE"
@@ -192,54 +166,45 @@ function compareAndWriteResults(formattedData: {
     ]);
 
     // Q列（N列とP列の比較結果）
-    resultsQ.push([
+    resultAdress.push([
       formattedData.adressFM[i] === formattedData.adressDWH[i]
         ? "TRUE"
         : "FALSE",
     ]);
   }
-  // G列に結果を書き込む
-  sheet.getRange(2, 7, resultsG.length, 1).setValues(resultsG);
-  // G列に結果を書き込む
-  sheet.getRange(2, 7, resultsG.length, 1).setValues(resultsG);
-  // L列（12番目）に結果を書き込む
-  sheet.getRange(2, 12, resultsL.length, 1).setValues(resultsL);
 
-  // Q列（17番目）に結果を書き込む
-  sheet.getRange(2, 17, resultsQ.length, 1).setValues(resultsQ);
-  // R列（最終結果）
   for (let i = 0; i < data.length - 1; i++) {
     const allResults = [
-      resultsD[i][0], // checkIdの結果
-      resultsG[i][0], // nameFM と nameDWH の比較
-      resultsL[i][0], // postCodeFM と postCodeDWH の比較
-      resultsQ[i][0], // adressFM と adressDWH の比較
+      resultID[i][0], // checkIdの結果
+      resultName[i][0], // nameFM と nameDWH の比較
+      resultPostCode[i][0], // postCodeFM と postCodeDWH の比較
+      resultAdress[i][0], // adressFM と adressDWH の比較
     ];
 
     // 1つでも "FALSE" があれば "ERROR" を出力、それ以外は "OK"
     const finalResult = allResults.includes("FALSE") ? "ERROR" : "OK";
 
     // 結果を R列に格納
-    resultsR.push([finalResult]);
+    resultFinal.push([finalResult]);
     // "ERROR" の場合、"FALSE" が発生した項目を記録
     if (finalResult === "ERROR") {
       const falseItems: string[] = [];
-      if (resultsD[i][0] === "FALSE") falseItems.push("D列");
-      if (resultsG[i][0] === "FALSE") falseItems.push("G列");
-      if (resultsL[i][0] === "FALSE") falseItems.push("L列");
-      if (resultsQ[i][0] === "FALSE") falseItems.push("Q列");
-      // S列に "FALSE" を発生させた項目を格納
-      resultsS.push([falseItems.join(", ")]);
+      if (resultID[i][0] === "FALSE") falseItems.push("ID");
+      if (resultName[i][0] === "FALSE") falseItems.push("住所");
+      if (resultPostCode[i][0] === "FALSE") falseItems.push("郵便番号");
+      if (resultAdress[i][0] === "FALSE") falseItems.push("住所");
+      // K列に "FALSE" を発生させた項目を格納
+      resultErrorItems.push([falseItems.join(", ")]);
     } else {
-      resultsS.push([""]); // "OK" の場合、S列は空にする
+      resultErrorItems.push([""]);
     }
   }
 
-  // R列（18番目）に結果を書き込む
-  sheet.getRange(2, 18, resultsR.length, 1).setValues(resultsR);
+  // 最終結果
+  sheet.getRange(2, 10, resultFinal.length, 1).setValues(resultFinal);
 
-  // S列（19番目）に "FALSE" の項目を出力
-  sheet.getRange(2, 19, resultsS.length, 1).setValues(resultsS);
+  // ERROR項目
+  sheet.getRange(2, 11, resultErrorItems.length, 1).setValues(resultErrorItems);
 }
 
 /**
