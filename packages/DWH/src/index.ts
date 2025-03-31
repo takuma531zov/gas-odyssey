@@ -14,12 +14,24 @@ import { getSheet } from "../../common/src/spreadsheet";
 
 // Sheetの取得（スプレッドシートからシートを取得）
 const sheet = getSheet("FM");
+const lastRow = sheet.getLastRow(); // 最終行を取得（データがある行まで）
+//スプレッドシートの H, J, M, O 列（8, 10, 13, 15列目）を、2行目以降すべて文字列に変換
+function convertColumnsToText(): void {
+  if (lastRow < 2) return; // データがなければ処理を終了
+
+  const targetColumns = [8, 10, 13, 15]; // H, J, M, O 列の列番号
+
+  targetColumns.forEach((col) => {
+    const range = sheet.getRange(2, col, lastRow - 1, 1); // 2行目から最終行までの範囲
+    const values: string[][] = range.getValues().map((row) => [String(row[0])]); // 文字列に変換
+    range.setValues(values); // 元のデータを上書き
+  });
+}
 
 /**
  * ID チェック処理
  */
 function checkId(): string[][] {
-  const lastRow = sheet.getLastRow();
   const data: string[][] = sheet.getRange(2, 2, lastRow - 1, 2).getValues(); // A列とB列のデータを取得
 
   const rules: { [key: string]: string } = {
@@ -244,6 +256,8 @@ function removeAsterisk(str: string): string {
  */
 
 function main(): void {
+  //数字→文字
+  convertColumnsToText();
   // ID チェック処理
   checkId();
 
