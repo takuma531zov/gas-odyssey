@@ -194,7 +194,7 @@ function compareAndWriteResults(formattedData: {
     if (finalResult === "ERROR") {
       const falseItems: string[] = [];
       if (resultID[i][0] === "FALSE") falseItems.push("ID");
-      if (resultName[i][0] === "FALSE") falseItems.push("住所");
+      if (resultName[i][0] === "FALSE") falseItems.push("名前");
       if (resultPostCode[i][0] === "FALSE") falseItems.push("郵便番号");
       if (resultAdress[i][0] === "FALSE") falseItems.push("住所");
       // K列に "FALSE" を発生させた項目を格納
