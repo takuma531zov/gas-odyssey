@@ -230,7 +230,7 @@ function removeAsterisk(str: string): string {
 function writeErrorRowsToSheet(errorRows: string[][]): void {
   if (errorRows.length === 0) return;
 
-  const startRow = 2; // A2から出力
+  const startRow = 1; // A2から出力
   const startCol = 1; // A列（1列目）にB列のデータを配置
   const filteredErrorRows = errorRows.map((row) => row.slice(1)); // A列を除外
 
