@@ -226,26 +226,19 @@ function removeAsterisk(str: string): string {
  * メイン関数
  * 全ての処理をまとめて実行
  */
-
 function writeErrorRowsToSheet(errorRows: string[][]): void {
   if (errorRows.length === 0) return;
 
-  const startRow = 1; // A2から出力
-  const startCol = 1; // A列（1列目）にB列のデータを配置
-  const filteredErrorRows = errorRows.map((row) => row.slice(1)); // A列を除外
+  const startRow = 2; // A2から出力
+  const startCol = 1; // A列（1列目）にそのまま出力
 
   // A2 から出力する
   errorSheet
-    .getRange(
-      startRow,
-      startCol,
-      filteredErrorRows.length,
-      filteredErrorRows[0].length
-    )
-    .setValues(filteredErrorRows);
+    .getRange(startRow, startCol, errorRows.length, errorRows[0].length)
+    .setValues(errorRows);
 
   // 余分なデータを削除する（既存データの行が多い場合）
-  const lastDataRow = startRow + filteredErrorRows.length - 1;
+  const lastDataRow = startRow + errorRows.length - 1;
   const sheetLastRow = errorSheet.getLastRow();
   if (sheetLastRow > lastDataRow) {
     errorSheet.deleteRows(lastDataRow + 1, sheetLastRow - lastDataRow);
