@@ -7,12 +7,15 @@
     "clone": "node scripts/clone.js",
     "build:piyo": "node ./scripts/build.js piyo",
     "build:sm-judgment-availability": "node ./scripts/build.js sm-judgment-availability",
+    "build:noa": "node ./scripts/build.js Noa",
     "build:DWH": "node ./scripts/build.js DWH",
     "build:EneOneSW": "node ./scripts/build.js EneOneSW",
     "build:sample": "node ./scripts/build.js sample",
     "deploy:dev:piyo": "node ./scripts/deploy.js dev piyo",
+    "deploy:dev:noa": "node ./scripts/deploy.js dev Noa",
     "deploy:dev:EneOneSW": "node ./scripts/deploy.js dev EneOneSW",
     "deploy:prod:sm-judgment-availability": "node ./scripts/deploy.js prod sm-judgment-availability",
+    "deploy:prod:noa": "node ./scripts/deploy.js prod Noa",
     "deploy:prod:DWH": "node ./scripts/deploy.js prod DWH",
     "deploy:prod:EneOneSW": "node ./scripts/deploy.js prod EneOneSW",
     "deploy:sample": "node ./scripts/deploy.js prod sample",
@@ -31,7 +34,5 @@
     "lefthook": "^1.7.22",
     "typescript": "^5.6.3"
   },
-  "workspaces": [
-    "packages/*"
-  ]
+  "workspaces": ["packages/*"]
 }
