@@ -49,7 +49,7 @@ export const getRowData2D = (
  * @returns
  */
 export const getScriptPropertyValue = (key: string) => {
-  return PropertiesService.getUserProperties().getProperty(key) || "";
+  return PropertiesService.getScriptProperties().getProperty(key) || "";
 };
 
 /**
