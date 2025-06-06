@@ -1,7 +1,7 @@
-import { CLOUD_VISION_API_KEY, OCR_FOLDER_ID, DONE_OCR_FOLDER_ID } from "./env";
-const FOLDER_ID = OCR_FOLDER_ID; // ← OCR対象の画像フォルダID
-const DONE_FOLDER_ID = DONE_OCR_FOLDER_ID; // ← OCR処理完了後の画像を移動するフォルダID
-const API_KEY = CLOUD_VISION_API_KEY; // ← Google Cloud Vision API
+import { SCRIPT_PROPERTIES } from "./env";
+const FOLDER_ID = SCRIPT_PROPERTIES.OCR_FOLDER_ID; // ← OCR対象の画像フォルダID
+const DONE_FOLDER_ID = SCRIPT_PROPERTIES.DONE_OCR_FOLDER_ID; // ← OCR処理完了後の画像を移動するフォルダID
+const API_KEY = SCRIPT_PROPERTIES.CLOUD_VISION_API_KEY; // ← Google Cloud Vision API
 
 function ocrReceiptImage(): void {
   // Google DriveからOCR対象の画像が保存されているフォルダを取得
@@ -46,9 +46,9 @@ function ocrReceiptImage(): void {
     // レスポンスをJSON形式で解析
     const result = JSON.parse(response.getContentText());
     // レスポンスから抽出されたテキストを取得
-    const text =
+    const ocrText =
       result.responses?.[0]?.fullTextAnnotation?.text || "テキスト抽出失敗";
-    console.log("抽出されたテキスト:", text);
+    console.log("抽出されたテキスト:", ocrText);
 
     // 処理済みフォルダへ「移動」
     doneFolder.addFile(file);
