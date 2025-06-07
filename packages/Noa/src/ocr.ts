@@ -3,12 +3,15 @@ const FOLDER_ID = SCRIPT_PROPERTIES.OCR_FOLDER_ID; // ← OCR対象の画像フ�
 const DONE_FOLDER_ID = SCRIPT_PROPERTIES.DONE_OCR_FOLDER_ID; // ← OCR処理完了後の画像を移動するフォルダID
 const API_KEY = SCRIPT_PROPERTIES.CLOUD_VISION_API_KEY; // ← Google Cloud Vision API
 
-function ocrReceiptImage(): void {
+export function runOcr(): string[] {
   // Google DriveからOCR対象の画像が保存されているフォルダを取得
   const folder = DriveApp.getFolderById(FOLDER_ID);
   // 処理済みの画像を移動するフォルダを取得
   const doneFolder = DriveApp.getFolderById(DONE_FOLDER_ID);
   const files = folder.getFiles();
+
+  const results: string[] = [];
+
   while (files.hasNext()) {
     const file = files.next();
     const blob = file.getBlob();
@@ -49,9 +52,11 @@ function ocrReceiptImage(): void {
     const ocrText =
       result.responses?.[0]?.fullTextAnnotation?.text || "テキスト抽出失敗";
     console.log("抽出されたテキスト:", ocrText);
+    results.push(ocrText);
 
     // 処理済みフォルダへ「移動」
     doneFolder.addFile(file);
     folder.removeFile(file);
   }
+  return results;
 }

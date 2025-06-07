@@ -1,20 +1,12 @@
 import { SCRIPT_PROPERTIES } from "./env";
 const API_KEY = SCRIPT_PROPERTIES.OPEN_AI_API_KEY; // OpenAI APIキー
 const AI_MODEL = SCRIPT_PROPERTIES.OPEN_AI_MODEL; // OpenAIモデル名
+import { promptToAI } from "./prompt";
+import { runOcr } from "./ocr";
+const ocrText = runOcr(); // OCR処理を実行してテキストを取得
 
-function extractDataFromAI(ocrText: string): any {
-  const prompt = `
-次のレシートテキストから店名、日付、金額を抽出し、以下のJSON形式で出力してください：
-
-{
-  "store_name": "",
-  "date": "",
-  "amount": ""
-}
-
-テキスト:
-${ocrText}
-  `;
+function extractDataFromAI(ocrText: string): string | null {
+  const prompt = promptToAI(ocrText);
 
   const payload = {
     model: AI_MODEL,
