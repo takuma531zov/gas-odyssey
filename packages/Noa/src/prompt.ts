@@ -1,4 +1,4 @@
-export const prompt = (ocrText: string): string => `
+export const promptToAI = (ocrText: string): string => `
 あなたはレシート情報を正確に読み取り、以下の形式で項目を抽出するAIです。
 
 ### 入力されたレシート全文:

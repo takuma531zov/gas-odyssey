@@ -1,7 +1,7 @@
-import { SCRIPT_PROPERTIES } from "./env";
-const FOLDER_ID = SCRIPT_PROPERTIES.OCR_FOLDER_ID; // ← OCR対象の画像フォルダID
-const DONE_FOLDER_ID = SCRIPT_PROPERTIES.DONE_OCR_FOLDER_ID; // ← OCR処理完了後の画像を移動するフォルダID
-const API_KEY = SCRIPT_PROPERTIES.CLOUD_VISION_API_KEY; // ← Google Cloud Vision API
+import { OCR_FOLDER_ID, DONE_OCR_FOLDER_ID, CLOUD_VISION_API_KEY } from "./env";
+const FOLDER_ID = OCR_FOLDER_ID; // ← OCR対象の画像フォルダID
+const DONE_FOLDER_ID = DONE_OCR_FOLDER_ID; // ← OCR処理完了後の画像を移動するフォルダID
+const API_KEY = CLOUD_VISION_API_KEY; // ← Google Cloud Vision API
 
 export function runOcr(): string[] {
   // Google DriveからOCR対象の画像が保存されているフォルダを取得

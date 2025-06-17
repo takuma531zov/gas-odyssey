@@ -1,11 +1,9 @@
-import { SCRIPT_PROPERTIES } from "./env";
-const API_KEY = SCRIPT_PROPERTIES.OPEN_AI_API_KEY; // OpenAI APIキー
-const AI_MODEL = SCRIPT_PROPERTIES.OPEN_AI_MODEL; // OpenAIモデル名
+import { OPEN_AI_API_KEY, OPEN_AI_MODEL } from "./env";
+const API_KEY = OPEN_AI_API_KEY; // OpenAI APIキー
+const AI_MODEL = OPEN_AI_MODEL; // OpenAIモデル名
 import { promptToAI } from "./prompt";
-import { runOcr } from "./ocr";
-const ocrText = runOcr(); // OCR処理を実行してテキストを取得
 
-function extractDataFromAI(ocrText: string): string | null {
+export function extractDataFromAI(ocrText: string): unknown | null {
   const prompt = promptToAI(ocrText);
 
   const payload = {
