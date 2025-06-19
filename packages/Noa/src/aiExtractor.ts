@@ -2,8 +2,9 @@ import { OPEN_AI_API_KEY, OPEN_AI_MODEL } from "./env";
 const API_KEY = OPEN_AI_API_KEY; // OpenAI APIキー
 const AI_MODEL = OPEN_AI_MODEL; // OpenAIモデル名
 import { promptToAI } from "./prompt";
+import type { AIExtractedData } from "./types";
 
-export function extractDataFromAI(ocrText: string): unknown | null {
+export function extractDataFromAI(ocrText: string): AIExtractedData | null {
   const prompt = promptToAI(ocrText);
 
   const payload = {
