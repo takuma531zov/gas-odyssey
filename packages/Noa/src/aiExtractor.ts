@@ -1,6 +1,6 @@
-import { OPEN_AI_API_KEY, OPEN_AI_MODEL } from "./env";
-const API_KEY = OPEN_AI_API_KEY; // OpenAI APIキー
-const AI_MODEL = OPEN_AI_MODEL; // OpenAIモデル名
+import * as env from "./env";
+const API_KEY = env.OPEN_AI_API_KEY; // OpenAI APIキー
+const AI_MODEL = env.OPEN_AI_MODEL; // OpenAIモデル名
 import { promptToAI } from "./prompt";
 import type { AIExtractedData } from "./types";
 

@@ -1,56 +1,69 @@
 import { runOcr } from "./ocr";
+import * as env from "./env";
 import { extractDataFromAI } from "./aiExtractor";
 import { outputToSheet } from "./outputToSheet";
 import type { AIExtractedData } from "./types";
+
 // メイン処理
 
 function main() {
-  console.log("=== main関数開始 ===");
+  const sourceFolder = DriveApp.getFolderById(env.OCR_FOLDER_ID);
+  const doneFolder = DriveApp.getFolderById(env.DONE_OCR_FOLDER_ID);
+  const errorFolder = DriveApp.getFolderById(env.ERROR_OCR_FOLDER_ID);
 
-  // 関数の存在確認
-  console.log("runOcr関数の存在:", typeof runOcr);
-  console.log("extractDataFromAI関数の存在:", typeof extractDataFromAI);
+  const files = sourceFolder.getFiles();
+  const extractedResults: AIExtractedData[] = [];
 
-  // 実行前確認
-  console.log("runOcr実行前");
-  const ocrResults = runOcr();
-  console.log("runOcr実行後");
+  // エラー集計用カウンタ
+  let ocrErrorCount = 0;
+  let aiErrorCount = 0;
+  let totalFiles = 0;
 
-  // 結果確認
-  console.log("ocrResultsの型:", typeof ocrResults);
-  console.log("ocrResultsはArray:", Array.isArray(ocrResults));
-  console.log("ocrResults:", ocrResults);
-  console.log("OCR結果数:", ocrResults ? ocrResults.length : "undefined");
+  while (files.hasNext()) {
+    const file = files.next();
+    totalFiles++;
 
-  const extractedResults = [];
+    try {
+      const ocrText = runOcr(file);
+      if (!ocrText || ocrText === "テキスト抽出失敗") {
+        ocrErrorCount++;
+        throw new Error("OCR失敗");
+      }
 
-  if (ocrResults && Array.isArray(ocrResults) && ocrResults.length > 0) {
-    console.log("処理ループ開始");
-    for (let i = 0; i < ocrResults.length; i++) {
-      const ocrText = ocrResults[i];
-      console.log(`=== 処理${i + 1}/${ocrResults.length}開始 ===`);
-      console.log("OCRテキスト長さ:", ocrText.length);
-      console.log("OCRテキスト先頭:", ocrText.substring(0, 50));
+      const extracted = extractDataFromAI(ocrText);
+      if (!extracted) {
+        aiErrorCount++;
+        throw new Error("AI抽出失敗");
+      }
 
-      const result = extractDataFromAI(ocrText);
-      console.log("AI抽出結果:", result);
-        // 結果を格納
-      extractedResults.push(result);
+      extractedResults.push(extracted);
+      doneFolder.createFile(file.getBlob());
+      file.setTrashed(true);
+    } catch (e) {
+      // 既にエラー件数は増やしているのでここではログだけ
+      errorFolder.createFile(file.getBlob());
+      file.setTrashed(true);
+      console.error(`ファイル処理エラー: ${file.getName()}`, e);
     }
-
-    // nullを除外してから出力
-const validResults = extractedResults.filter(
-  (item): item is AIExtractedData => item !== null
-);
-
-    // スプレッドシートに出力
-    outputToSheet(validResults);
-    console.log("outputToSheet 実行完了");
-
-  } else {
-    console.log("OCR結果が空または無効です");
-    console.log("ocrResultsの詳細:", JSON.stringify(ocrResults));
   }
 
-  console.log("=== main関数終了 ===");
+  if (extractedResults.length > 0) {
+    outputToSheet(extractedResults);
+  }
+
+  // 処理結果メッセージ作成
+  const ui = SpreadsheetApp.getUi();
+  const successCount = extractedResults.length;
+  const errorCount = ocrErrorCount + aiErrorCount;
+
+  let message = `実行完了\n総ファイル数: ${totalFiles}\n正常処理件数: ${successCount}\n処理エラー件数: ${errorCount}\n`;
+
+  if (errorCount > 0) {
+    message += "エラー内訳:\n";
+    if (ocrErrorCount > 0) message += ` - OCRエラー: ${ocrErrorCount}件\n`;
+    if (aiErrorCount > 0) message += ` - 項目抽出エラー: ${aiErrorCount}件\n`;
+  }
+
+  // ポップアップ表示
+  ui.alert(message);
 }
