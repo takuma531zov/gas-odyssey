@@ -1,8 +1,10 @@
 import type { AIExtractedData } from "./types";
+import { getCurrentDate } from "../../common/src/utils";
 
 export function outputToSheet(data: AIExtractedData[]): void {
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = spreadsheet.getSheets()[0]; // 最初のシートを取得
+  const now = getCurrentDate(); // ← JSTの文字列で日時を取得
 
 
  type RowData = {
@@ -25,8 +27,8 @@ data.forEach(item => {
         month,
         day,
         kind: "credit",
-        // 実際にシートに出力する値の配列（A列空白・月・日・店舗名・空白・金額）
-        values: ["", month, day, 表示用店舗名, "", 金額],
+        // 実際にシートに出力する値の配列（A列空白・月・日・店舗名・空白・金額・空白・処理日時）
+        values: ["", month, day, 表示用店舗名, "", 金額, "", now],
       });
     });
   } else {
@@ -44,7 +46,7 @@ data.forEach(item => {
           month,
           day,
           kind: "receipt",
-          values: ["", month, day, `${店舗名} 税率10%`, "", amount10],
+          values: ["", month, day, `${店舗名} 税率10%`, "", amount10, "", now],
         });
       }
       if (amount8 > 0) {
@@ -54,7 +56,7 @@ data.forEach(item => {
           month,
           day,
           kind: "receipt",
-          values: ["", month, day, `${店舗名} 税率8%`, "", value],
+          values: ["", month, day, `${店舗名} 税率8%`, "", value, "", now],
         });
       }
     } else {
@@ -63,7 +65,7 @@ data.forEach(item => {
         month,
         day,
         kind: "receipt",
-        values: ["", month, day, 店舗名, "", 合計金額税込],
+        values: ["", month, day, 店舗名, "", 合計金額税込, "", now],
       });
     }
   }
@@ -92,3 +94,4 @@ if (valuesOnly.length > 0) {
   sheet.getRange(startRow, 1, valuesOnly.length, 1).insertCheckboxes(); // A列にチェックボックスを追加
 }
 }
+
