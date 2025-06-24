@@ -48,7 +48,7 @@ function main() {
   }
 
   if (extractedResults.length > 0) {
-    outputToSheet(extractedResults);
+    outputToSheet(extractedResults.flat());
   }
 
   // 処理結果メッセージ作成
