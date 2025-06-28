@@ -10,11 +10,11 @@ export type ReceiptData = {
 export type CreditCardDataItem = {
   引き落とし日: string;
   店舗名: string;
+  品目: string;
   カード名: string;
   利用日: string;
   金額: string;
-  表示用店舗名: string;
 };
 
-// ★ ReceiptData も配列で返す前提に統一！
+// ★ CreditCardDataにみ配列で返す前提に統一！
 export type AIExtractedData = (ReceiptData | CreditCardDataItem)[];
