@@ -3,7 +3,8 @@ import * as env from "./env";
 import { extractDataFromAI } from "./aiExtractor";
 import { outputToSheet } from "./outputToSheet";
 import type { AIExtractedData } from "./types";
-
+import { sortByDate } from "./sort";
+import { clearAllData } from "./reset";
 // メイン処理
 async function main() {
   const sourceFolder = DriveApp.getFolderById(env.OCR_FOLDER_ID);
@@ -109,6 +110,15 @@ async function debugSingleFile() {
     console.log("処理対象ファイルがありません");
   }
 }
+
+function sort() {
+  sortByDate();
+}
+
+function reset() {
+  clearAllData();
+}
+
 // import { runOcr } from "./ocr";
 // import * as env from "./env";
 // import { extractDataFromAI } from "./aiExtractor";
