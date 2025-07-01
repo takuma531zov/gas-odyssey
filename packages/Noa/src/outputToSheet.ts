@@ -15,40 +15,14 @@ export function outputToSheet(data: AIExtractedData): void {
 
   const allRows: RowData[] = [];
 
-  for (const item of data) {
-    if ("引き落とし日" in item) {
-      // クレジットカード明細
-      const { 引き落とし日, 店舗名, 品目, カード名, 利用日, 金額 } = item;
+  // クレジットカード明細を分離して逆順処理
+  const creditCardItems = data.filter(item => "引き落とし日" in item).reverse();
+  const receiptItems = data.filter(item => "日付" in item);
 
-      // 安全な日付分割処理
-      if (!引き落とし日 || typeof 引き落とし日 !== "string") {
-        console.error("引き落とし日が無効です:", 引き落とし日);
-        continue;
-      }
-
-      const dateParts = 引き落とし日.split("/");
-      if (dateParts.length !== 2) {
-        console.error("引き落とし日の形式が無効です:", 引き落とし日);
-        continue;
-      }
-
-      const [month, day] = dateParts;
-      if (!month || !day) {
-        console.error("月または日が無効です:", { month, day });
-        continue;
-      }
-
-      // 表示用店舗名を動的生成: "店舗名 品目（カード名 利用日）"
-      const displayStoreName = `${店舗名 || ""} ${品目 || ""}（${カード名 || ""} ${利用日 || ""}）`;
-
-      allRows.push({
-        month,
-        day,
-        kind: "credit",
-        values: ["", month, day, displayStoreName, "", 金額 || "", "", now],
-      });
-    } else if ("日付" in item) {
-      // レシート
+  // レシートを処理
+  for (const item of receiptItems) {
+    if ("日付" in item) {
+      // レシート処理（既存ロジック）
       const { 日付, 店舗名, 合計金額税込, 軽減税率対象あり } = item;
 
       // 安全な日付分割処理
@@ -126,6 +100,42 @@ export function outputToSheet(data: AIExtractedData): void {
           ],
         });
       }
+    }
+  }
+
+  // クレジットカード明細を処理（逆順）
+  for (const item of creditCardItems) {
+    if ("引き落とし日" in item) {
+      // クレジットカード明細
+      const { 引き落とし日, 店舗名, 品目, カード名, 利用日, 金額 } = item;
+
+      // 安全な日付分割処理
+      if (!引き落とし日 || typeof 引き落とし日 !== "string") {
+        console.error("引き落とし日が無効です:", 引き落とし日);
+        continue;
+      }
+
+      const dateParts = 引き落とし日.split("/");
+      if (dateParts.length !== 2) {
+        console.error("引き落とし日の形式が無効です:", 引き落とし日);
+        continue;
+      }
+
+      const [month, day] = dateParts;
+      if (!month || !day) {
+        console.error("月または日が無効です:", { month, day });
+        continue;
+      }
+
+      // 表示用店舗名を動的生成: "店舗名 品目（カード名 利用日）"
+      const displayStoreName = `${店舗名 || ""} ${品目 || ""}（${カード名 || ""} ${利用日 || ""}）`;
+
+      allRows.push({
+        month,
+        day,
+        kind: "credit",
+        values: ["", month, day, displayStoreName, "", 金額 || "", "", now],
+      });
     }
   }
 

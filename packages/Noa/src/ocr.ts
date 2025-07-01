@@ -367,10 +367,14 @@ async function performOCR(blob: GoogleAppsScript.Base.Blob): Promise<string> {
       {
         image: { content: base64Image },
         features: [
-          { type: "TEXT_DETECTION" },
-          { type: "DOCUMENT_TEXT_DETECTION" },
+          { type: "DOCUMENT_TEXT_DETECTION", maxResults: 1 },
         ],
-        imageContext: { languageHints: ["ja", "en"] },
+        imageContext: { 
+          languageHints: ["ja", "en"],
+          textDetectionParams: {
+            enableTextDetectionConfidenceScore: true,
+          }
+        },
       },
     ],
   };

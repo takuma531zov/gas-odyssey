@@ -5,6 +5,7 @@ import { outputToSheet } from "./outputToSheet";
 import type { AIExtractedData } from "./types";
 import { sortByDate } from "./sort";
 import { clearAllData } from "./reset";
+import { processCreditCardCSV, isCSVFile } from "./csvProcessor";
 // メイン処理
 async function main() {
   const sourceFolder = DriveApp.getFolderById(env.OCR_FOLDER_ID);
@@ -26,24 +27,39 @@ async function main() {
     console.log(`処理中 (${totalFiles}): ${file.getName()}`); // 進捗表示のみ
 
     try {
-      const ocrText = await runOcr(file, false); // デバッグOFF
+      // CSVファイルの場合は直接処理
+      if (isCSVFile(file)) {
+        console.log(`CSV処理: ${file.getName()}`);
+        const csvData = processCreditCardCSV(file);
+        
+        if (csvData.length > 0) {
+          extractedResults.push(csvData);
+          doneFolder.createFile(file.getBlob());
+          file.setTrashed(true);
+          console.log(`✅ CSV処理完了: ${file.getName()} (${csvData.length}件)`);
+        } else {
+          throw new Error("CSV処理失敗");
+        }
+      } else {
+        // 画像ファイルの場合は従来の OCR + AI処理
+        const ocrText = await runOcr(file, false);
 
-      if (!ocrText || ocrText === "テキスト抽出失敗") {
-        ocrErrorCount++;
-        throw new Error("OCR失敗");
+        if (!ocrText || ocrText === "テキスト抽出失敗") {
+          ocrErrorCount++;
+          throw new Error("OCR失敗");
+        }
+
+        const extracted = extractDataFromAI(ocrText);
+        if (!extracted) {
+          aiErrorCount++;
+          throw new Error("AI抽出失敗");
+        }
+
+        extractedResults.push(extracted);
+        doneFolder.createFile(file.getBlob());
+        file.setTrashed(true);
+        console.log(`✅ 処理完了: ${file.getName()}`);
       }
-
-      const extracted = extractDataFromAI(ocrText);
-      if (!extracted) {
-        aiErrorCount++;
-        throw new Error("AI抽出失敗");
-      }
-
-      extractedResults.push(extracted);
-      doneFolder.createFile(file.getBlob());
-      file.setTrashed(true);
-
-      console.log(`✅ 処理完了: ${file.getName()}`); // 成功時のみ
 
     } catch (e) {
       errorFolder.createFile(file.getBlob());
@@ -85,26 +101,42 @@ async function debugSingleFile() {
     const file = files.next();
     console.log(`=== デバッグ対象: ${file.getName()} ===`);
 
-    // デバッグモードでOCR実行
-    const ocrText = await runOcr(file, true);
-
-    if (ocrText && ocrText.length >= 100) {
-      console.log("✅ OCR成功");
-
-      // AI抽出もテスト
+    // CSVファイルの場合は直接処理
+    if (isCSVFile(file)) {
+      console.log("CSV処理開始");
       try {
-        const extracted = extractDataFromAI(ocrText);
-        if (extracted) {
-          console.log("✅ AI抽出成功");
-          console.log("抽出結果:", JSON.stringify(extracted, null, 2));
+        const csvData = processCreditCardCSV(file);
+        if (csvData.length > 0) {
+          console.log("✅ CSV処理成功");
+          console.log(`抽出結果: ${csvData.length}件`);
+          console.log(JSON.stringify(csvData.slice(0, 3), null, 2)); // 最初の3件のみ表示
         } else {
-          console.log("❌ AI抽出失敗");
+          console.log("❌ CSV処理失敗: データなし");
         }
       } catch (error) {
-        console.log("❌ AI抽出エラー:", error);
+        console.log("❌ CSV処理エラー:", error);
       }
     } else {
-      console.log("❌ OCR失敗または文字数不足");
+      // 画像ファイルの場合は従来のOCR処理
+      const ocrText = await runOcr(file, true);
+
+      if (ocrText && ocrText.length >= 100) {
+        console.log("✅ OCR成功");
+
+        try {
+          const extracted = extractDataFromAI(ocrText);
+          if (extracted) {
+            console.log("✅ AI抽出成功");
+            console.log("抽出結果:", JSON.stringify(extracted, null, 2));
+          } else {
+            console.log("❌ AI抽出失敗");
+          }
+        } catch (error) {
+          console.log("❌ AI抽出エラー:", error);
+        }
+      } else {
+        console.log("❌ OCR失敗または文字数不足");
+      }
     }
   } else {
     console.log("処理対象ファイルがありません");
