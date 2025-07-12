@@ -54,6 +54,8 @@ importers:
 
   packages/hoge: {}
 
+  packages/invoiceSystem: {}
+
   packages/sm-judgment-availability: {}
 
 packages:
