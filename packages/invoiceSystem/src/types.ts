@@ -14,8 +14,10 @@ export type InvoiceData = {
 export type SpreadsheetOutputData = {
   請求日: string;
   請求書番号: string;
-  住所: string;
   入金締切日: string;
-  金額: number;
   備考: string;
+  ステータス: string;
+  摘要: string;
+  数量: string;
+  単価: string;
 };

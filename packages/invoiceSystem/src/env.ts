@@ -5,8 +5,8 @@ export const SCRIPT_PROPERTIES = {
   HEADER_ROWS: "HEADER_ROWS"
 } as const;
 
-export const SHEET_NAME = getScriptPropertyValue(SCRIPT_PROPERTIES.SHEET_NAME) || "請求一覧";
-export const HEADER_ROWS = parseInt(getScriptPropertyValue(SCRIPT_PROPERTIES.HEADER_ROWS) || "4");
+export const SHEET_NAME = getScriptPropertyValue(SCRIPT_PROPERTIES.SHEET_NAME) ;
+export const HEADER_ROWS = parseInt(getScriptPropertyValue(SCRIPT_PROPERTIES.HEADER_ROWS));
 
 export const COLUMN_MAPPING = {
   請求日: 13,    // M列
