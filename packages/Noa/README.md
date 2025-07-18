@@ -25,3 +25,6 @@
 
 ## 開発
 開発手順については、[こちら](/README.md)を参照
+
+
+https://docs.google.com/spreadsheets/d/1d-rkkDYrKmYBfSdbbvEBI8WfnG2DGq-iGyJFHS4jYek/edit?gid=0#gid=0
