@@ -6,6 +6,16 @@ import type { AIExtractedData } from "./types";
 import { sortByDate } from "./sort";
 import { clearAllData } from "./reset";
 import { processCreditCardCSV, isCSVFile } from "./csvProcessor";
+
+// 実行コンテキストを判定してUI使用可能か確認
+function isUIAvailable(): boolean {
+  try {
+    SpreadsheetApp.getUi();
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
 // メイン処理
 async function main() {
   const sourceFolder = DriveApp.getFolderById(env.OCR_FOLDER_ID);
@@ -73,7 +83,6 @@ async function main() {
   }
 
   // 処理結果メッセージ作成
-  const ui = SpreadsheetApp.getUi();
   const successCount = extractedResults.length;
   const errorCount = ocrErrorCount + aiErrorCount;
 
@@ -88,8 +97,11 @@ async function main() {
   // 最終結果をコンソールにも出力
   console.log(message);
 
-  // ポップアップ表示
-  ui.alert(message);
+  // UI使用可能な場合のみポップアップ表示
+  if (isUIAvailable()) {
+    const ui = SpreadsheetApp.getUi();
+    ui.alert(message);
+  }
 }
 
 // デバッグ専用の関数（開発時のみ使用）
