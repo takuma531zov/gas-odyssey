@@ -801,13 +801,21 @@ private static readonly CONTACT_KEYWORDS = [
 
   private static findEmbeddedHTMLForm(html: string): string | null {
     // Look for HTML form elements with contact-related fields
-    const formRegex = /<form[^>]*>([\s\S]*?)<\/form>/gi;
+    const formRegex = /<form([^>]*?)>([\s\S]*?)<\/form>/gi;
     let formMatch;
 
     while ((formMatch = formRegex.exec(html)) !== null) {
-      const formContent = formMatch[1];
+      const formTag = formMatch[1];
+      const formContent = formMatch[2];
 
       if (!formContent) continue;
+
+      // Phase 1: 明確な除外パターンをチェック
+      const excludeResult = this.shouldExcludeForm(formTag || '', formContent, html, formMatch.index);
+      if (excludeResult.shouldExclude) {
+        console.log(`Form excluded: ${excludeResult.reason}`);
+        continue;
+      }
 
       // Contact form keywords that indicate this is a contact form
       const contactFieldKeywords = [
@@ -826,11 +834,86 @@ private static readonly CONTACT_KEYWORDS = [
 
       // If form contains 2 or more contact-related keywords, consider it a contact form
       if (matchingKeywords.length >= 2) {
+        console.log(`Valid contact form detected (priority: ${excludeResult.priority})`);
         return 'embedded_contact_form_on_page';
       }
     }
 
     return null;
+  }
+
+  // フォーム除外判定の新メソッド
+  private static shouldExcludeForm(formTag: string, formContent: string, html: string, formIndex: number): { shouldExclude: boolean, reason: string, priority: string } {
+    const lowerFormTag = formTag.toLowerCase();
+    const lowerFormContent = formContent.toLowerCase();
+    
+    // Method属性を抽出
+    const methodMatch = lowerFormTag.match(/method\s*=\s*['"]([^'"]*)['"]/);
+    const method = methodMatch ? methodMatch[1] : null;
+    
+    // Action属性を抽出
+    const actionMatch = lowerFormTag.match(/action\s*=\s*['"]([^'"]*)['"]/);
+    const action = actionMatch ? actionMatch[1] : null;
+
+    // 1. GET method + 検索系キーワードで除外
+    if (method === 'get') {
+      const searchKeywords = ['search', 'filter', 'sort', '検索', 'フィルター', 'ソート', 'find', 'query'];
+      const hasSearchKeyword = searchKeywords.some(keyword => 
+        lowerFormContent.includes(keyword) || (action && action.toLowerCase().includes(keyword))
+      );
+      
+      if (hasSearchKeyword) {
+        return { shouldExclude: true, reason: 'GET method with search keywords', priority: 'exclude' };
+      }
+    }
+
+    // 2. Action属性で明確な非問い合わせURLを除外
+    if (action) {
+      const excludeActions = [
+        '/search', '/filter', '/sort', 
+        '?search', '?q=', '?query=',
+        '/newsletter', '/subscribe', '/download', '/signup',
+        '/login', '/register', '/member',
+        // Google Forms formResponse URLs (submission completion URLs)
+        '/formresponse', 'formresponse'
+      ];
+      
+      const hasExcludeAction = excludeActions.some(pattern => action.toLowerCase().includes(pattern));
+      if (hasExcludeAction) {
+        return { shouldExclude: true, reason: `Excluded action: ${action}`, priority: 'exclude' };
+      }
+    }
+
+    // 3. フォーム周辺コンテキストでの除外キーワード（前後500文字を確認）
+    const contextStart = Math.max(0, formIndex - 500);
+    const contextEnd = Math.min(html.length, formIndex + formContent.length + 500);
+    const context = html.substring(contextStart, contextEnd).toLowerCase();
+    
+    const excludeContextKeywords = [
+      'newsletter', 'subscribe', 'メルマガ', 'ニュースレター',
+      'download', 'ダウンロード', '資料請求', '資料ダウンロード',
+      'survey', 'questionnaire', 'アンケート', 'feedback',
+      'search', 'filter', '検索', 'フィルター'
+    ];
+    
+    const foundExcludeKeywords = excludeContextKeywords.filter(keyword => context.includes(keyword));
+    if (foundExcludeKeywords.length > 0) {
+      return { shouldExclude: true, reason: `Context keywords: ${foundExcludeKeywords.join(', ')}`, priority: 'exclude' };
+    }
+
+    // 4. 優先度の決定（除外されない場合）
+    let priority = 'medium';
+    
+    if (method === 'post') {
+      priority = 'high';
+    } else if (!method) {
+      // method未指定の場合、問い合わせコンテキストがあるかチェック
+      const contactContextKeywords = ['contact', 'inquiry', 'お問い合わせ', '問い合わせ', 'ご相談'];
+      const hasContactContext = contactContextKeywords.some(keyword => context.includes(keyword));
+      priority = hasContactContext ? 'medium' : 'low';
+    }
+
+    return { shouldExclude: false, reason: `Valid form (method: ${method || 'unspecified'}, action: ${action || 'unspecified'})`, priority };
   }
 
   private static fetchWithTimeout(url: string, _timeoutMs: number = 5000) {
