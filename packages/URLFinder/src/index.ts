@@ -543,27 +543,110 @@ private static readonly CONTACT_KEYWORDS = [
     return isHomepage;
   }
 
-  // フォーム関連コンテンツの存在を確認
-  private static hasSignificantFormContent(html: string): boolean {
-    const formIndicators = [
-      'お名前', 'メールアドレス', '電話番号', 'ご質問', 'お問い合わせ内容',
-      'name', 'email', 'phone', 'message', 'inquiry',
-      '<input', '<textarea', '<select', 'type="text"', 'type="email"',
-      '送信', 'submit', '確認', 'confirm', '申し込み', 'apply'
-    ];
-
+  // 統合フォーム解析：フォーム要素 + キーワード + 送信要素の3要素統合
+  private static analyzeFormElements(html: string): { isValidForm: boolean, reasons: string[], keywords: string[] } {
     const lowerHtml = html.toLowerCase();
-    let foundCount = 0;
+    const foundReasons: string[] = [];
+    const foundKeywords: string[] = [];
 
-    for (const indicator of formIndicators) {
-      if (lowerHtml.includes(indicator.toLowerCase())) {
-        foundCount++;
+    // A. フォーム関連コンテンツの検出
+    const formElements = [
+      'お名前', 'メールアドレス', '電話番号', 'ご質問', 'お問い合わせ内容', '会社名',
+      'name', 'email', 'phone', 'message', 'inquiry', 'company',
+      '<input', '<textarea', '<select', 'type="text"', 'type="email"', 'type="tel"'
+    ];
+    
+    let formElementCount = 0;
+    for (const element of formElements) {
+      if (lowerHtml.includes(element.toLowerCase())) {
+        formElementCount++;
       }
     }
 
-    // 3つ以上のフォーム関連要素が見つかった場合、有効なフォームページとみなす
-    console.log(`Form content indicators found: ${foundCount}`);
-    return foundCount >= 3;
+    const hasFormElements = formElementCount >= 3;
+    if (hasFormElements) {
+      foundReasons.push(`form_elements:${formElementCount}`);
+      foundKeywords.push('form_elements');
+    }
+
+    // B. 問い合わせキーワードの検出
+    const contactKeywords = [
+      'お問い合わせ', '問い合わせ', 'お問合せ', '問合せ',
+      'contact', 'inquiry', 'ご相談', '相談'
+    ];
+    
+    const foundContactKeywords = contactKeywords.filter(keyword =>
+      lowerHtml.includes(keyword.toLowerCase())
+    );
+    
+    const hasContactKeywords = foundContactKeywords.length >= 1;
+    const hasPrimaryKeywords = ['お問い合わせ', '問い合わせ', 'contact', 'inquiry'].some(keyword => 
+      lowerHtml.includes(keyword.toLowerCase())
+    );
+
+    if (hasContactKeywords) {
+      foundReasons.push(`contact_keywords:${foundContactKeywords.length}`);
+      foundKeywords.push('contact_keywords');
+    }
+
+    // C. 送信要素の検出（新規追加）
+    const submitElements = [
+      '<input type="submit"', '<button type="submit"', '<input[^>]*type=["\']submit',
+      '送信', 'submit', '確認', 'confirm', '申し込み', 'apply', '送る', 'send',
+      'onclick.*submit', 'onclick.*confirm'
+    ];
+    
+    let submitCount = 0;
+    for (const submitElement of submitElements) {
+      if (lowerHtml.includes(submitElement.toLowerCase()) || lowerHtml.match(new RegExp(submitElement.toLowerCase()))) {
+        submitCount++;
+      }
+    }
+
+    const hasSubmitElements = submitCount >= 1;
+    if (hasSubmitElements) {
+      foundReasons.push(`submit_elements:${submitCount}`);
+      foundKeywords.push('submit_elements');
+    }
+
+    // 統合判定ロジック
+    let isValid = false;
+    
+    // 高確度：全要素存在
+    if (hasFormElements && hasContactKeywords && hasSubmitElements) {
+      foundReasons.push('high_confidence:all_elements');
+      isValid = true;
+    }
+    // 中確度：フォーム構造完備（要素+送信）
+    else if (hasFormElements && hasSubmitElements) {
+      foundReasons.push('medium_confidence:form_structure_complete');
+      isValid = true;
+    }
+    // 中確度：送信可能なコンテンツ（キーワード+送信）
+    else if (hasPrimaryKeywords && hasSubmitElements) {
+      foundReasons.push('medium_confidence:submittable_content');
+      isValid = true;
+    }
+    // 従来互換：フォーム要素多数存在
+    else if (formElementCount >= 5) {
+      foundReasons.push('legacy_compatibility:many_form_elements');
+      foundKeywords.push('form_content');
+      isValid = true;
+    }
+
+    console.log(`Form analysis - Elements:${formElementCount}, Keywords:${foundContactKeywords.length}, Submit:${submitCount}, Valid:${isValid}`);
+    
+    return {
+      isValidForm: isValid,
+      reasons: foundReasons,
+      keywords: foundKeywords
+    };
+  }
+
+  // 従来のhasSignificantFormContentは統合版に置き換え済み（互換性のため残置）
+  private static hasSignificantFormContent(html: string): boolean {
+    const analysis = this.analyzeFormElements(html);
+    return analysis.isValidForm;
   }
 
   // ページ内に問い合わせ関連のリンクが存在するかチェック（BtoB営業用途特化）
@@ -1057,33 +1140,11 @@ private static readonly CONTACT_KEYWORDS = [
       return { actualFormUrl: pageUrl, keywords: ['embedded_form'] };
     }
 
-    // 2. フォーム関連コンテンツ検証（自ページ優先）
-    const hasSignificantFormContent = this.hasSignificantFormContent(html);
-    if (hasSignificantFormContent) {
-      return { actualFormUrl: pageUrl, keywords: ['form_content'] };
-    }
-
-    // 3. 問い合わせワードチェック（キーワード検出）
-    const contactPageKeywords = [
-      'お問い合わせ', '問い合わせ', 'お問合せ', '問合せ',
-      'contact', 'inquiry', 'ご相談', '相談'
-    ];
-
-    const lowerHtml = html.toLowerCase();
-    const foundKeywords = contactPageKeywords.filter(keyword =>
-      lowerHtml.includes(keyword.toLowerCase())
-    );
-
-    console.log(`Contact page keywords found: ${foundKeywords.join(', ')} (${foundKeywords.length} total)`);
-
-    // より厳しい条件：2つ以上のキーワード、または特定の重要キーワード
-    const primaryContactKeywords = ['お問い合わせ', '問い合わせ', 'contact', 'inquiry'];
-    const hasPrimaryKeyword = primaryContactKeywords.some(keyword => 
-      lowerHtml.includes(keyword.toLowerCase())
-    );
-
-    if (foundKeywords.length >= 2 || hasPrimaryKeyword) {
-      return { actualFormUrl: pageUrl, keywords: ['contact_keywords', ...foundKeywords] };
+    // 2. 統合検証：フォーム関連コンテンツ + キーワード + 送信要素
+    const formAnalysis = this.analyzeFormElements(html);
+    if (formAnalysis.isValidForm) {
+      console.log(`Integrated form validation successful: ${formAnalysis.reasons.join(', ')}`);
+      return { actualFormUrl: pageUrl, keywords: formAnalysis.keywords };
     }
 
     // 4. Google Forms検索（検証付き - 優先度を下げる）
@@ -1480,37 +1541,17 @@ function processContactPageFinder() {
 }
 
 function main() {
-  // Test URLs for hybrid strategy validation
-  const urls = [
-    // Standard /contact patterns (should work with URL guessing)
-    'https://www.inclusive.co.jp/',    // 期待: /contact
-    'https://www.3kaku.co.jp/',        // 期待: /sales-contact
-    'https://www.maxmouse.co.jp/',     // 期待: /contact/other
+  // Test URL for integrated form validation
+  const testUrl = 'http://icentertainment.jp/';
+  
+  console.log(`\n=== Testing integrated form validation: ${testUrl} ===`);
+  const result = findContactPage(testUrl);
 
-    // Special patterns (should work with enhanced URL patterns)
-    'https://www.ye-p.co.jp/',         // /form/contact パターン
-    'https://www.mode2.co.jp/',        // 2段階リンク構造（フォールバック）
-
-    // Other test cases
-    'https://www.mstage-cmc.jp/',
-    'https://www.coresept.co.jp/',
-    'https://crossmedia.co.jp/',
-    'https://fullout.jp/',
-    'https://hallucigenia.co.jp/',
-    'https://cijidas.jp/',
-    'https://moltsinc.co.jp/company/staut/'
-  ];
-
-  urls.forEach(targetUrl => {
-    console.log(`\n=== Testing: ${targetUrl} ===`);
-    const result = findContactPage(targetUrl);
-
-    console.log('=== Contact Page Finder Results ===');
-    console.log(`Target URL: ${targetUrl}`);
-    console.log(`Contact URL: ${result.contactUrl}`);
-    console.log(`Actual Form URL: ${result.actualFormUrl}`);
-    console.log(`Found Keywords: ${result.foundKeywords.join(', ')}`);
-    console.log(`Search Method: ${result.searchMethod}`);
-    console.log('=====================================');
-  });
+  console.log('=== Contact Page Finder Results ===');
+  console.log(`Target URL: ${testUrl}`);
+  console.log(`Contact URL: ${result.contactUrl}`);
+  console.log(`Actual Form URL: ${result.actualFormUrl}`);
+  console.log(`Found Keywords: ${result.foundKeywords.join(', ')}`);
+  console.log(`Search Method: ${result.searchMethod}`);
+  console.log('=====================================');
 }
