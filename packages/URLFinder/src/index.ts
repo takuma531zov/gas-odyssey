@@ -6,46 +6,204 @@ interface ContactPageResult {
 }
 
 class ContactPageFinder {
-// リンクテキスト検索 & URL内検索用キーワード（BtoB営業用途特化）
-private static readonly CONTACT_KEYWORDS = [
-  // 英語キーワード
-  'contact', 'contact us', 'inquiry', 'support',
-  // 日本語キーワード（リンクテキスト用）
-  'お問い合わせ', '問い合わせ', 'お問合せ', '問合せ', 'ご相談', '相談', 'お客様窓口',
-  // フォーム関連
-  'form', 'フォーム',
+// 候補ページ記録システム
+private static candidatePages: Array<{
+  url: string,
+  reason: string,
+  score: number,
+  structuredForms: number,
+  legacyScore: number
+}> = [];
+
+// 200 OK URLリスト（フォールバック用）
+private static validUrls: Array<{ url: string, pattern: string }> = [];
+
+// BtoB営業特化：問い合わせキーワード階層化
+private static readonly HIGH_PRIORITY_CONTACT_KEYWORDS = [
+  // 直接的問い合わせ（最高優先度）
+  'contact', 'contact us', 'contact form', 'inquiry', 'enquiry',
+  'get in touch', 'reach out', 'send message', 'message us',
+  'お問い合わせ', '問い合わせ', 'お問合せ', '問合せ',
+  'ご相談', '相談', 'お客様窓口', 'お問い合わせフォーム',
+  'お問い合わせはこちら', '問い合わせフォーム',
   // URL内検索用（日本語エンコード版）
   '%E3%81%8A%E5%95%8F%E3%81%84%E5%90%88%E3%82%8F%E3%81%9B', // お問い合わせ
   '%E5%95%8F%E3%81%84%E5%90%88%E3%82%8F%E3%81%9B', // 問い合わせ
   '%E3%81%8A%E5%95%8F%E5%90%88%E3%81%9B', // お問合せ
   '%E5%95%8F%E5%90%88%E3%81%9B' // 問合せ
 ];
+
+private static readonly MEDIUM_PRIORITY_CONTACT_KEYWORDS = [
+  // 間接的問い合わせ（中優先度）
+  'form', 'フォーム', 'submit', 'send', 'mail form',
+  'feedback', 'quote request',
+  'お見積もり', '資料請求'
+];
+
+private static readonly EXCLUDED_KEYWORDS = [
+  // BtoB営業に不適切なキーワード（除外対象）
+  'support', 'help', 'about', 'company', 'info',
+  'download', 'material', 'recruit', 'career', 'job', 'hire',
+  'newsletter', 'subscribe', 'メルマガ', 'ニュースレター',
+  'seminar', 'webinar', 'event', 'workshop', 'セミナー',
+  'trial', 'demo', 'デモ', 'お試し', '体験',
+  'our services', 'service lineup', 'サービス一覧', 'サービス紹介',
+  'customer support', 'technical support', 'help desk',
+  'サポート', 'ヘルプ', 'アフターサービス', 'メンテナンス'
+];
+
+// 後方互換性のため従来のキーワードも保持
+private static readonly CONTACT_KEYWORDS = [
+  ...this.HIGH_PRIORITY_CONTACT_KEYWORDS,
+  ...this.MEDIUM_PRIORITY_CONTACT_KEYWORDS
+];
   // URL推測専用パターン（URL推測でテストするパス）
   private static readonly HIGH_PRIORITY_PATTERNS = [
 
-    '/contact/', '/contact', '/inquiry/', '/form','/form/', '/inquiry', '/contact-us/', '/contact-us',
+    '/contact/', '/contact',  '/contact.php', '/inquiry/','/inquiry', '/inquiry.php',  '/form','/form/',  '/form.php','/contact-us/', '/contact-us',
     '/%E3%81%8A%E5%95%8F%E3%81%84%E5%90%88%E3%82%8F%E3%81%9B/', // お問い合わせ
-    '/%E3%81%8A%E5%95%8F%E3%81%84%E5%90%88%E3%82%8F%E3%81%9B',
     '/%E5%95%8F%E3%81%84%E5%90%88%E3%82%8F%E3%81%9B/', // 問い合わせ
-    '/%E5%95%8F%E3%81%84%E5%90%88%E3%82%8F%E3%81%9B',
 
   ];
 
 
 
-  // タイムアウト設定（ミリ秒）
-  private static readonly MAX_TOTAL_TIME = 30000;  // 全体で30秒
+  // 問い合わせ純度スコア計算（BtoB営業特化・重複防止版）
+  private static calculateContactPurity(url: string, linkText: string, context: string = ''): { score: number, reasons: string[] } {
+    let score = 0;
+    const reasons: string[] = [];
+    const foundKeywords = new Set<string>(); // 重複防止用
+
+    const lowerUrl = url.toLowerCase();
+    const lowerLinkText = linkText.toLowerCase();
+
+    // 除外キーワードチェック（即座に低スコア）
+    for (const excludedKeyword of this.EXCLUDED_KEYWORDS) {
+      if (lowerUrl.includes(excludedKeyword.toLowerCase()) ||
+          lowerLinkText.includes(excludedKeyword.toLowerCase())) {
+        score -= 15;
+        reasons.push(`excluded:${excludedKeyword}`);
+        break; // 1つでも除外キーワードがあれば大幅減点
+      }
+    }
+
+    // 高優先度キーワード（最高純度・重複防止）
+    for (const keyword of this.HIGH_PRIORITY_CONTACT_KEYWORDS) {
+      const normalizedKeyword = keyword.toLowerCase();
+
+      if (lowerLinkText.includes(normalizedKeyword) && !foundKeywords.has(normalizedKeyword)) {
+        score += 10;
+        reasons.push(`high_priority_text:${keyword}`);
+        foundKeywords.add(normalizedKeyword);
+      } else if (lowerUrl.includes(normalizedKeyword) && !foundKeywords.has(normalizedKeyword)) {
+        score += 8;
+        reasons.push(`high_priority_url:${keyword}`);
+        foundKeywords.add(normalizedKeyword);
+      }
+
+      // テキストとURLの両方にある場合の重複防止ログ
+      if (lowerLinkText.includes(normalizedKeyword) && lowerUrl.includes(normalizedKeyword) && foundKeywords.has(normalizedKeyword)) {
+        console.log(`Prevented duplicate counting for keyword: ${keyword}`);
+      }
+    }
+
+    // 中優先度キーワード（中純度・重複防止）
+    for (const keyword of this.MEDIUM_PRIORITY_CONTACT_KEYWORDS) {
+      const normalizedKeyword = keyword.toLowerCase();
+
+      if (lowerLinkText.includes(normalizedKeyword) && !foundKeywords.has(normalizedKeyword)) {
+        score += 3;
+        reasons.push(`medium_priority_text:${keyword}`);
+        foundKeywords.add(normalizedKeyword);
+      } else if (lowerUrl.includes(normalizedKeyword) && !foundKeywords.has(normalizedKeyword)) {
+        score += 2;
+        reasons.push(`medium_priority_url:${keyword}`);
+        foundKeywords.add(normalizedKeyword);
+      }
+    }
+
+    // URL構造による純度ボーナス（強化版）
+    const contactUrlPatterns = [
+      '/contact/', '/inquiry/', '/sales-contact/', '/business-contact/',
+      '/contact-us/', '/get-in-touch/', '/reach-out/', '/問い合わせ/', '/お問い合わせ/'
+    ];
+
+    for (const pattern of contactUrlPatterns) {
+      if (lowerUrl.includes(pattern)) {
+        score += 15; // 5点から15点に強化
+        reasons.push(`strong_contact_url_structure:${pattern}`);
+        break; // 1つでもマッチすれば十分
+      }
+    }
+
+    // 不純物による減点（サービス系URL・強化版）
+    if (lowerUrl.includes('/service/')) {
+      score -= 10; // 5点から10点に強化
+      reasons.push('service_url_penalty');
+    } else if (lowerUrl.includes('/about/') || lowerUrl.includes('/company/') || lowerUrl.includes('/info/')) {
+      score -= 5;
+      reasons.push('impure_url_structure');
+    }
+
+    return { score, reasons };
+  }
+
+  // 早期終了用の閾値定義
+  private static readonly HIGH_CONFIDENCE_THRESHOLD = 15; // 高優先度 + コンテキストボーナス
+  private static readonly MEDIUM_CONFIDENCE_THRESHOLD = 10; // 高優先度キーワードのみ
+  private static readonly MINIMUM_ACCEPTABLE_THRESHOLD = 5; // 受容可能な最低スコア
+
+  // タイムアウト設定（ミリ秒）- スクリプトプロパティから動的取得
+  private static getMaxTotalTime(): number {
+    const properties = PropertiesService.getScriptProperties();
+    const maxTimeStr = properties.getProperty('MAX_TOTAL_TIME');
+
+    if (maxTimeStr) {
+      const maxTime = parseInt(maxTimeStr, 10);
+      if (!isNaN(maxTime) && maxTime > 0) {
+        console.log(`Using MAX_TOTAL_TIME from script properties: ${maxTime}ms`);
+        return maxTime;
+      } else {
+        console.log(`Invalid MAX_TOTAL_TIME value: ${maxTimeStr}, using default 30000ms`);
+      }
+    }
+
+    console.log('MAX_TOTAL_TIME not set in script properties, using default 30000ms');
+    return 30000; // デフォルト30秒
+  }
 
   private static readonly FORM_KEYWORDS = [
     'フォーム', 'form', '入力', '送信',
     'googleフォーム', 'google form', 'submit'
   ];
 
+  // 問い合わせ特化送信要素（厳格化）
+  private static readonly CONTACT_SUBMIT_ELEMENTS = [
+    // 日本語問い合わせ特化文言
+    'お問い合わせ送信', '問い合わせ送信', 'お問い合わせする', '問い合わせする',
+    'お問合せ送信', '問合せ送信', 'お問合せする', '問合せする',
+    'ご相談送信', '相談送信', 'ご相談する', '相談する',
+    'お問い合わせ', '問い合わせ', // ボタンテキストとして
+
+    // 英語問い合わせ特化文言
+    'contact us', 'send message', 'send inquiry', 'contact now',
+    'send contact', 'inquiry submit', 'contact submit',
+
+    // HTML属性での問い合わせ特化パターン
+    'name=".*contact.*submit', 'value=".*お問い合わせ', 'value=".*問い合わせ',
+    'value=".*contact', 'value=".*inquiry',
+    'onclick.*contact', 'onclick.*inquiry'
+  ];
+
 
   static findContactPage(baseUrl: string): ContactPageResult {
     const startTime = Date.now();
+    const maxTotalTime = this.getMaxTotalTime();
 
     try {
+      // 候補リストのリセット（新しい検索開始時）
+      this.resetCandidates();
+
       // SNSページの検出
       if (this.isSNSPage(baseUrl)) {
         console.log(`SNS page detected: ${baseUrl}, returning not found`);
@@ -91,7 +249,7 @@ private static readonly CONTACT_KEYWORDS = [
       }
 
       // Check remaining time
-      if (Date.now() - startTime > this.MAX_TOTAL_TIME) {
+      if (Date.now() - startTime > maxTotalTime) {
         console.log('Timeout reached during URL pattern search');
         return {
           contactUrl: null,
@@ -161,13 +319,8 @@ private static readonly CONTACT_KEYWORDS = [
         console.log(`Error in homepage analysis fallback: ${detailedError}`);
       }
 
-      console.log('All search methods failed - no contact page found');
-      return {
-        contactUrl: null,
-        actualFormUrl: null,
-        foundKeywords: ['not_found'],
-        searchMethod: 'not_found'
-      };
+      console.log('All search methods failed - checking candidate fallback');
+      return this.fallbackWithCandidates();
     } catch (error) {
       const detailedError = this.getDetailedNetworkError(error);
       console.error(`Error fetching ${baseUrl}: ${detailedError}`);
@@ -181,99 +334,301 @@ private static readonly CONTACT_KEYWORDS = [
   }
 
   private static analyzeHtmlContent(html: string, baseUrl: string): ContactPageResult {
-    const foundKeywords: string[] = [];
+    console.log('=== Starting navigation-only HTML analysis ===');
 
-    // ナビゲーションメニューの検索
+    // Navigation search only
+    console.log('Stage 1: Navigation search');
     const navResult = this.searchInNavigation(html, baseUrl);
-    if (navResult.url) {
-      return {
-        contactUrl: navResult.url,
-        actualFormUrl: null,
-        foundKeywords: navResult.keywords,
-        searchMethod: 'navigation'
-      };
-    }
-    foundKeywords.push(...navResult.keywords);
+    if (navResult.url && navResult.score > 0) {
+      console.log(`Navigation search result: ${navResult.url} (score: ${navResult.score}, reasons: ${navResult.reasons.join(',')})`);
 
-    // フッターの検索
-    const footerResult = this.searchInFooter(html, baseUrl);
-    if (footerResult.url) {
-      return {
-        contactUrl: footerResult.url,
-        actualFormUrl: null,
-        foundKeywords: [...foundKeywords, ...footerResult.keywords],
-        searchMethod: 'footer'
-      };
-    }
-    foundKeywords.push(...footerResult.keywords);
-
-    // 全体のリンク検索
-    const linkResult = this.searchInAllLinks(html, baseUrl);
-    if (linkResult.url) {
-      return {
-        contactUrl: linkResult.url,
-        actualFormUrl: null,
-        foundKeywords: [...foundKeywords, ...linkResult.keywords],
-        searchMethod: 'general_links'
-      };
-    }
-    foundKeywords.push(...linkResult.keywords);
-
-
-    // 共通URLパターンで推測検索
-    const guessResult = this.guessCommonContactUrls(baseUrl);
-    if (guessResult.url) {
-      return {
-        contactUrl: guessResult.url,
-        actualFormUrl: null,
-        foundKeywords: [...foundKeywords, ...guessResult.keywords],
-        searchMethod: 'url_pattern_guess'
-      };
+      // URLが有効な問い合わせパターンを含んでいるかチェック
+      if (this.hasValidContactPattern(navResult.url)) {
+        console.log(`✅ Navigation result accepted: valid contact pattern detected`);
+        return {
+          contactUrl: navResult.url,
+          actualFormUrl: null,
+          foundKeywords: navResult.keywords,
+          searchMethod: 'navigation'
+        };
+      } else {
+        console.log(`❌ Navigation result rejected: no valid contact pattern detected`);
+      }
     }
 
+    console.log('Navigation search found no candidates');
+
+
+
+
+
+    // Stage 2: Evaluate 200 OK URLs with keyword detection
+    console.log('Stage 2: Evaluating 200 OK URLs with keyword detection');
+    const validUrlResult = this.evaluateValidUrls(baseUrl);
+    if (validUrlResult.contactUrl) {
+      return validUrlResult;
+    }
+
+    console.log('=== HTML content analysis completed - no viable candidates found ===');
     return {
       contactUrl: null,
       actualFormUrl: null,
-      foundKeywords: foundKeywords,
+      foundKeywords: [],
       searchMethod: 'not_found'
     };
   }
 
-  private static searchInNavigation(html: string, baseUrl: string): { url: string | null, keywords: string[] } {
-    const navRegex = /<nav[\s\S]*?<\/nav>/gi;
-    const navMatches = html.match(navRegex) || [];
+  private static searchInNavigation(html: string, baseUrl: string): { url: string | null, keywords: string[], score: number, reasons: string[] } {
+    const navigationSelectors = [
+      // 標準的なナビゲーション
+      /<nav[\s\S]*?<\/nav>/gi,
+      // ヘッダー内のナビゲーション
+      /<header[\s\S]*?<\/header>/gi,
+      // メインメニュー系のクラス/ID
+      /<[^>]*(?:class|id)=['"]*[^'"]*(?:nav|menu|navigation|main-menu|header-menu)[^'"]*['"][^>]*>[\s\S]*?<\/[^>]+>/gi,
+      // より具体的なヘッダーナビゲーション（alleyoop.co.jp対応）
+      /<[^>]*(?:class|id)=['"]*[^'"]*(?:l-header|header-gnav|gnav)[^'"]*['"][^>]*>[\s\S]*?<\/[^>]+>/gi,
+      // Contact専用ボタンクラス（alleyoop.co.jp対応）
+      /<[^>]*class=['"]*[^'"]*(?:contact-btn|gnav-contact)[^'"]*['"][^>]*>[\s\S]*?<\/[^>]+>/gi,
+      // モバイルメニュー系
+      /<[^>]*(?:class|id)=['"]*[^'"]*(?:mobile|hamburger|toggle|responsive)[^'"]*menu[^'"]*['"][^>]*>[\s\S]*?<\/[^>]+>/gi,
+      // ul/liベースのメニュー（上位階層）
+      /<ul[^>]*(?:class|id)=['"]*[^'"]*(?:nav|menu)[^'"]*['"][^>]*>[\s\S]*?<\/ul>/gi
+    ];
 
-    for (const nav of navMatches) {
-      const result = this.extractContactLinks(nav, baseUrl);
-      if (result.url) return result;
+    console.log('Searching in navigation with comprehensive selectors...');
+
+    let totalMatches = 0;
+    let allCandidates: Array<{ url: string, keywords: string[], score: number, reasons: string[] }> = [];
+
+    for (let i = 0; i < navigationSelectors.length; i++) {
+      const regex = navigationSelectors[i];
+      if (!regex) continue;
+
+      const matches = html.match(regex) || [];
+      console.log(`Navigation selector ${i+1}: Found ${matches.length} matches`);
+      totalMatches += matches.length;
+
+      for (let j = 0; j < matches.length; j++) {
+        const match = matches[j];
+        if (!match) continue;
+
+        console.log(`Analyzing navigation match ${j+1} (${match.length} chars): ${match.substring(0, 100)}...`);
+
+        const result = this.extractContactLinks(match, baseUrl, 'navigation');
+        if (result.url && result.score > 0) {
+          console.log(`Navigation search found candidate: ${result.url} (score: ${result.score})`);
+          allCandidates.push({
+            url: result.url,
+            keywords: result.keywords,
+            score: result.score,
+            reasons: result.reasons
+          });
+        }
+      }
     }
 
-    return { url: null, keywords: [] };
-  }
-
-  private static searchInFooter(html: string, baseUrl: string): { url: string | null, keywords: string[] } {
-    const footerRegex = /<footer[\s\S]*?<\/footer>/gi;
-    const footerMatches = html.match(footerRegex) || [];
-
-    for (const footer of footerMatches) {
-      const result = this.extractContactLinks(footer, baseUrl);
-      if (result.url) return result;
+    // Return the highest scoring candidate
+    if (allCandidates.length > 0) {
+      const best = allCandidates.reduce((max, current) => current.score > max.score ? current : max);
+      console.log(`Navigation search best result: ${best.url} (score: ${best.score})`);
+      return best;
     }
 
-    return { url: null, keywords: [] };
+    console.log(`Navigation search complete: processed ${totalMatches} matches, no viable candidates found`);
+
+    return { url: null, keywords: [], score: 0, reasons: [] };
   }
 
-  private static searchInAllLinks(html: string, baseUrl: string): { url: string | null, keywords: string[] } {
-    return this.extractContactLinks(html, baseUrl);
+  // 200 OK URLsの評価（キーワード検出による問い合わせページ判定）
+  private static evaluateValidUrls(baseUrl: string): ContactPageResult {
+    console.log(`=== Evaluating ${this.validUrls.length} valid URLs with keyword detection ===`);
+
+    if (this.validUrls.length === 0) {
+      console.log('No valid URLs to evaluate');
+      return {
+        contactUrl: null,
+        actualFormUrl: null,
+        foundKeywords: [],
+        searchMethod: 'no_valid_urls'
+      };
+    }
+
+    // 優先順序でURLを評価（HIGH_PRIORITY_PATTERNS順）
+    for (const urlInfo of this.validUrls) {
+      console.log(`Evaluating URL: ${urlInfo.url} (pattern: ${urlInfo.pattern})`);
+
+      try {
+        // HTMLを再取得
+        const response = this.fetchWithTimeout(urlInfo.url, 5000);
+        if (response.getResponseCode() === 200) {
+          const html = response.getContentText();
+          console.log(`Re-fetched HTML for ${urlInfo.url}, length: ${html.length}`);
+
+          // キーワード検出
+          const keywordResult = this.detectContactKeywords(html);
+          console.log(`Keyword detection result: ${keywordResult.matchCount} unique keywords found`);
+
+          if (keywordResult.matchCount >= 3) {
+            console.log(`✅ Contact page confirmed at ${urlInfo.url} (${keywordResult.matchCount} keywords: ${keywordResult.foundKeywords.join(', ')})`);
+            return {
+              contactUrl: urlInfo.url,
+              actualFormUrl: null,
+              foundKeywords: [...keywordResult.foundKeywords, 'keyword_validation'],
+              searchMethod: 'valid_url_keyword_detection'
+            };
+          } else {
+            console.log(`❌ Insufficient keywords at ${urlInfo.url} (${keywordResult.matchCount}/3 required)`);
+          }
+        }
+      } catch (error: any) {
+        console.log(`Error evaluating ${urlInfo.url}: ${error.toString()}`);
+        continue;
+      }
+    }
+
+    console.log('No valid URLs passed keyword detection threshold');
+    return {
+      contactUrl: null,
+      actualFormUrl: null,
+      foundKeywords: ['valid_urls_insufficient_keywords'],
+      searchMethod: 'valid_urls_failed'
+    };
   }
 
-  private static extractContactLinks(content: string, baseUrl: string): { url: string | null, keywords: string[] } {
-    const foundKeywords: string[] = [];
+  // URLが有効な問い合わせパターンを含んでいるかチェック（部分一致）
+  private static hasValidContactPattern(url: string): boolean {
+    const lowerUrl = url.toLowerCase();
+    const validPatterns = [
+      'contact', 'inquiry', 'form', 'お問い合わせ', '問い合わせ',
+      'contact-form', 'inquiry-form', 'contact-us', 'contactus'
+    ];
+
+    const hasPattern = validPatterns.some(pattern => lowerUrl.includes(pattern));
+    console.log(`URL pattern validation: ${url} -> ${hasPattern ? '✅ Valid' : '❌ Invalid'} contact pattern`);
+    return hasPattern;
+  }
+
+  // HTMLからHIGH_PRIORITY_CONTACT_KEYWORDSを検出
+  private static detectContactKeywords(html: string): { matchCount: number, foundKeywords: string[] } {
+    const lowerHtml = html.toLowerCase();
+    const foundKeywords: Set<string> = new Set();
+
+    for (const keyword of this.HIGH_PRIORITY_CONTACT_KEYWORDS) {
+      const lowerKeyword = keyword.toLowerCase();
+      if (lowerHtml.includes(lowerKeyword)) {
+        foundKeywords.add(keyword);
+      }
+    }
+
+    const foundKeywordsArray = Array.from(foundKeywords);
+    console.log(`Keyword detection: found ${foundKeywordsArray.length} unique keywords: ${foundKeywordsArray.join(', ')}`);
+
+    return {
+      matchCount: foundKeywordsArray.length,
+      foundKeywords: foundKeywordsArray
+    };
+  }
+
+  private static searchInFooter(html: string, baseUrl: string): { url: string | null, keywords: string[], score: number, reasons: string[] } {
+    const footerSelectors = [
+      // 標準的なフッター
+      /<footer[\s\S]*?<\/footer>/gi,
+      // フッター系のクラス/ID
+      /<[^>]*(?:class|id)=['"]*[^'"]*(?:footer|bottom|site-footer|page-footer)[^'"]*['"][^>]*>[\s\S]*?<\/[^>]+>/gi,
+      // サイト下部のコンテンツエリア
+      /<[^>]*(?:class|id)=['"]*[^'"]*(?:site-info|contact-info|company-info)[^'"]*['"][^>]*>[\s\S]*?<\/[^>]+>/gi,
+      // 下部のナビゲーション
+      /<[^>]*(?:class|id)=['"]*[^'"]*(?:footer-nav|bottom-nav)[^'"]*['"][^>]*>[\s\S]*?<\/[^>]+>/gi
+    ];
+
+    console.log('Searching in footer with comprehensive selectors...');
+
+    for (const regex of footerSelectors) {
+      const matches = html.match(regex) || [];
+      console.log(`Found ${matches.length} matches for footer selector`);
+
+      for (const match of matches) {
+        const result = this.extractContactLinks(match, baseUrl, 'footer');
+        if (result.url && result.score > 0) {
+          console.log(`Footer search found: ${result.url} (score: ${result.score})`);
+          return result;
+        }
+      }
+    }
+
+    return { url: null, keywords: [], score: 0, reasons: [] };
+  }
+
+  private static searchInSidebar(html: string, baseUrl: string): { url: string | null, keywords: string[], score: number, reasons: string[] } {
+    const sidebarSelectors = [
+      // サイドバー系のクラス/ID
+      /<[^>]*(?:class|id)=['"]*[^'"]*(?:sidebar|side-nav|aside|widget)[^'"]*['"][^>]*>[\s\S]*?<\/[^>]+>/gi,
+      // アサイド要素
+      /<aside[\s\S]*?<\/aside>/gi,
+      // サイドナビゲーション
+      /<[^>]*(?:class|id)=['"]*[^'"]*(?:side-menu|left-nav|right-nav)[^'"]*['"][^>]*>[\s\S]*?<\/[^>]+>/gi
+    ];
+
+    console.log('Searching in sidebar with comprehensive selectors...');
+
+    for (const regex of sidebarSelectors) {
+      const matches = html.match(regex) || [];
+      console.log(`Found ${matches.length} matches for sidebar selector`);
+
+      for (const match of matches) {
+        const result = this.extractContactLinks(match, baseUrl, 'sidebar');
+        if (result.url && result.score > 0) {
+          console.log(`Sidebar search found: ${result.url} (score: ${result.score})`);
+          return result;
+        }
+      }
+    }
+
+    return { url: null, keywords: [], score: 0, reasons: [] };
+  }
+
+  private static searchInMobileMenu(html: string, baseUrl: string): { url: string | null, keywords: string[], score: number, reasons: string[] } {
+    const mobileMenuSelectors = [
+      // モバイルメニュー系
+      /<[^>]*(?:class|id)=['"]*[^'"]*(?:mobile-menu|mobile-nav|hamburger-menu)[^'"]*['"][^>]*>[\s\S]*?<\/[^>]+>/gi,
+      // レスポンシブメニュー
+      /<[^>]*(?:class|id)=['"]*[^'"]*(?:responsive-menu|toggle-menu|drawer)[^'"]*['"][^>]*>[\s\S]*?<\/[^>]+>/gi,
+      // オフキャンバス系
+      /<[^>]*(?:class|id)=['"]*[^'"]*(?:off-canvas|slide-menu|overlay-menu)[^'"]*['"][^>]*>[\s\S]*?<\/[^>]+>/gi,
+      // 非表示メニュー（CSS display:none等）
+      /<[^>]*(?:style|class)=['"]*[^'"]*(?:display:\s*none|hidden)[^'"]*['"][^>]*>[\s\S]*?(?:menu|nav|contact)[\s\S]*?<\/[^>]+>/gi
+    ];
+
+    console.log('Searching in mobile menu with comprehensive selectors...');
+
+    for (const regex of mobileMenuSelectors) {
+      const matches = html.match(regex) || [];
+      console.log(`Found ${matches.length} matches for mobile menu selector`);
+
+      for (const match of matches) {
+        const result = this.extractContactLinks(match, baseUrl, 'mobile_menu');
+        if (result.url && result.score > 0) {
+          console.log(`Mobile menu search found: ${result.url} (score: ${result.score})`);
+          return result;
+        }
+      }
+    }
+
+    return { url: null, keywords: [], score: 0, reasons: [] };
+  }
+
+  private static searchInAllLinks(html: string, baseUrl: string): { url: string | null, keywords: string[], score: number, reasons: string[] } {
+    return this.extractContactLinks(html, baseUrl, 'general');
+  }
+
+  private static extractContactLinks(content: string, baseUrl: string, contextType: string = 'general'): { url: string | null, keywords: string[], score: number, reasons: string[] } {
+    const candidates: Array<{ url: string, keywords: string[], score: number, reasons: string[], linkText: string }> = [];
     const linkRegex = /<a[^>]*href=['"]([^'"]*?)['"][^>]*>([\s\S]*?)<\/a>/gi;
     let match;
     let linksProcessed = 0;
 
-    console.log('Starting link extraction from HTML content');
+    console.log(`Starting link extraction from HTML content (context: ${contextType})`);
 
     while ((match = linkRegex.exec(content)) !== null) {
       const url = match[1];
@@ -282,36 +637,88 @@ private static readonly CONTACT_KEYWORDS = [
 
       if (!url || !linkText) continue;
 
-      const cleanLinkText = linkText.replace(/<[^>]*>/g, '').trim().toLowerCase();
+      const cleanLinkText = linkText.replace(/<[^>]*>/g, '').trim();
       console.log(`Processing link ${linksProcessed}: "${cleanLinkText}" -> ${url}`);
 
-      // Check text content keywords (skip non-web URLs)
-      if (!url.startsWith('mailto:') && !url.startsWith('javascript:') && !url.startsWith('tel:')) {
-        for (const keyword of this.CONTACT_KEYWORDS) {
-          if (cleanLinkText.includes(keyword.toLowerCase())) {
-            foundKeywords.push(keyword);
-            const fullUrl = this.resolveUrl(url, baseUrl);
-            console.log(`✅ Found contact link by TEXT keyword "${keyword}": ${fullUrl}`);
-            return { url: fullUrl, keywords: foundKeywords };
-          }
-        }
+      // Special debug for /contact/ links
+      if (url.includes('/contact') || cleanLinkText.toLowerCase().includes('contact')) {
+        console.log(`🎯 CONTACT LINK DETECTED: "${cleanLinkText}" -> ${url}`);
       }
 
-      // Check URL patterns (skip non-web URLs)
-      if (!url.startsWith('mailto:') && !url.startsWith('javascript:') && !url.startsWith('tel:')) {
-        for (const pattern of this.CONTACT_KEYWORDS) {
-          if (url.toLowerCase().includes(pattern.toLowerCase())) {
-            foundKeywords.push(pattern);
-            const fullUrl = this.resolveUrl(url, baseUrl);
-            console.log(`✅ Found contact link by URL pattern "${pattern}": ${fullUrl}`);
-            return { url: fullUrl, keywords: foundKeywords };
-          }
+      // Skip non-web URLs
+      if (url.startsWith('mailto:') || url.startsWith('javascript:') || url.startsWith('tel:')) {
+        continue;
+      }
+
+      // Calculate contact purity score
+      const purityResult = this.calculateContactPurity(url, cleanLinkText);
+      let totalScore = purityResult.score;
+      let allReasons = [...purityResult.reasons];
+
+      // Context bonus (expanded)
+      if (contextType === 'navigation') {
+        totalScore += 5;
+        allReasons.push('navigation_context_bonus');
+      } else if (contextType === 'footer') {
+        totalScore += 3;
+        allReasons.push('footer_context_bonus');
+      } else if (contextType === 'sidebar') {
+        totalScore += 2;
+        allReasons.push('sidebar_context_bonus');
+      } else if (contextType === 'mobile_menu') {
+        totalScore += 4;
+        allReasons.push('mobile_menu_context_bonus');
+      }
+
+      // Log all candidates for debugging (including negative scores)
+      console.log(`Link candidate: "${cleanLinkText}" -> ${url} (score: ${totalScore}, reasons: ${allReasons.join(',')})`);
+
+      // Only consider candidates with positive scores
+      if (totalScore > 0) {
+        const fullUrl = this.resolveUrl(url, baseUrl);
+        candidates.push({
+          url: fullUrl,
+          keywords: purityResult.reasons.map(r => r.split(':')[1] || r),
+          score: totalScore,
+          reasons: allReasons,
+          linkText: cleanLinkText
+        });
+
+        console.log(`✓ Contact link candidate: "${cleanLinkText}" -> ${fullUrl} (score: ${totalScore}, reasons: ${allReasons.join(',')})`);
+
+        // Early termination for high confidence candidates
+        if (totalScore >= this.HIGH_CONFIDENCE_THRESHOLD) {
+          console.log(`✅ HIGH CONFIDENCE contact link found: ${fullUrl} (score: ${totalScore}) - terminating search early`);
+          return {
+            url: fullUrl,
+            keywords: purityResult.reasons.map(r => r.split(':')[1] || r),
+            score: totalScore,
+            reasons: allReasons
+          };
         }
+      } else {
+        console.log(`✗ Link excluded: "${cleanLinkText}" -> ${url} (score: ${totalScore}, reasons: ${allReasons.join(',')})`);
       }
     }
 
-    console.log(`Link extraction completed: processed ${linksProcessed} links, no contact links found`);
-    return { url: null, keywords: foundKeywords };
+    console.log(`Link extraction completed: processed ${linksProcessed} links, found ${candidates.length} candidates`);
+
+    // Return best candidate if any
+    if (candidates.length > 0) {
+      const sortedCandidates = candidates.sort((a, b) => b.score - a.score);
+      const bestCandidate = sortedCandidates[0];
+      if (bestCandidate) {
+        console.log(`Best candidate selected: ${bestCandidate.url} (score: ${bestCandidate.score})`);
+        return {
+          url: bestCandidate.url,
+          keywords: bestCandidate.keywords,
+          score: bestCandidate.score,
+          reasons: bestCandidate.reasons
+        };
+      }
+    }
+
+    return { url: null, keywords: [], score: 0, reasons: [] };
   }
 
   private static resolveUrl(url: string, baseUrl: string): string {
@@ -516,30 +923,30 @@ private static readonly CONTACT_KEYWORDS = [
   private static isHomepageUrl(url: string, baseUrl: string): boolean {
     // 相対URLを絶対URLに変換
     const fullUrl = this.resolveUrl(url, baseUrl);
-    
+
     // ベースドメインを抽出
     const baseDomain = this.extractDomain(baseUrl);
-    
+
     // トップページパターン
     const homepagePatterns = [
       baseDomain,                     // https://example.com/
       baseDomain.replace(/\/$/, ''),  // https://example.com
-      baseDomain + 'index.html',      // https://example.com/index.html  
+      baseDomain + 'index.html',      // https://example.com/index.html
       baseDomain + 'index.htm',       // https://example.com/index.htm
       baseDomain + 'index.php',       // https://example.com/index.php
       baseDomain + 'home/',           // https://example.com/home/
       baseDomain + 'home'             // https://example.com/home
     ];
-    
+
     // 完全一致チェック
-    const isHomepage = homepagePatterns.some(pattern => 
+    const isHomepage = homepagePatterns.some(pattern =>
       fullUrl.toLowerCase() === pattern.toLowerCase()
     );
-    
+
     if (isHomepage) {
       console.log(`Detected homepage URL: ${fullUrl} matches pattern in ${homepagePatterns.join(', ')}`);
     }
-    
+
     return isHomepage;
   }
 
@@ -549,13 +956,24 @@ private static readonly CONTACT_KEYWORDS = [
     const foundReasons: string[] = [];
     const foundKeywords: string[] = [];
 
-    // A. フォーム関連コンテンツの検出
+    // A. 構造化フォーム解析（新規追加）
+    const structuredFormAnalysis = this.analyzeStructuredForms(html);
+    let hasStructuredForms = false;
+    if (structuredFormAnalysis.formCount > 0) {
+      hasStructuredForms = true;
+      foundReasons.push(`structured_forms:${structuredFormAnalysis.formCount}`);
+      foundReasons.push(`form_fields:${structuredFormAnalysis.totalFields}`);
+      foundKeywords.push('structured_forms');
+      console.log(`Structured forms detected: ${structuredFormAnalysis.formCount} forms, ${structuredFormAnalysis.totalFields} fields`);
+    }
+
+    // A-Legacy. フォーム関連コンテンツの検出（従来方式・併用）
     const formElements = [
       'お名前', 'メールアドレス', '電話番号', 'ご質問', 'お問い合わせ内容', '会社名',
       'name', 'email', 'phone', 'message', 'inquiry', 'company',
       '<input', '<textarea', '<select', 'type="text"', 'type="email"', 'type="tel"'
     ];
-    
+
     let formElementCount = 0;
     for (const element of formElements) {
       if (lowerHtml.includes(element.toLowerCase())) {
@@ -563,10 +981,10 @@ private static readonly CONTACT_KEYWORDS = [
       }
     }
 
-    const hasFormElements = formElementCount >= 3;
-    if (hasFormElements) {
-      foundReasons.push(`form_elements:${formElementCount}`);
-      foundKeywords.push('form_elements');
+    const hasLegacyFormElements = formElementCount >= 3;
+    if (hasLegacyFormElements) {
+      foundReasons.push(`legacy_form_elements:${formElementCount}`);
+      foundKeywords.push('legacy_form_elements');
     }
 
     // B. 問い合わせキーワードの検出
@@ -574,13 +992,14 @@ private static readonly CONTACT_KEYWORDS = [
       'お問い合わせ', '問い合わせ', 'お問合せ', '問合せ',
       'contact', 'inquiry', 'ご相談', '相談'
     ];
-    
+
     const foundContactKeywords = contactKeywords.filter(keyword =>
       lowerHtml.includes(keyword.toLowerCase())
     );
-    
+
     const hasContactKeywords = foundContactKeywords.length >= 1;
-    const hasPrimaryKeywords = ['お問い合わせ', '問い合わせ', 'contact', 'inquiry'].some(keyword => 
+    // 問い合わせ純度チェック（直接的な問い合わせ意図の確認）
+    const hasDirectContactIntent = this.HIGH_PRIORITY_CONTACT_KEYWORDS.some(keyword =>
       lowerHtml.includes(keyword.toLowerCase())
     );
 
@@ -589,57 +1008,286 @@ private static readonly CONTACT_KEYWORDS = [
       foundKeywords.push('contact_keywords');
     }
 
-    // C. 送信要素の検出（新規追加）
-    const submitElements = [
+    // C. 問い合わせ特化送信要素の検出（厳格版）
+    const hasContactSubmitElements = this.hasContactSpecificSubmitElements(html);
+
+    if (hasContactSubmitElements) {
+      foundReasons.push(`contact_submit_elements:confirmed`);
+      foundKeywords.push('contact_submit_elements');
+    }
+
+    // C-Legacy. 従来の送信要素検出（比較用・併用）
+    const legacySubmitElements = [
       '<input type="submit"', '<button type="submit"', '<input[^>]*type=["\']submit',
       '送信', 'submit', '確認', 'confirm', '申し込み', 'apply', '送る', 'send',
       'onclick.*submit', 'onclick.*confirm'
     ];
-    
-    let submitCount = 0;
-    for (const submitElement of submitElements) {
+
+    let legacySubmitCount = 0;
+    for (const submitElement of legacySubmitElements) {
       if (lowerHtml.includes(submitElement.toLowerCase()) || lowerHtml.match(new RegExp(submitElement.toLowerCase()))) {
-        submitCount++;
+        legacySubmitCount++;
       }
     }
 
-    const hasSubmitElements = submitCount >= 1;
-    if (hasSubmitElements) {
-      foundReasons.push(`submit_elements:${submitCount}`);
-      foundKeywords.push('submit_elements');
+    const hasLegacySubmitElements = legacySubmitCount >= 1;
+    if (hasLegacySubmitElements) {
+      foundReasons.push(`legacy_submit_elements:${legacySubmitCount}`);
+      foundKeywords.push('legacy_submit_elements');
     }
 
-    // 統合判定ロジック
+    // 統合判定ロジック（問い合わせ純度重視・BtoB営業特化）
     let isValid = false;
-    
-    // 高確度：全要素存在
-    if (hasFormElements && hasContactKeywords && hasSubmitElements) {
-      foundReasons.push('high_confidence:all_elements');
+
+    // 最高確度：構造化フォーム + 問い合わせ特化送信要素 + 直接的問い合わせ意図
+    if (hasStructuredForms && hasContactSubmitElements && hasDirectContactIntent) {
+      foundReasons.push('highest_confidence:structured_form_with_pure_contact_intent');
       isValid = true;
     }
-    // 中確度：フォーム構造完備（要素+送信）
-    else if (hasFormElements && hasSubmitElements) {
-      foundReasons.push('medium_confidence:form_structure_complete');
+    // 高確度：構造化フォーム + 問い合わせ特化送信要素（厳格版）
+    else if (hasStructuredForms && hasContactSubmitElements) {
+      foundReasons.push('high_confidence:structured_form_with_contact_submit');
       isValid = true;
     }
-    // 中確度：送信可能なコンテンツ（キーワード+送信）
-    else if (hasPrimaryKeywords && hasSubmitElements) {
-      foundReasons.push('medium_confidence:submittable_content');
+    // 中確度：構造化フォーム + 直接的問い合わせ意図（十分なフィールド数）
+    else if (hasStructuredForms && hasDirectContactIntent && structuredFormAnalysis.totalFields >= 3) {
+      foundReasons.push('medium_confidence:structured_form_with_contact_intent');
       isValid = true;
     }
-    // 従来互換：フォーム要素多数存在
-    else if (formElementCount >= 5) {
-      foundReasons.push('legacy_compatibility:many_form_elements');
+    // 中確度：従来方式 + 問い合わせ特化送信要素 + 直接的問い合わせ意図
+    else if (hasLegacyFormElements && hasContactSubmitElements && hasDirectContactIntent) {
+      foundReasons.push('medium_confidence:legacy_form_with_pure_contact_intent');
+      isValid = true;
+    }
+    // 低確度：従来方式 + 問い合わせ特化送信要素（問い合わせ純度重視）
+    else if (hasLegacyFormElements && hasContactSubmitElements) {
+      foundReasons.push('low_confidence:legacy_form_with_contact_submit');
+      isValid = true;
+    }
+    // 最低確度：直接的問い合わせ意図 + 多数のフォーム要素（厳格化）
+    else if (hasDirectContactIntent && formElementCount >= 8) { // 閾値を7から8に厳格化
+      foundReasons.push('minimal_confidence:many_form_elements_with_contact_intent');
       foundKeywords.push('form_content');
       isValid = true;
     }
 
-    console.log(`Form analysis - Elements:${formElementCount}, Keywords:${foundContactKeywords.length}, Submit:${submitCount}, Valid:${isValid}`);
-    
+    console.log(`Form analysis - Structured:${structuredFormAnalysis.formCount}(${structuredFormAnalysis.totalFields}), Legacy:${formElementCount}, Keywords:${foundContactKeywords.length}, ContactSubmit:${hasContactSubmitElements}, LegacySubmit:${legacySubmitCount}, Valid:${isValid}`);
+
     return {
       isValidForm: isValid,
       reasons: foundReasons,
       keywords: foundKeywords
+    };
+  }
+
+  // 構造化フォーム解析：実際の<form>タグ内要素を解析
+  private static analyzeStructuredForms(html: string): { formCount: number, totalFields: number, hasContactFields: boolean } {
+    let formCount = 0;
+    let totalFields = 0;
+    let hasContactFields = false;
+
+    // <form>タグとその内容を抽出
+    const formRegex = /<form[^>]*>([\s\S]*?)<\/form>/gi;
+    let formMatch;
+
+    while ((formMatch = formRegex.exec(html)) !== null) {
+      const formContent = formMatch[1];
+      if (!formContent) continue;
+
+      formCount++;
+      console.log(`Analyzing form ${formCount}, content length: ${formContent.length}`);
+
+      // フォーム内の入力要素をカウント
+      const inputRegex = /<(?:input|textarea|select)[^>]*>/gi;
+      const inputs = formContent.match(inputRegex) || [];
+
+      let formFieldCount = 0;
+      let hasContactSpecificFields = false;
+
+      for (const input of inputs) {
+        const lowerInput = input.toLowerCase();
+
+        // 入力フィールドの種類を判定
+        if (lowerInput.includes('type="hidden"') ||
+            lowerInput.includes('type="button"') ||
+            lowerInput.includes('type="submit"')) {
+          continue; // カウント対象外
+        }
+
+        formFieldCount++;
+
+        // 問い合わせ専用フィールドの検出
+        const contactFieldPatterns = [
+          'name=".*(?:name|名前|氏名)', 'name=".*(?:email|メール)',
+          'name=".*(?:phone|電話|tel)', 'name=".*(?:company|会社)',
+          'name=".*(?:message|メッセージ|質問|問い合わせ|inquiry)'
+        ];
+
+        for (const pattern of contactFieldPatterns) {
+          if (lowerInput.match(new RegExp(pattern))) {
+            hasContactSpecificFields = true;
+            console.log(`Contact-specific field detected: ${pattern}`);
+            break;
+          }
+        }
+      }
+
+      totalFields += formFieldCount;
+      if (hasContactSpecificFields) {
+        hasContactFields = true;
+      }
+
+      console.log(`Form ${formCount}: ${formFieldCount} fields, contact-specific: ${hasContactSpecificFields}`);
+    }
+
+    console.log(`Structured form analysis complete: ${formCount} forms, ${totalFields} total fields, contact fields: ${hasContactFields}`);
+
+    return {
+      formCount,
+      totalFields,
+      hasContactFields
+    };
+  }
+
+  // シンプルな2段階問い合わせフォーム判定
+  private static isValidContactForm(html: string): boolean {
+    // 段階1: form要素の存在確認
+    const structuredAnalysis = this.analyzeStructuredForms(html);
+    const hasFormElements = structuredAnalysis.formCount >= 1;
+
+    if (!hasFormElements) {
+      console.log(`No form elements found: ${structuredAnalysis.formCount} forms`);
+      return false;
+    }
+
+    // 段階2: 問い合わせ特化送信要素の確認
+    const hasContactSubmit = this.hasContactSpecificSubmitElements(html);
+
+    console.log(`Simple contact form validation: ${structuredAnalysis.formCount} forms, ${structuredAnalysis.totalFields} fields, contact submit: ${hasContactSubmit}`);
+
+    return hasContactSubmit;
+  }
+
+  // 問い合わせ特化送信要素の検出（厳格版）
+  private static hasContactSpecificSubmitElements(html: string): boolean {
+    const lowerHtml = html.toLowerCase();
+
+    for (const submitElement of this.CONTACT_SUBMIT_ELEMENTS) {
+      if (submitElement.includes('.*')) {
+        // 正規表現パターン
+        try {
+          if (lowerHtml.match(new RegExp(submitElement.toLowerCase()))) {
+            console.log(`Contact-specific submit element found (regex): ${submitElement}`);
+            return true;
+          }
+        } catch (e) {
+          // 正規表現エラーの場合は文字列検索にフォールバック
+          if (lowerHtml.includes(submitElement.toLowerCase())) {
+            console.log(`Contact-specific submit element found (fallback): ${submitElement}`);
+            return true;
+          }
+        }
+      } else {
+        // 通常の文字列検索
+        if (lowerHtml.includes(submitElement.toLowerCase())) {
+          console.log(`Contact-specific submit element found: ${submitElement}`);
+          return true;
+        }
+      }
+    }
+
+    console.log(`No contact-specific submit elements found`);
+    return false;
+  }
+
+  // 候補ページの記録
+  private static logPotentialCandidate(url: string, reason: string, html: string) {
+    const structuredAnalysis = this.analyzeStructuredForms(html);
+    const formAnalysis = this.analyzeFormElements(html);
+
+    const score = this.calculateCandidateScore(url, reason, structuredAnalysis, formAnalysis);
+
+    this.candidatePages.push({
+      url,
+      reason,
+      score,
+      structuredForms: structuredAnalysis.formCount,
+      legacyScore: formAnalysis.isValidForm ? 1 : 0
+    });
+
+    console.log(`Candidate logged: ${url} (${reason}, score: ${score})`);
+  }
+
+  // 候補スコア計算
+  private static calculateCandidateScore(
+    url: string,
+    reason: string,
+    structuredAnalysis: { formCount: number, totalFields: number, hasContactFields: boolean },
+    formAnalysis: { isValidForm: boolean, reasons: string[] }
+  ): number {
+    let score = 0;
+
+    // URL具体性スコア
+    if (url.includes('/contact-form/')) score += 15;
+    else if (url.includes('/inquiry/')) score += 12;
+    else if (url.includes('/contact/')) score += 8;
+    else if (url.includes('/form/')) score += 10;
+
+    // 構造化フォームスコア
+    score += structuredAnalysis.formCount * 5;
+    score += structuredAnalysis.totalFields * 2;
+    if (structuredAnalysis.hasContactFields) score += 10;
+
+    // 従来フォーム解析スコア
+    if (formAnalysis.isValidForm) score += 5;
+
+    // 理由による調整
+    if (reason === 'no_structured_form') score -= 10; // ペナルティ
+
+    return score;
+  }
+
+  // 候補リストのリセット（新しい検索開始時）
+  private static resetCandidates() {
+    this.candidatePages = [];
+    this.validUrls = [];
+  }
+
+  // 候補を活用したfallback処理
+  private static fallbackWithCandidates(): ContactPageResult {
+    console.log(`=== Candidate Fallback Analysis ===`);
+    console.log(`Available candidates: ${this.candidatePages.length}`);
+
+    if (this.candidatePages.length > 0) {
+      // 候補ページから最高スコアを選択
+      const sortedCandidates = this.candidatePages
+        .sort((a, b) => b.score - a.score);
+
+      const bestCandidate = sortedCandidates[0];
+
+      if (bestCandidate) {
+        console.log(`Candidate ranking:`);
+        sortedCandidates.slice(0, 3).forEach((candidate, index) => {
+          console.log(`  ${index + 1}. ${candidate.url} (score: ${candidate.score}, reason: ${candidate.reason})`);
+        });
+
+        console.log(`Using best candidate: ${bestCandidate.url} (score: ${bestCandidate.score}, reason: ${bestCandidate.reason})`);
+
+        return {
+          contactUrl: bestCandidate.url,
+          actualFormUrl: bestCandidate.url, // 候補の場合は同じURLを返す
+          foundKeywords: ['candidate_fallback', bestCandidate.reason, `score_${bestCandidate.score}`],
+          searchMethod: 'candidate_fallback'
+        };
+      }
+    }
+
+    console.log('No candidates available - returning not found');
+    return {
+      contactUrl: null,
+      actualFormUrl: null,
+      foundKeywords: ['not_found'],
+      searchMethod: 'not_found'
     };
   }
 
@@ -757,13 +1405,13 @@ private static readonly CONTACT_KEYWORDS = [
         if (!url.startsWith('http')) {
           url = 'https://' + url;
         }
-        
+
         // Exclude formResponse URLs (submission completion URLs)
         if (url.includes('/formResponse')) {
           console.log(`Excluded formResponse URL (not an active form): ${url}`);
           continue;
         }
-        
+
         // Only accept viewform URLs or ensure it's a valid form URL
         if (!url.includes('/viewform') && url.includes('/forms/d/')) {
           // Convert to viewform URL if it's a forms/d/ URL without viewform
@@ -777,7 +1425,7 @@ private static readonly CONTACT_KEYWORDS = [
             }
           }
         }
-        
+
         console.log(`Valid Google Form URL found: ${url}`);
         return url;
       }
@@ -796,13 +1444,13 @@ private static readonly CONTACT_KEYWORDS = [
       // Check if URL contains Google Forms
       if (url.includes('docs.google.com/forms') || url.includes('forms.gle') || url.includes('goo.gl/forms')) {
         let formUrl = url.startsWith('http') ? url : 'https://' + url;
-        
+
         // Exclude formResponse URLs
         if (formUrl.includes('/formResponse')) {
           console.log(`Excluded formResponse URL in link: ${formUrl}`);
           continue;
         }
-        
+
         // Ensure it's a viewform URL
         if (!formUrl.includes('/viewform') && formUrl.includes('/forms/d/')) {
           const formIdMatch = formUrl.match(/\/forms\/d\/([^\/\?&#]+)/);
@@ -810,7 +1458,7 @@ private static readonly CONTACT_KEYWORDS = [
             formUrl = `https://docs.google.com/forms/d/${formIdMatch[1]}/viewform`;
           }
         }
-        
+
         console.log(`Valid Google Form URL found in link: ${formUrl}`);
         return formUrl;
       }
@@ -825,13 +1473,13 @@ private static readonly CONTACT_KEYWORDS = [
 
       if (src && (src.includes('docs.google.com/forms') || src.includes('forms.gle') || src.includes('goo.gl/forms'))) {
         let formUrl = src.startsWith('http') ? src : 'https://' + src;
-        
+
         // Exclude formResponse URLs
         if (formUrl.includes('/formResponse')) {
           console.log(`Excluded formResponse URL in iframe: ${formUrl}`);
           continue;
         }
-        
+
         // Ensure it's a viewform URL for iframe embeds
         if (!formUrl.includes('/viewform') && formUrl.includes('/forms/d/')) {
           const formIdMatch = formUrl.match(/\/forms\/d\/([^\/\?&#]+)/);
@@ -839,7 +1487,7 @@ private static readonly CONTACT_KEYWORDS = [
             formUrl = `https://docs.google.com/forms/d/${formIdMatch[1]}/viewform`;
           }
         }
-        
+
         console.log(`Valid Google Form URL found in iframe: ${formUrl}`);
         return formUrl;
       }
@@ -857,13 +1505,13 @@ private static readonly CONTACT_KEYWORDS = [
         const urlMatch = attr.match(/https?:\/\/(?:docs\.google\.com\/forms|forms\.gle|goo\.gl\/forms)\/[^"'\s)]+/);
         if (urlMatch) {
           let formUrl = urlMatch[0];
-          
+
           // Exclude formResponse URLs
           if (formUrl.includes('/formResponse')) {
             console.log(`Excluded formResponse URL in button: ${formUrl}`);
             continue;
           }
-          
+
           // Ensure it's a viewform URL
           if (!formUrl.includes('/viewform') && formUrl.includes('/forms/d/')) {
             const formIdMatch = formUrl.match(/\/forms\/d\/([^\/\?&#]+)/);
@@ -871,7 +1519,7 @@ private static readonly CONTACT_KEYWORDS = [
               formUrl = `https://docs.google.com/forms/d/${formIdMatch[1]}/viewform`;
             }
           }
-          
+
           console.log(`Valid Google Form URL found in button: ${formUrl}`);
           return formUrl;
         }
@@ -929,11 +1577,11 @@ private static readonly CONTACT_KEYWORDS = [
   private static shouldExcludeForm(formTag: string, formContent: string, html: string, formIndex: number): { shouldExclude: boolean, reason: string, priority: string } {
     const lowerFormTag = formTag.toLowerCase();
     const lowerFormContent = formContent.toLowerCase();
-    
+
     // Method属性を抽出
     const methodMatch = lowerFormTag.match(/method\s*=\s*['"]([^'"]*)['"]/);
     const method = methodMatch ? methodMatch[1] : null;
-    
+
     // Action属性を抽出
     const actionMatch = lowerFormTag.match(/action\s*=\s*['"]([^'"]*)['"]/);
     const action = actionMatch ? actionMatch[1] : null;
@@ -941,10 +1589,10 @@ private static readonly CONTACT_KEYWORDS = [
     // 1. GET method + 検索系キーワードで除外
     if (method === 'get') {
       const searchKeywords = ['search', 'filter', 'sort', '検索', 'フィルター', 'ソート', 'find', 'query'];
-      const hasSearchKeyword = searchKeywords.some(keyword => 
+      const hasSearchKeyword = searchKeywords.some(keyword =>
         lowerFormContent.includes(keyword) || (action && action.toLowerCase().includes(keyword))
       );
-      
+
       if (hasSearchKeyword) {
         return { shouldExclude: true, reason: 'GET method with search keywords', priority: 'exclude' };
       }
@@ -953,14 +1601,14 @@ private static readonly CONTACT_KEYWORDS = [
     // 2. Action属性で明確な非問い合わせURLを除外
     if (action) {
       const excludeActions = [
-        '/search', '/filter', '/sort', 
+        '/search', '/filter', '/sort',
         '?search', '?q=', '?query=',
         '/newsletter', '/subscribe', '/download', '/signup',
         '/login', '/register', '/member',
         // Google Forms formResponse URLs (submission completion URLs)
         '/formresponse', 'formresponse'
       ];
-      
+
       const hasExcludeAction = excludeActions.some(pattern => action.toLowerCase().includes(pattern));
       if (hasExcludeAction) {
         return { shouldExclude: true, reason: `Excluded action: ${action}`, priority: 'exclude' };
@@ -971,14 +1619,14 @@ private static readonly CONTACT_KEYWORDS = [
     const contextStart = Math.max(0, formIndex - 500);
     const contextEnd = Math.min(html.length, formIndex + formContent.length + 500);
     const context = html.substring(contextStart, contextEnd).toLowerCase();
-    
+
     const excludeContextKeywords = [
       'newsletter', 'subscribe', 'メルマガ', 'ニュースレター',
       'download', 'ダウンロード', '資料請求', '資料ダウンロード',
       'survey', 'questionnaire', 'アンケート', 'feedback',
       'search', 'filter', '検索', 'フィルター'
     ];
-    
+
     const foundExcludeKeywords = excludeContextKeywords.filter(keyword => context.includes(keyword));
     if (foundExcludeKeywords.length > 0) {
       return { shouldExclude: true, reason: `Context keywords: ${foundExcludeKeywords.join(', ')}`, priority: 'exclude' };
@@ -986,7 +1634,7 @@ private static readonly CONTACT_KEYWORDS = [
 
     // 4. 優先度の決定（除外されない場合）
     let priority = 'medium';
-    
+
     if (method === 'post') {
       priority = 'high';
     } else if (!method) {
@@ -1018,16 +1666,20 @@ private static readonly CONTACT_KEYWORDS = [
   }
 
   private static searchWithPriorityPatterns(domainUrl: string, startTime: number): ContactPageResult {
-    console.log('Starting priority-based URL pattern search');
+    const maxTotalTime = this.getMaxTotalTime();
+    console.log('Starting priority-based URL pattern search with structured form validation');
 
     // 優先度順にパターンをテスト
     const allPatterns = [
       ...this.HIGH_PRIORITY_PATTERNS,
     ];
 
+    let testedPatterns = 0;
+    let structuredFormPages = 0;
+
     for (const pattern of allPatterns) {
       // タイムアウトチェック
-      if (Date.now() - startTime > this.MAX_TOTAL_TIME) {
+      if (Date.now() - startTime > maxTotalTime) {
         console.log('Timeout during priority search');
         break;
       }
@@ -1035,6 +1687,7 @@ private static readonly CONTACT_KEYWORDS = [
       try {
         const testUrl = domainUrl.replace(/\/$/, '') + pattern;
         console.log(`Testing: ${testUrl}`);
+        testedPatterns++;
 
         const response = this.fetchWithTimeout(testUrl, 5000); // 5秒タイムアウト
 
@@ -1045,22 +1698,30 @@ private static readonly CONTACT_KEYWORDS = [
           // ページの有効性を確認
           if (this.isValidContactPage(html)) {
             console.log(`${testUrl} passed validity check`);
-            // 新しいフォーム検証ロジック
-            const formResult = this.validateContactPageContent(html, testUrl);
-            console.log(`Form validation for ${testUrl}: actualFormUrl=${formResult.actualFormUrl}, keywords=${formResult.keywords.join(',')}`);
 
-            // フォーム要素またはワードが見つかった場合成功として返す
-            if (formResult.actualFormUrl) {
+            // 200 OK URLを記録（フォールバック用）
+            this.validUrls.push({ url: testUrl, pattern: pattern });
+
+            // シンプルな2段階問い合わせフォーム判定
+            const isContactForm = this.isValidContactForm(html);
+            console.log(`Pattern ${pattern}: 200 OK, contact form: ${isContactForm}`);
+
+            if (isContactForm) {
+              structuredFormPages++;
+              console.log(`✅ Contact form confirmed at ${testUrl} - form elements + contact submit confirmed`);
+
+              // 問い合わせフォーム確認済み → 即座に成功
               return {
                 contactUrl: testUrl,
-                actualFormUrl: formResult.actualFormUrl,
-                foundKeywords: [pattern.replace(/\//g, ''), ...formResult.keywords],
-                searchMethod: 'priority_pattern_search'
+                actualFormUrl: testUrl, // シンプルに同じURLを返す
+                foundKeywords: [pattern.replace(/\//g, ''), 'contact_form_confirmed'],
+                searchMethod: 'contact_form_priority_search'
               };
             } else {
-              // フォーム要素もワードも見つからない場合、即座にfallbackに移行
-              console.log(`No form elements or contact keywords found at ${testUrl}, moving to fallback analysis`);
-              break;
+              // 問い合わせフォーム未確認 → 候補として記録して継続
+              console.log(`No contact form found at ${testUrl}, logging as candidate and continuing`);
+              this.logPotentialCandidate(testUrl, 'no_contact_form', html);
+              continue; // 次のパターンへ
             }
           } else {
             console.log(`${testUrl} failed validity check`);
@@ -1100,10 +1761,16 @@ private static readonly CONTACT_KEYWORDS = [
       }
     }
 
+    // パターン検索完了のサマリー
+    console.log(`=== Pattern Search Summary ===`);
+    console.log(`Tested patterns: ${testedPatterns}`);
+    console.log(`Structured form pages: ${structuredFormPages}`);
+    console.log(`Candidate pages: ${this.candidatePages.length}`);
+
     return {
       contactUrl: null,
       actualFormUrl: null,
-      foundKeywords: [],
+      foundKeywords: ['priority_search_no_structured_forms'],
       searchMethod: 'priority_search_failed'
     };
   }
@@ -1205,7 +1872,7 @@ private static readonly CONTACT_KEYWORDS = [
     const context = html.substring(contextStart, contextEnd).toLowerCase();
 
     // 除外キーワードが含まれているかチェック
-    const hasExcludeKeyword = excludeKeywords.some(keyword => 
+    const hasExcludeKeyword = excludeKeywords.some(keyword =>
       context.includes(keyword.toLowerCase())
     );
 
@@ -1215,7 +1882,7 @@ private static readonly CONTACT_KEYWORDS = [
     }
 
     // 問い合わせ関連キーワードの存在確認
-    const hasContactKeyword = contactKeywords.some(keyword => 
+    const hasContactKeyword = contactKeywords.some(keyword =>
       context.includes(keyword.toLowerCase())
     );
 
@@ -1225,7 +1892,7 @@ private static readonly CONTACT_KEYWORDS = [
     }
 
     // コンテキストが不明な場合は、より広範囲でチェック
-    const hasPageLevelContactKeyword = contactKeywords.some(keyword => 
+    const hasPageLevelContactKeyword = contactKeywords.some(keyword =>
       lowerHtml.includes(keyword.toLowerCase())
     );
 
@@ -1541,17 +2208,19 @@ function processContactPageFinder() {
 }
 
 function main() {
-  // Test URL for integrated form validation
-  const testUrl = 'http://icentertainment.jp/';
-  
-  console.log(`\n=== Testing integrated form validation: ${testUrl} ===`);
+  // Test URL for improved fallback processing
+  const testUrl = 'https://www.alleyoop.co.jp/';
+
+  console.log(`\n=== Testing improved fallback processing: ${testUrl} ===`);
   const result = findContactPage(testUrl);
 
-  console.log('=== Contact Page Finder Results ===');
+  console.log('=== Contact Page Finder Results (Improved) ===');
   console.log(`Target URL: ${testUrl}`);
   console.log(`Contact URL: ${result.contactUrl}`);
   console.log(`Actual Form URL: ${result.actualFormUrl}`);
   console.log(`Found Keywords: ${result.foundKeywords.join(', ')}`);
   console.log(`Search Method: ${result.searchMethod}`);
+  console.log('Expected URL: https://www.alleyoop.co.jp/contact/');
+  console.log(`Success: ${result.contactUrl === 'https://www.alleyoop.co.jp/contact/' ? '✅ PASS' : '❌ FAIL'}`);
   console.log('=====================================');
 }
