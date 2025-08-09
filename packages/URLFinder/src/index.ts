@@ -254,7 +254,7 @@ private static readonly CONTACT_KEYWORDS = [
       console.log('Step 2: Homepage HTML analysis as fallback for special cases');
       try {
         const response = this.fetchWithTimeout(baseUrl, 7000); // 7秒タイムアウト
-        const html = response.getContentText();
+        const html = this.getContentWithEncoding(response); // 🔥 文字化け解決
 
         // Check for Google Forms URLs first
         const googleFormUrls = this.findGoogleFormUrlsOnly(html);
@@ -310,8 +310,13 @@ private static readonly CONTACT_KEYWORDS = [
         console.log(`Error in homepage analysis fallback: ${detailedError}`);
       }
 
-      console.log('All search methods failed - checking candidate fallback');
-      return this.fallbackWithCandidates();
+      console.log('All search methods failed');
+      return {
+        contactUrl: null,
+        actualFormUrl: null,
+        foundKeywords: [],
+        searchMethod: 'not_found'
+      };
     } catch (error) {
       const detailedError = this.getDetailedNetworkError(error);
       console.error(`Error fetching ${baseUrl}: ${detailedError}`);
@@ -386,12 +391,7 @@ private static readonly CONTACT_KEYWORDS = [
 
 
 
-    // Stage 2: Evaluate 200 OK URLs with keyword detection
-    console.log('Stage 2: Evaluating 200 OK URLs with keyword detection');
-    const validUrlResult = this.evaluateValidUrls(baseUrl);
-    if (validUrlResult.contactUrl) {
-      return validUrlResult;
-    }
+    // Stage 2 removed: evaluateValidUrls discontinued (Step3 廃止)
 
     console.log('=== HTML content analysis completed - no viable candidates found ===');
     return {
@@ -404,13 +404,20 @@ private static readonly CONTACT_KEYWORDS = [
 
   private static searchInNavigation(html: string, baseUrl: string): { url: string | null, keywords: string[], score: number, reasons: string[] } {
     const navigationSelectors = [
-      // 3要素に削減（効率化）
-      /<nav[\]s[\s\S]*?<\/nav>/gi,                    // <nav>タグ
+      // 主要ナビゲーション要素（icube-inc.co.jp等に対応）
+      /<nav[\s\S]*?<\/nav>/gi,                    // <nav>タグ
       /<[^>]*id=['"]menu['"][^>]*>[\s\S]*?<\/[^>]+>/gi,  // #menu ID
-      /<footer[\s\S]*?<\/footer>/gi               // <footer>タグ
+      /<footer[\s\S]*?<\/footer>/gi,              // <footer>タグ
+      // 追加セレクター（既存サイト対応）
+      /<ul[^>]*id=['"]naviArea['"][^>]*>[\s\S]*<\/ul>/gi, // #naviArea (icube-inc.co.jp) - 貪欲マッチでネスト対応
+      /<[^>]*id=['"]navigation['"][^>]*>[\s\S]*?<\/[^>]+>/gi, // #navigation
+      /<[^>]*id=['"]nav['"][^>]*>[\s\S]*?<\/[^>]+>/gi, // #nav
+      /<div[^>]*class=['"][^'"]*\bnav\b[^'"]*['"][^>]*>[\s\S]*<\/div>/gi, // .navクラス - 貪欲マッチ
+      /<nav[^>]*class=['"][^'"]*\bnavigation\b[^'"]*['"][^>]*>[\s\S]*<\/nav>/gi, // .navigationクラス - 貪欲マッチ
+      /<ul[^>]*class=['"][^'"]*\bmenu\b[^'"]*['"][^>]*>[\s\S]*<\/ul>/gi // .menuクラス - 貪欲マッチ
     ];
 
-    console.log('Searching in navigation with 3 key selectors (<nav>, #menu, <footer>)...');
+    console.log('Searching in navigation with 9 selectors (including #naviArea, .nav, .navigation, .menu)...');
 
     let totalMatches = 0;
     let allCandidates: Array<{ url: string, keywords: string[], score: number, reasons: string[] }> = [];
@@ -429,28 +436,31 @@ private static readonly CONTACT_KEYWORDS = [
 
         console.log(`Analyzing navigation match ${j+1} (${match.length} chars): ${match.substring(0, 100)}...`);
 
-        const result = this.extractContactLinks(match, baseUrl, 'navigation');
-        if (result.url && result.score > 0) {
-          console.log(`Navigation search found candidate: ${result.url} (score: ${result.score})`);
-          allCandidates.push({
-            url: result.url,
-            keywords: result.keywords,
-            score: result.score,
-            reasons: result.reasons
-          });
-        }
+        // 新フロー: 全リンクを抽出してキーワードフィルタリング
+        const candidates = this.extractAllContactLinks(match, baseUrl);
+        allCandidates.push(...candidates);
+        console.log(`Navigation match ${j+1} added ${candidates.length} candidates`);
       }
     }
 
-    // Return the highest scoring candidate
-    if (allCandidates.length > 0) {
-      const best = allCandidates.reduce((max, current) => current.score > max.score ? current : max);
+    // 全リンクからキーワード含有リンクのみを選別
+    const contactLinks = allCandidates.filter(candidate => 
+      this.HIGH_PRIORITY_CONTACT_KEYWORDS.some(keyword => 
+        candidate.url.toLowerCase().includes(keyword.toLowerCase()) || 
+        candidate.keywords.some(k => k.toLowerCase().includes(keyword.toLowerCase()))
+      )
+    );
+    
+    console.log(`Found ${allCandidates.length} total candidates, ${contactLinks.length} with contact keywords`);
+    
+    // キーワード含有リンクがあれば最高スコアを選択
+    if (contactLinks.length > 0) {
+      const best = contactLinks.reduce((max, current) => current.score > max.score ? current : max);
       console.log(`Navigation search best result: ${best.url} (score: ${best.score})`);
       return best;
     }
 
-    console.log(`Navigation search complete: processed ${totalMatches} matches, no viable candidates found`);
-
+    console.log(`Navigation search complete: processed ${totalMatches} matches, no contact-related candidates found`);
     return { url: null, keywords: [], score: 0, reasons: [] };
   }
 
@@ -634,6 +644,205 @@ private static readonly CONTACT_KEYWORDS = [
 
   private static searchInAllLinks(html: string, baseUrl: string): { url: string | null, keywords: string[], score: number, reasons: string[] } {
     return this.extractContactLinks(html, baseUrl, 'general');
+  }
+  
+  // 文字化けデバッグ用ヘルパー
+  private static toHexString(str: string): string {
+    try {
+      return Array.from(str).map(char => 
+        char.charCodeAt(0).toString(16).padStart(2, '0')
+      ).join(' ');
+    } catch (e) {
+      return `[hex conversion error: ${e}]`;
+    }
+  }
+  
+  // 🔥 文字化け解決: 複数エンコーディング試行
+  private static getContentWithEncoding(response: any): string {
+    const encodings = ['utf-8', 'shift_jis', 'euc-jp'];
+    
+    console.log(`Trying multiple encodings for content decoding...`);
+    
+    for (const encoding of encodings) {
+      try {
+        const content = response.getContentText(encoding);
+        // 簡易文字化け検証
+        if (this.isValidEncoding(content)) {
+          console.log(`✅ Successfully decoded with ${encoding}`);
+          return content;
+        } else {
+          console.log(`❌ ${encoding} produced garbled text`);
+        }
+      } catch (e) {
+        console.log(`❌ ${encoding} decoding failed: ${e}`);
+        continue;
+      }
+    }
+    
+    console.log(`⚠ All encodings failed, using default UTF-8`);
+    return response.getContentText(); // 最終フォールバック
+  }
+  
+  // エンコーディング有効性検証
+  private static isValidEncoding(content: string): boolean {
+    // 置換文字の割合が5%未満なら有効
+    const replacementChars = (content.match(/�/g) || []).length;
+    const isValid = (replacementChars / content.length) < 0.05;
+    console.log(`Encoding validation: ${replacementChars} replacement chars out of ${content.length} (${(replacementChars/content.length*100).toFixed(2)}%) - ${isValid ? 'VALID' : 'INVALID'}`);
+    return isValid;
+  }
+  
+  // キーワード含有リンクを全て拽出（新フロー用）
+  private static extractAllContactLinks(content: string, baseUrl: string): Array<{ url: string, keywords: string[], score: number, reasons: string[] }> {
+    const candidates: Array<{ url: string, keywords: string[], score: number, reasons: string[] }> = [];
+    const linkRegex = /<a[^>]*href=['"]([^'"]*?)['"][^>]*>([\s\S]*?)<\/a>/gi;
+    let match;
+
+    let totalLinksFound = 0;
+
+    console.log(`=== EXTRACTING ALL LINKS DEBUG ===`);
+    console.log(`Input content length: ${content.length}`);
+    console.log(`Input content preview: ${content.substring(0, 200)}...`);
+    
+    // 🔥 デバッグ: HIGH_PRIORITY_CONTACT_KEYWORDS の内容確認
+    console.log(`HIGH_PRIORITY_CONTACT_KEYWORDS: ${JSON.stringify(this.HIGH_PRIORITY_CONTACT_KEYWORDS.slice(0, 10))}`);
+
+    while ((match = linkRegex.exec(content)) !== null) {
+      totalLinksFound++;
+      const url = match[1];
+      const linkText = match[2];
+      
+      // 🔥 デバッグ: 全リンクの詳細出力
+      console.log(`--- Link ${totalLinksFound} RAW DATA ---`);
+      console.log(`Raw URL: "${url}"`);
+      console.log(`Raw linkText: "${linkText}"`);
+      console.log(`Raw linkText hex: ${linkText ? this.toHexString(linkText) : 'undefined'}`);
+
+      if (!url || !linkText) {
+        console.log(`Skipped: empty url or linkText`);
+        continue;
+      }
+
+      const cleanLinkText = linkText.replace(/<[^>]*>/g, '').trim();
+      console.log(`Clean linkText: "${cleanLinkText}"`);
+      console.log(`Clean linkText hex: ${this.toHexString(cleanLinkText)}`);
+
+      // 非ウェブURLをスキップ
+      if (url.startsWith('mailto:') || url.startsWith('javascript:') || url.startsWith('tel:')) {
+        continue;
+      }
+
+      // 🔥 デバッグ: キーワードマッチング詳細
+      console.log(`--- Keyword Matching Debug ---`);
+      const urlLower = url.toLowerCase();
+      const textLower = cleanLinkText.toLowerCase();
+      console.log(`URL lower: "${urlLower}"`);
+      console.log(`Text lower: "${textLower}"`);
+      
+      let matchedKeywords = [];
+      for (const keyword of this.HIGH_PRIORITY_CONTACT_KEYWORDS) {
+        const keywordLower = keyword.toLowerCase();
+        const urlMatch = urlLower.includes(keywordLower);
+        const textMatch = textLower.includes(keywordLower);
+        if (urlMatch || textMatch) {
+          matchedKeywords.push(`${keyword}(${urlMatch ? 'URL' : ''}${textMatch ? 'TEXT' : ''})`);
+        }
+      }
+      
+      console.log(`Matched keywords: ${matchedKeywords.join(', ')}`);
+      
+      const hasContactKeywords = matchedKeywords.length > 0;
+      
+      if (!hasContactKeywords) {
+        console.log(`❌ Excluded: no contact keywords`);
+        continue;
+      }
+
+      // 除外キーワードチェック
+      const hasExcludedKeywords = this.EXCLUDED_KEYWORDS.some(keyword =>
+        url.toLowerCase().includes(keyword.toLowerCase()) || 
+        cleanLinkText.toLowerCase().includes(keyword.toLowerCase())
+      );
+      
+      if (hasExcludedKeywords) {
+        console.log(`❌ Excluded: has excluded keywords`);
+        continue;
+      }
+
+      // スコア計算
+      const purityResult = this.calculateContactPurity(url, cleanLinkText);
+      const totalScore = purityResult.score + 5; // navigation context bonus
+      
+      if (totalScore > 0) {
+        const fullUrl = this.resolveUrl(url, baseUrl);
+        candidates.push({
+          url: fullUrl,
+          keywords: purityResult.reasons.map(r => r.split(':')[1] || r),
+          score: totalScore,
+          reasons: [...purityResult.reasons, 'navigation_context_bonus']
+        });
+        
+        console.log(`✅ CONTACT LINK FOUND: "${cleanLinkText}" -> ${url} (score: ${totalScore})`);
+      }
+    }
+
+    // スコア順でソート
+    candidates.sort((a, b) => b.score - a.score);
+    console.log(`=== EXTRACT SUMMARY ===`);
+    console.log(`Total links found: ${totalLinksFound}`);
+    console.log(`Keyword-containing links: ${candidates.length}`);
+    console.log(`=== END EXTRACT DEBUG ===`);
+    
+    return candidates;
+  }
+  
+  // 動的サイト用厳格キーワード検証
+  private static calculateDynamicSiteKeywordScore(html: string): number {
+    const lowerHtml = html.toLowerCase();
+    let score = 0;
+    
+    // 高優先度キーワード（問い合わせ関連）
+    const contactKeywords = [
+      'お問い合わせ', '問い合わせ', 'contact', 'inquiry',
+      'お問い合わせフォーム', 'contact form'
+    ];
+    
+    for (const keyword of contactKeywords) {
+      const matches = (lowerHtml.match(new RegExp(keyword.toLowerCase(), 'g')) || []).length;
+      score += matches * 3; // 各マッチ3点
+      if (matches > 0) {
+        console.log(`Found ${matches} occurrences of "${keyword}"`);
+      }
+    }
+    
+    // 誘導文言
+    const inductionPhrases = [
+      'お気軽にご相談', 'お問い合わせはこちら',
+      'get in touch', 'contact us', 'reach out'
+    ];
+    
+    for (const phrase of inductionPhrases) {
+      if (lowerHtml.includes(phrase.toLowerCase())) {
+        score += 5; // 誘導文言は5点
+        console.log(`Found induction phrase: "${phrase}"`);
+      }
+    }
+    
+    // フォーム関連ヒント
+    const formHints = [
+      'フォーム読み込み中', 'loading contact form',
+      'form-container', 'contact-form-placeholder'
+    ];
+    
+    for (const hint of formHints) {
+      if (lowerHtml.includes(hint.toLowerCase())) {
+        score += 4; // フォームヒントは4点
+        console.log(`Found form hint: "${hint}"`);
+      }
+    }
+    
+    console.log(`Dynamic site keyword score calculated: ${score}`);
+    return score;
   }
 
   private static extractContactLinks(content: string, baseUrl: string, contextType: string = 'general'): { url: string | null, keywords: string[], score: number, reasons: string[], linkText: string } {
@@ -1138,6 +1347,7 @@ private static readonly CONTACT_KEYWORDS = [
   }
 
   // 新しいシンプルな問い合わせフォーム判定
+
   private static isValidContactForm(html: string): boolean {
     console.log('Starting simple contact form validation...');
 
@@ -1714,6 +1924,8 @@ private static readonly CONTACT_KEYWORDS = [
   }
 
   private static searchWithPriorityPatterns(domainUrl: string, startTime: number): ContactPageResult {
+    // 200 OK URLリストをリセット
+    this.validUrls = [];
     const maxTotalTime = this.getMaxTotalTime();
     console.log('Starting priority-based URL pattern search with structured form validation');
 
