@@ -1,75 +1,189 @@
-6:58:01	情報	98行目: http://createbank.co.jp/ を処理中...
-6:58:01	情報	Using MAX_TOTAL_TIME from script properties: 60000ms
-6:58:01	情報	Checking domain availability for: http://createbank.co.jp/
-6:58:01	情報	Testing domain availability: http://createbank.co.jp/
-6:58:02	情報	Domain check status: 200
-6:58:02	情報	Domain is available, proceeding with contact search
-6:58:02	情報	Starting contact page search for: http://createbank.co.jp/
-6:58:02	情報	Step 1: URL pattern guessing (primary strategy)
-6:58:02	情報	Using MAX_TOTAL_TIME from script properties: 60000ms
-6:58:02	情報	Starting priority-based URL pattern search with structured form validation
-6:58:02	情報	Testing: http://createbank.co.jp/contact/
-6:58:03	情報	http://createbank.co.jp/contact/ returned status code: 404 - Not Found - ページが存在しません
-6:58:03	情報	Testing: http://createbank.co.jp/contact
-6:58:03	情報	http://createbank.co.jp/contact returned status code: 404 - Not Found - ページが存在しません
-6:58:03	情報	Testing: http://createbank.co.jp/inquiry/
-6:58:03	情報	http://createbank.co.jp/inquiry/ returned status code: 404 - Not Found - ページが存在しません
-6:58:03	情報	Testing: http://createbank.co.jp/inquiry
-6:58:04	情報	http://createbank.co.jp/inquiry returned status code: 404 - Not Found - ページが存在しません
-6:58:04	情報	Testing: http://createbank.co.jp/form
-6:58:04	情報	http://createbank.co.jp/form returned status code: 404 - Not Found - ページが存在しません
-6:58:04	情報	Testing: http://createbank.co.jp/form/
-6:58:05	情報	http://createbank.co.jp/form/ returned status code: 404 - Not Found - ページが存在しません
-6:58:05	情報	Testing: http://createbank.co.jp/contact-us/
-6:58:05	情報	http://createbank.co.jp/contact-us/ returned status code: 404 - Not Found - ページが存在しません
-6:58:05	情報	Testing: http://createbank.co.jp/contact-us
-6:58:06	情報	http://createbank.co.jp/contact-us returned status code: 404 - Not Found - ページが存在しません
-6:58:06	情報	Testing: http://createbank.co.jp/%E3%81%8A%E5%95%8F%E3%81%84%E5%90%88%E3%82%8F%E3%81%9B/
-6:58:06	情報	http://createbank.co.jp/%E3%81%8A%E5%95%8F%E3%81%84%E5%90%88%E3%82%8F%E3%81%9B/ returned status code: 404 - Not Found - ページが存在しません
-6:58:06	情報	Testing: http://createbank.co.jp/%E3%81%8A%E5%95%8F%E3%81%84%E5%90%88%E3%82%8F%E3%81%9B
-6:58:07	情報	http://createbank.co.jp/%E3%81%8A%E5%95%8F%E3%81%84%E5%90%88%E3%82%8F%E3%81%9B returned status code: 404 - Not Found - ページが存在しません
-6:58:07	情報	Testing: http://createbank.co.jp/%E5%95%8F%E3%81%84%E5%90%88%E3%82%8F%E3%81%9B/
-6:58:07	情報	http://createbank.co.jp/%E5%95%8F%E3%81%84%E5%90%88%E3%82%8F%E3%81%9B/ returned status code: 404 - Not Found - ページが存在しません
-6:58:07	情報	Testing: http://createbank.co.jp/%E5%95%8F%E3%81%84%E5%90%88%E3%82%8F%E3%81%9B
-6:58:07	情報	http://createbank.co.jp/%E5%95%8F%E3%81%84%E5%90%88%E3%82%8F%E3%81%9B returned status code: 404 - Not Found - ページが存在しません
-6:58:07	情報	=== Pattern Search Summary ===
-6:58:07	情報	Tested patterns: 12
-6:58:07	情報	Structured form pages: 0
-6:58:07	情報	Candidate pages: 0
-6:58:07	情報	Step 2: Homepage HTML analysis as fallback for special cases
-6:58:08	情報	=== Starting navigation-only HTML analysis ===
-6:58:08	情報	Stage 1: Navigation search
-6:58:08	情報	Searching in navigation with comprehensive selectors...
-6:58:08	情報	Navigation selector 1: Found 0 matches
-6:58:08	情報	Navigation selector 2: Found 0 matches
-6:58:08	情報	Navigation selector 3: Found 1 matches
-6:58:08	情報	Analyzing navigation match 1 (76 chars): <div id="globalNavigation">
-	<ul>
-		<li class="home now"><a href="/">ホーム</a>...
-6:58:08	情報	Starting link extraction from HTML content (context: navigation)
-6:58:08	情報	Processing link 1: "ホーム" -> /
-6:58:08	情報	Link candidate: "ホーム" -> / (score: 5, reasons: navigation_context_bonus)
-6:58:08	情報	✓ Contact link candidate: "ホーム" -> http://createbank.co.jp/ (score: 5, reasons: navigation_context_bonus)
-6:58:08	情報	Link extraction completed: processed 1 links, found 1 candidates
-6:58:08	情報	Best candidate selected: http://createbank.co.jp/ (score: 5)
-6:58:08	情報	Navigation search found candidate: http://createbank.co.jp/ (score: 5)
-6:58:08	情報	Navigation selector 4: Found 0 matches
-6:58:08	情報	Navigation selector 5: Found 0 matches
-6:58:08	情報	Navigation selector 6: Found 0 matches
-6:58:08	情報	Navigation selector 7: Found 0 matches
-6:58:08	情報	Navigation search best result: http://createbank.co.jp/ (score: 5)
-6:58:08	情報	Navigation search result: http://createbank.co.jp/ (score: 5, reasons: navigation_context_bonus)
-6:58:08	情報	URL pattern validation: http://createbank.co.jp/ -> ❌ Invalid contact pattern
-6:58:08	情報	❌ Navigation result rejected: no valid contact pattern detected
-6:58:08	情報	Navigation search found no candidates
-6:58:08	情報	Stage 2: Evaluating 200 OK URLs with keyword detection
-6:58:08	情報	=== Evaluating 0 valid URLs with keyword detection ===
-6:58:08	情報	No valid URLs to evaluate
-6:58:08	情報	=== HTML content analysis completed - no viable candidates found ===
-6:58:08	情報	HTML analysis fallback found nothing
-6:58:08	情報	All search methods failed - checking candidate fallback
-6:58:08	情報	=== Candidate Fallback Analysis ===
-6:58:08	情報	Available candidates: 0
-6:58:08	情報	No candidates available - returning not found
-6:58:08	情報	Result for 98行目: searchMethod=not_found, foundKeywords=not_found
-6:58:08	情報	98行目: 完了 - 問い合わせフォームが見つかりませんでした
+# URLFinder 修正後フロー仕様書（2024年12月版）
+
+## 概要
+BtoB営業特化の問い合わせページ自動発見システム
+パフォーマンス重視 + 重複処理排除による大幅効率化
+
+## 修正後の詳細処理フロー
+
+### 0. 初期チェック
+```
+エントリーポイント: findContactPage(baseUrl)
+↓
+SNSページ検出 → SNSの場合は即座に終了
+↓  
+ドメイン生存確認 → 利用不可の場合は即座に終了
+```
+
+### 1. Step1: URLパターン推測（優先パターン検索）
+```
+事前定義された13パターンのURLを順次テスト:
+- /contact/, /contact
+- /inquiry/, /inquiry  
+- /form/, /form/
+- /contact-us/, /contact-us
+- /%E3%81%8A%E5%95%8F%E3%81%84%E5%90%88%E3%82%8F%E3%81%9B/ (お問い合わせ)
+- /%E5%95%8F%E3%81%84%E5%90%88%E3%82%8F%E3%81%9B/ (問い合わせ)
+- その他...
+
+各URLに対して:
+1. HTTPリクエスト実行
+2. ステータスコード確認  
+3. 200の場合 → 200URLリストに記録（重複処理排除のため）
+4. フォーム検証実行（isValidContactForm）
+5. 合格すれば即座に終了
+6. 不合格なら次へ
+7. Google Forms検証実行（detectGoogleForms）
+8. 発見すれば即座に終了
+9. 全パターン終了後もform/googleform未発見 → Step2へ
+```
+
+### 2. Step2: ナビゲーションリンク解析（Step1失敗時のみ）
+
+#### 2-1. ナビゲーション要素の抽出
+```
+トップページから以下要素を抽出:
+- <nav> タグ
+- #menu ID
+- <footer> タグ
+※従来の15個→3個に最適化済み
+```
+
+#### 2-2. キーワード含有リンクの一括処理
+```
+処理対象リンク:
+- ナビゲーション内の問い合わせ関連キーワード含有リンク
+- Step1で200だったURLも処理対象に含む（重複排除）
+
+各リンクに対して順次実行:
+1. HTTPアクセス（Step1-200URLは再アクセス不要）
+2. フォーム検証（isValidContactForm）
+3. 発見すれば即座に終了
+4. Google Forms検証（detectGoogleForms）  
+5. 発見すれば即座に終了
+6. 動的サイト用厳格キーワード検証
+   - キーワード出現頻度分析
+   - 一定スコア以上（10点基準）で問い合わせページ判定
+   - 発見すれば即座に終了
+7. 次のリンクへ
+```
+
+#### 2-3. トップページ内解析（フォールバック）
+```
+全ナビゲーションリンクで未発見の場合のみ実行:
+1. トップページでフォーム検証（findEmbeddedHTMLForm相当）
+2. トップページでGoogle Forms検証
+3. 発見すれば終了、未発見なら「見つからない」で終了
+```
+
+### 3. 最終判定
+```
+Step1〜2で何も見つからない場合:
+- "問い合わせページが見つかりませんでした" を出力
+- searchMethod: "not_found" で終了
+```
+
+## フォーム検証方式（全Step共通）
+
+### BtoB特化キーワード（営業系除外済み）
+```
+送信系キーワード:
+- 基本: 送信, 送る, submit, send
+- 問い合わせ: お問い合わせ, 問い合わせ, ご相談, 相談, contact, inquiry
+
+削除済みキーワード:
+- お見積, 見積, 資料請求, quote, request
+- 理由: BtoB営業には直接的な問い合わせのみが重要
+```
+
+### 検証ロジック
+```
+isValidContactForm(html) {
+  1. 正規表現で <form> タグを抽出
+  2. 各フォーム要素内で送信系ボタンを検索:
+     - <input type="submit">
+     - <button type="submit">  
+     - <button>（type未指定）
+  3. ボタンテキストが問い合わせ系キーワードに合致するかチェック
+  4. 1つでも合致すれば有効判定
+}
+```
+
+## Google Forms検出の詳細
+
+### 対応パターン
+```
+パターン1: 直接リンク
+<a href="https://docs.google.com/forms/d/xxx">お問い合わせフォーム</a>
+
+パターン2: iframe埋め込み
+<iframe src="https://docs.google.com/forms/d/xxx"></iframe>
+
+検出方法:
+- 正規表現: /docs\.google\.com\/forms\/d\/[a-zA-Z0-9-_]+/
+- リンク・iframe両方に対応
+```
+
+## 動的サイト用キーワード検証
+
+### 検証基準
+```
+対象: form要素が見つからないが問い合わせページの可能性があるページ
+
+キーワード分析:
+- "お問い合わせ", "contact" の出現頻度
+- "問い合わせフォーム", "contact form" の存在
+- "お気軽にご相談", "お問い合わせはこちら" 等の誘導文言
+
+スコア基準:
+- 10点以上: 高信頼度（問い合わせページ判定）
+- 5-9点: 中信頼度（要検討）
+- 4点以下: 低信頼度（却下）
+※微調整可能
+```
+
+## パフォーマンス改善効果
+
+### 重複処理排除
+```
+改善前:
+- Step1: 13回HTTPアクセス
+- Step3: Step1-200ページに再度HTTPアクセス（重複）
+
+改善後:
+- Step1: 13回HTTPアクセス + 200URLリスト保存
+- Step2: 新規リンクのみHTTPアクセス（重複排除）
+```
+
+### 早期終了による効率化
+```
+改善前: 全パターン試行後に判定
+改善後: 発見次第即座に終了
+
+予想効果:
+- 成功ケース: 50%時短（8-10秒 → 3-5秒）
+- 困難ケース: 40%時短（20-30秒 → 12-18秒）
+```
+
+### 処理複雑度削減
+```
+- Step3廃止により複雑な分岐処理を排除
+- 明確なフォールバック構造で保守性向上
+- ログの簡潔化
+```
+
+## 制約事項（変更なし）
+
+### GAS環境での制限
+- JavaScript動的フォームは完全検出不可
+- DOM操作後の状態は分析対象外
+- リアルタイムフォーム生成は検出困難
+
+### 対応範囲
+- ○ 静的HTMLフォーム
+- ○ Google Forms（直接リンク・iframe）
+- △ 動的サイト（キーワードヒントのみ）
+- × 完全JavaScript生成フォーム
+
+---
+*修正版フロー仕様 - 2024年12月 パフォーマンス重視 + 重複処理排除設計*
