@@ -65,6 +65,35 @@ private static readonly CONTACT_KEYWORDS = [
 
 
 
+  // **OPTIMIZED: Same HTML response detection for SPA efficiency**
+  private static sameHtmlCache: { [url: string]: string } = {};
+  
+  private static detectSameHtmlPattern(urls: string[], htmlContent: string): boolean {
+    const contentHash = this.hashString(htmlContent);
+    let sameCount = 0;
+    
+    for (const url of urls) {
+      if (this.sameHtmlCache[url] === contentHash) {
+        sameCount++;
+      } else {
+        this.sameHtmlCache[url] = contentHash;
+      }
+    }
+    
+    // If 2 or more URLs return the same HTML, likely SPA
+    return sameCount >= 2;
+  }
+
+  private static hashString(str: string): string {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return hash.toString(16);
+  }
+
   // 問い合わせ純度スコア計算（BtoB営業特化・重複防止版）
   private static calculateContactPurity(url: string, linkText: string, context: string = ''): { score: number, reasons: string[] } {
     let score = 0;
@@ -174,6 +203,191 @@ private static readonly CONTACT_KEYWORDS = [
     return 30000; // デフォルト30秒
   }
 
+  // **NEW: SPA Analysis Execution** - Step1内でのSPA検出時に実行
+  private static executeSPAAnalysis(html: string, baseUrl: string): ContactPageResult {
+    try {
+      console.log('Executing SPA analysis on detected single-page application');
+      
+      // Navigation search for anchor links in the current HTML
+      const navResult = this.searchInNavigation(html, baseUrl);
+      if (navResult.url && this.isAnchorLink(navResult.url)) {
+        console.log(`Anchor link found in SPA navigation: ${navResult.url}`);
+        
+        // Analyze the corresponding section in the same HTML
+        const anchorSectionResult = this.analyzeAnchorSection(html, navResult.url, baseUrl);
+        if (anchorSectionResult.contactUrl) {
+          // Update search method to reflect SPA detection
+          anchorSectionResult.searchMethod = 'spa_anchor_analysis';
+          anchorSectionResult.foundKeywords.push('spa_detected');
+          return anchorSectionResult;
+        }
+      }
+
+      // No anchor contact links found in SPA
+      console.log('SPA analysis completed but no suitable anchor contact found');
+      return {
+        contactUrl: null,
+        actualFormUrl: null,
+        foundKeywords: ['spa_detected', 'anchor_analysis_failed'],
+        searchMethod: 'spa_analysis_failed'
+      };
+    } catch (error) {
+      console.log(`Error in SPA analysis: ${error}`);
+      return {
+        contactUrl: null,
+        actualFormUrl: null,
+        foundKeywords: ['spa_detected', 'spa_analysis_error'],
+        searchMethod: 'spa_analysis_error'
+      };
+    }
+  }
+
+  // **NEW: Check if URL is an anchor link**
+  private static isAnchorLink(url: string): boolean {
+    return url.includes('#');
+  }
+
+  // **NEW: Analyze anchor section content**
+  private static analyzeAnchorSection(html: string, anchorUrl: string, baseUrl: string): ContactPageResult {
+    try {
+      // Extract anchor name from URL (e.g., "#contact" -> "contact")
+      const anchorMatch = anchorUrl.match(/#(.+)$/);
+      if (!anchorMatch) {
+        console.log('No anchor fragment found in URL');
+        return { contactUrl: null, actualFormUrl: null, foundKeywords: [], searchMethod: 'anchor_parse_failed' };
+      }
+
+      const anchorId = anchorMatch[1];
+      console.log(`Analyzing section for anchor: ${anchorId}`);
+
+      // Look for the corresponding section with id or name
+      const sectionPatterns = [
+        new RegExp(`<[^>]+id=["']${anchorId}["'][^>]*>[\s\S]*?(?=<[^>]+id=["']|$)`, 'i'),
+        new RegExp(`<[^>]+name=["']${anchorId}["'][^>]*>[\s\S]*?(?=<[^>]+name=["']|$)`, 'i'),
+        new RegExp(`<section[^>]*>[\s\S]*?${anchorId}[\s\S]*?</section>`, 'i'),
+        new RegExp(`<div[^>]*contact[^>]*>[\s\S]*?</div>`, 'i')
+      ];
+
+      let sectionContent = '';
+      for (const pattern of sectionPatterns) {
+        const match = html.match(pattern);
+        if (match) {
+          sectionContent = match[0];
+          console.log(`Found section content: ${sectionContent.length} characters`);
+          break;
+        }
+      }
+
+      if (!sectionContent) {
+        // Fallback: search around anchor keywords in the entire HTML
+        const contactKeywords = ['contact', 'お問い合わせ', '問い合わせ'];
+        for (const keyword of contactKeywords) {
+          const keywordIndex = html.toLowerCase().indexOf(keyword);
+          if (keywordIndex !== -1) {
+            // Extract surrounding content (2000 characters)
+            const start = Math.max(0, keywordIndex - 1000);
+            const end = Math.min(html.length, keywordIndex + 1000);
+            sectionContent = html.substring(start, end);
+            console.log(`Found contact content around keyword '${keyword}': ${sectionContent.length} characters`);
+            break;
+          }
+        }
+      }
+
+      if (sectionContent) {
+        // Analyze section for contact information
+        const contactInfo = this.extractContactInfo(sectionContent);
+        const hasForm = this.isValidContactForm(sectionContent);
+        const googleForms = this.detectGoogleForms(sectionContent);
+
+        // Calculate confidence score
+        let score = 10; // Base score for having a contact section
+        const keywords = ['anchor_section_detected'];
+
+        if (contactInfo.phone) {
+          score += 5;
+          keywords.push('phone_number_found');
+        }
+        if (contactInfo.email) {
+          score += 5;
+          keywords.push('email_found');
+        }
+        if (contactInfo.contactForm) {
+          score += 8;
+          keywords.push('contact_form_mentioned');
+        }
+        if (hasForm) {
+          score += 10;
+          keywords.push('html_form_found');
+        }
+        if (googleForms.found) {
+          score += 10;
+          keywords.push('google_forms_found');
+        }
+
+        console.log(`Anchor section analysis complete. Score: ${score}, Keywords: ${keywords.join(', ')}`);
+
+        // If sufficient contact information found, return the base URL
+        if (score >= 15) {
+          console.log(`✅ Sufficient contact information found in anchor section (score: ${score})`);
+          return {
+            contactUrl: baseUrl,
+            actualFormUrl: googleForms.found ? googleForms.url : baseUrl,
+            foundKeywords: keywords,
+            searchMethod: 'anchor_section_analysis'
+          };
+        }
+      }
+
+      console.log('No sufficient contact information found in anchor section');
+      return {
+        contactUrl: null,
+        actualFormUrl: null,
+        foundKeywords: [],
+        searchMethod: 'anchor_section_insufficient'
+      };
+    } catch (error) {
+      console.log(`Error analyzing anchor section: ${error}`);
+      return {
+        contactUrl: null,
+        actualFormUrl: null,
+        foundKeywords: [],
+        searchMethod: 'anchor_section_error'
+      };
+    }
+  }
+
+  // **NEW: Extract contact information from HTML content**
+  private static extractContactInfo(html: string): { phone: boolean, email: boolean, contactForm: boolean } {
+    const phonePatterns = [
+      /\d{2,4}[-\s]?\d{2,4}[-\s]?\d{3,4}/,
+      /\(?\d{3}\)?[-\s]?\d{3,4}[-\s]?\d{3,4}/,
+      /TEL[\s:：]*\d/i,
+      /電話[\s:：]*\d/
+    ];
+
+    const emailPatterns = [
+      /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/,
+      /mail[\s:：]*@/i,
+      /メール[\s:：]*@/
+    ];
+
+    const contactFormPatterns = [
+      /お問い合わせフォーム/i,
+      /問い合わせフォーム/i,
+      /contact\s+form/i,
+      /フォーム.*承/i,
+      /form.*contact/i
+    ];
+
+    const phone = phonePatterns.some(pattern => pattern.test(html));
+    const email = emailPatterns.some(pattern => pattern.test(html));
+    const contactForm = contactFormPatterns.some(pattern => pattern.test(html));
+
+    console.log(`Contact info extraction: phone=${phone}, email=${email}, contactForm=${contactForm}`);
+    return { phone, email, contactForm };
+  }
+
   private static readonly FORM_KEYWORDS = [
     'フォーム', 'form', '入力', '送信',
     'googleフォーム', 'google form', 'submit'
@@ -228,8 +442,8 @@ private static readonly CONTACT_KEYWORDS = [
 
       console.log(`Starting contact page search for: ${baseUrl}`);
 
-      // STEP 1: URL pattern guessing (HIGHEST PRIORITY - Fast & Accurate)
-      console.log('Step 1: URL pattern guessing (primary strategy)');
+      // STEP 1: URL pattern guessing with integrated SPA detection (HIGHEST PRIORITY - Fast & Accurate)
+      console.log('Step 1: URL pattern guessing with SPA optimization (primary strategy)');
       const priorityResult = this.searchWithPriorityPatterns(domainUrl, startTime);
       if (priorityResult.contactUrl) {
         console.log(`✅ Found via URL pattern search: ${priorityResult.contactUrl}`);
@@ -287,6 +501,8 @@ private static readonly CONTACT_KEYWORDS = [
             return result;
           } else if (result.actualFormUrl === 'embedded_contact_form_on_page') {
             console.log(`✅ Verified embedded form at: ${result.contactUrl}`);
+            // Fix: Return actual contact URL instead of placeholder
+            result.actualFormUrl = result.contactUrl;
             return result;
           } else {
             console.log(`Contact page found but no form verified: ${result.contactUrl}`);
@@ -300,7 +516,7 @@ private static readonly CONTACT_KEYWORDS = [
           console.log(`✅ Found embedded form on homepage as last resort`);
           return {
             contactUrl: baseUrl,
-            actualFormUrl: 'embedded_contact_form_on_page',
+            actualFormUrl: baseUrl, // Fix: Return actual URL instead of placeholder
             foundKeywords: ['homepage_embedded_form'],
             searchMethod: 'homepage_embedded_fallback'
           };
@@ -346,6 +562,16 @@ private static readonly CONTACT_KEYWORDS = [
       if (isSuccessfulFormDuplicate) {
         console.log(`⏭ Skipping duplicate URL (already succeeded in Step1): ${navResult.url}`);
       } else {
+        // Check if this is an anchor link for special processing
+        if (this.isAnchorLink(navResult.url)) {
+          console.log(`🔍 Anchor link detected: ${navResult.url}, analyzing section content`);
+          const anchorSectionResult = this.analyzeAnchorSection(html, navResult.url, baseUrl);
+          if (anchorSectionResult.contactUrl) {
+            console.log(`✅ Found contact info in anchor section: ${anchorSectionResult.contactUrl}`);
+            return anchorSectionResult;
+          }
+        }
+
         // 新規URLの場合：実際にアクセスしてform検証+Google Forms検証
         console.log(`🔍 New URL found, performing detailed validation: ${navResult.url}`);
 
@@ -1005,7 +1231,7 @@ private static readonly CONTACT_KEYWORDS = [
       const embeddedForm = this.findEmbeddedHTMLForm(html);
       if (embeddedForm) {
         console.log(`Found embedded form in contact page`);
-        return 'embedded_contact_form_on_page';
+        return contactPageUrl; // Fix: Return actual contact page URL instead of placeholder
       }
 
       // 3. ２段階リンク検出: より詳細なフォームページへのリンクを探す
@@ -1583,6 +1809,7 @@ private static readonly CONTACT_KEYWORDS = [
     this.candidatePages = [];
     this.validUrls = [];
     this.successfulFormUrls = [];
+    this.sameHtmlCache = {}; // Reset SPA detection cache
   }
 
   // 候補を活用したfallback処理
@@ -1862,7 +2089,7 @@ private static readonly CONTACT_KEYWORDS = [
   }
 
 
-  private static findEmbeddedHTMLForm(html: string): string | null {
+  private static findEmbeddedHTMLForm(html: string): boolean {
     // Look for HTML form elements with contact-related fields
     const formRegex = /<form([^>]*?)>([\s\S]*?)<\/form>/gi;
     let formMatch;
@@ -1898,11 +2125,11 @@ private static readonly CONTACT_KEYWORDS = [
       // If form contains 2 or more contact-related keywords, consider it a contact form
       if (matchingKeywords.length >= 2) {
         console.log(`Valid contact form detected (priority: ${excludeResult.priority})`);
-        return 'embedded_contact_form_on_page';
+        return true; // Fix: Return boolean instead of placeholder string
       }
     }
 
-    return null;
+    return false;
   }
 
   // フォーム除外判定の新メソッド
@@ -2001,7 +2228,7 @@ private static readonly CONTACT_KEYWORDS = [
     // 200 OK URLリストをリセット
     this.validUrls = [];
     const maxTotalTime = this.getMaxTotalTime();
-    console.log('Starting priority-based URL pattern search with structured form validation');
+    console.log('Starting priority-based URL pattern search with integrated SPA detection');
 
     // 優先度順にパターンをテスト
     const allPatterns = [
@@ -2010,6 +2237,8 @@ private static readonly CONTACT_KEYWORDS = [
 
     let testedPatterns = 0;
     let structuredFormPages = 0;
+    const testedUrls: string[] = []; // For SPA detection
+    const htmlResponses: string[] = []; // Store HTML for SPA analysis
 
     for (const pattern of allPatterns) {
       // タイムアウトチェック
@@ -2028,6 +2257,26 @@ private static readonly CONTACT_KEYWORDS = [
         if (response.getResponseCode() === 200) {
           const html = response.getContentText();
           console.log(`Got HTML content for ${testUrl}, length: ${html.length}`);
+          
+          // **SPA OPTIMIZATION: Detect same HTML pattern and apply anchor analysis**
+          testedUrls.push(testUrl);
+          htmlResponses.push(html);
+          
+          // Check for SPA pattern after 2nd URL
+          if (testedUrls.length >= 2 && this.detectSameHtmlPattern(testedUrls, html)) {
+            console.log('Single Page Application detected: same HTML returned for multiple URLs');
+            console.log('Executing anchor-based analysis to optimize remaining URL tests');
+            
+            // Try anchor analysis on the current HTML (represents the homepage content)
+            const anchorResult = this.executeSPAAnalysis(html, domainUrl);
+            if (anchorResult.contactUrl) {
+              console.log(`✅ SPA optimization successful: ${anchorResult.contactUrl}`);
+              console.log(`Skipping remaining ${allPatterns.length - testedPatterns} URL pattern tests`);
+              return anchorResult;
+            }
+            
+            console.log('SPA detected but anchor analysis unsuccessful, continuing with remaining URL tests');
+          }
 
           // ページの有効性を確認
           if (this.isValidContactPage(html)) {
