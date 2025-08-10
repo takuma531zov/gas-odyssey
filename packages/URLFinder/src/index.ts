@@ -1438,9 +1438,10 @@ private static readonly CONTACT_KEYWORDS = [
 
   // form内の送信系ボタン検出
   private static hasSubmitButtonInForm(formHTML: string): boolean {
-    // input[type="submit"] または button[type="submit"] または button（type指定なし）を検索
+    // input[type="submit"], input[type="image"], button[type="submit"], button（type指定なし）を検索
     const submitButtonPatterns = [
       /<input[^>]*type=["|']submit["|'][^>]*>/gis,
+      /<input[^>]*type=["|']image["|'][^>]*>/gis,  // 画像送信ボタン対応
       /<button[^>]*type=["|']submit["|'][^>]*>[\s\S]*?<\/button>/gis,
       /<button(?![^>]*type=)[^>]*>[\s\S]*?<\/button>/gis  // typeが指定されていないbutton
     ];
