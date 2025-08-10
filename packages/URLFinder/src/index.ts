@@ -94,6 +94,108 @@ private static readonly CONTACT_KEYWORDS = [
     return hash.toString(16);
   }
 
+  // **NEW: Final Fallback** - Step1の最初の200 OK URLを最終手段として返却
+  private static getFinalFallbackUrl(): ContactPageResult {
+    console.log(`Checking final fallback from ${this.validUrls.length} valid URLs`);
+    
+    if (this.validUrls.length === 0) {
+      console.log('No valid URLs available for final fallback');
+      return {
+        contactUrl: null,
+        actualFormUrl: null,
+        foundKeywords: [],
+        searchMethod: 'no_fallback_available'
+      };
+    }
+
+    // 優先度順にcontact関連URLを探す
+    const contactPriorityPatterns = [
+      '/contact/',
+      '/contact', 
+      '/inquiry/',
+      '/inquiry',
+      '/form/',
+      '/form'
+    ];
+
+    // 高優先度contact patternを探す
+    for (const priorityPattern of contactPriorityPatterns) {
+      const matchingUrl = this.validUrls.find(urlInfo => 
+        urlInfo.pattern === priorityPattern
+      );
+      if (matchingUrl) {
+        console.log(`Final fallback: Using high-priority contact URL ${matchingUrl.url} (pattern: ${matchingUrl.pattern})`);
+        return {
+          contactUrl: matchingUrl.url,
+          actualFormUrl: matchingUrl.url,
+          foundKeywords: ['final_fallback', 'high_priority_contact_pattern', matchingUrl.pattern.replace(/\//g, '')],
+          searchMethod: 'final_fallback_priority_contact'
+        };
+      }
+    }
+
+    // 高優先度がない場合、最初の200 OK URLを使用
+    const firstValidUrl = this.validUrls[0];
+    if (!firstValidUrl) {
+      console.log('No valid URLs available in array');
+      return {
+        contactUrl: null,
+        actualFormUrl: null,
+        foundKeywords: [],
+        searchMethod: 'no_valid_urls'
+      };
+    }
+
+    console.log(`Final fallback: Using first valid URL ${firstValidUrl.url} (pattern: ${firstValidUrl.pattern})`);
+    
+    // URLの品質を評価
+    const qualityScore = this.evaluateFallbackUrlQuality(firstValidUrl.url, firstValidUrl.pattern);
+    
+    return {
+      contactUrl: firstValidUrl.url,
+      actualFormUrl: firstValidUrl.url,
+      foundKeywords: ['final_fallback', 'first_valid_url', firstValidUrl.pattern.replace(/\//g, ''), ...qualityScore.keywords],
+      searchMethod: qualityScore.confidence >= 0.7 ? 'final_fallback_high_confidence' : 'final_fallback_low_confidence'
+    };
+  }
+
+  // **NEW: Fallback URL Quality Evaluation** - フォールバックURLの品質評価
+  private static evaluateFallbackUrlQuality(url: string, pattern: string): { confidence: number, keywords: string[] } {
+    let confidence = 0.5; // ベーススコア
+    const keywords: string[] = [];
+
+    // 高信頼度パターン
+    const highConfidencePatterns = ['/contact/', '/contact', '/inquiry/', '/inquiry'];
+    if (highConfidencePatterns.includes(pattern)) {
+      confidence += 0.3;
+      keywords.push('high_confidence_pattern');
+    }
+
+    // 中信頼度パターン
+    const mediumConfidencePatterns = ['/form/', '/form'];
+    if (mediumConfidencePatterns.includes(pattern)) {
+      confidence += 0.1;
+      keywords.push('medium_confidence_pattern');
+    }
+
+    // URL内のcontactキーワードチェック（ドメイン除外）
+    const urlPath = url.replace(/https?:\/\/[^/]+/, ''); // ドメインを除外
+    const contactKeywords = ['contact', 'inquiry', 'form', 'お問い合わせ', '問い合わせ'];
+    
+    for (const keyword of contactKeywords) {
+      if (urlPath.toLowerCase().includes(keyword.toLowerCase())) {
+        confidence += 0.1;
+        keywords.push(`path_contains_${keyword}`);
+      }
+    }
+
+    // 信頼度を上限で制限
+    confidence = Math.min(confidence, 1.0);
+
+    console.log(`URL quality evaluation for ${url}: confidence=${confidence.toFixed(2)}, keywords=[${keywords.join(', ')}]`);
+    return { confidence, keywords };
+  }
+
   // 問い合わせ純度スコア計算（BtoB営業特化・重複防止版）
   private static calculateContactPurity(url: string, linkText: string, context: string = ''): { score: number, reasons: string[] } {
     let score = 0;
@@ -529,7 +631,15 @@ private static readonly CONTACT_KEYWORDS = [
         console.log(`Error in homepage analysis fallback: ${detailedError}`);
       }
 
-      console.log('All search methods failed');
+      // FINAL FALLBACK: Return first valid contact URL from Step1 if available
+      console.log('All search methods failed, checking final fallback...');
+      const fallbackResult = this.getFinalFallbackUrl();
+      if (fallbackResult.contactUrl) {
+        console.log(`✅ Final fallback successful: ${fallbackResult.contactUrl}`);
+        return fallbackResult;
+      }
+
+      console.log('All search methods failed, including final fallback');
       return {
         contactUrl: null,
         actualFormUrl: null,
