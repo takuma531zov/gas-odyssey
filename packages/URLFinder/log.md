@@ -1,179 +1,502 @@
-# Step2全体フロー（改修後）
-
-## Step2の目的と位置づけ
-- **実行条件**: Step1で構造化フォームが見つからなかった場合のfallback
-- **対象**: Navigation/FooterにCONTACTキーワードを含むリンクがあるページ
-- **前提**: すでにキーワードマッチングで問い合わせページの可能性が高い
-
-## Step2詳細フロー
-
-### 1. ホームページHTML取得・解析
-```
-ホームページのHTML取得 
-→ 文字エンコーディング検証（utf-8, shift_jis, euc-jp）
-→ HTML解析準備完了
-```
-
-### 2. Navigation/Footer検索
-```
-Navigation検索:
-- <nav>タグ
-- ヘッダー要素
-- メインメニュー系クラス/ID
-- モバイルメニュー系
-- ul/liベースのメニュー
-
-Footer検索:
-- <footer>タグ  
-- フッター系クラス/ID
-- サイト下部コンテンツエリア
-- 下部ナビゲーション
-```
-
-### 3. CONTACTキーワードマッチング
-```
-HIGH_PRIORITY_CONTACT_KEYWORDS:
-- contact, contact us, contact form
-- inquiry, enquiry, get in touch
-- reach out, send message, message us  
-- お問い合わせ
-
-マッチング対象:
-- リンクのURL: /contact.php
-- リンクのテキスト: CONTACT
-```
-
-### 4. 重複チェック（修正済み）
-```
-従来: Step1で処理した全URL（失敗含む）をスキップ
-↓
-改修後: Step1で成功したフォームURLのみスキップ
-
-チェック対象: successfulFormUrls[]
-- Step1でフォーム検証成功 → スキップ
-- Step1でフォーム検証失敗 → 再検証実行
-```
-
-### 5. 再検証処理
-
-#### 5-1. Navigation検出URLの詳細検証
-```
-Navigation/Footer検索で見つかったURL（例: /contact.php）に対して:
-
-A. 標準フォーム検証:
-   1. <form>要素存在確認
-   2. 送信要素検出:
-      - input[type="submit"]
-      - input[type="image"] ← 新規追加
-      - button[type="submit"] 
-      - button（type指定なし）
-
-B. Google Forms検証:
-   - <a>タグ内のGoogle Forms URL
-   - <iframe>タグ内のGoogle Forms URL
-   - docs.google.com/forms パターン検出
-   - forms.gle 短縮URL検出
-
-C. キーワードベース判定（効率化）:
-   - 条件: Navigation検出 + contact keyword + score >= 15
-   - 理由: Step2到達 = 高信頼度、フォーム検証より効率的
-   - 結果: 問い合わせページとして認定
-```
-
-#### 5-2. ホームページ全体フォーム解析（fallback）
-```
-Navigation検索で見つからない場合の包括的解析:
-
-A. ホームページ内の全フォーム検出:
-   - ページ全体の<form>要素をスキャン
-   - 各フォームの送信要素検証
-   - reCAPTCHA検出
-
-B. ホームページ内のGoogle Forms検出:
-   - ページ全体のGoogle Forms URL検索
-   - 埋め込みGoogle Formsの検出
-   - フォーム有効性の確認
-
-C. 構造化フォーム分析:
-   - フォーム内フィールド数のカウント
-   - 問い合わせ固有フィールドの検出
-   - フォームの品質評価
-```
-
-
-## 期待される効果
-
-### casual-dining.jpでの動作例
-```
-Step1: /contact.php → 各種フォーム検証失敗 → candidateUrls記録
-
-Step2: 
-1. ホームページHTML取得・解析 → 成功
-2. Navigation検索 → /contact.php 検出（contact キーワードマッチ）
-3. 重複チェック: successfulFormUrlsになし → 再検証実行
-
-4. Navigation検出URLの詳細検証: /contact.php
-   A. 標準フォーム検証 → 失敗（<form>なし）
-   B. Google Forms検証 → 失敗（URLなし）
-   C. キーワードベース判定 → 成功 ✅
-      - Navigation検出済み + contact keyword + score=15
-      - 高信頼度による問い合わせページ認定
-
-（キーワードベース判定で成功のため、以下は実行されない）
-5. 他のNavigation候補があれば同様に検証
-6. 全候補失敗時のみホームページ全体フォーム解析
-
-結果: casual-dining.jp/contact.php を問い合わせページとして認定
-```
-
-### 汎用性
-```
-適用対象:
-- フォーム要素が動的生成されるサイト
-- 外部フォームサービス（iframe）使用サイト
-- JavaScript制御のフォーム
-- シンプルな問い合わせページ（電話番号のみ等）
-
-効果:
-- Step1失敗ケースの大幅救済
-- GAS制約に最適化されたアプローチ
-- 高精度・高速な判定
-```
-
-## 技術的改修ポイント
-
-### 1. iframe検出削除
-```
-削除理由:
-- GAS: 静的HTML取得のみ
-- iframe: JavaScript動的生成が主流
-- 外部ドメイン: 取得不可能
-
-削除内容:
-- hasScriptAndIframeForm() 関数
-- 外部フォームサービスリスト  
-- iframe検出デバッグロジック
-```
-
-### 2. 重複スキップ修正
-```
-問題:
-- validUrls: 200 OKの全URL（成功・失敗問わず）
-- Step2で失敗したURLもスキップされる
-
-修正:
-- successfulFormUrls: 成功したフォームURLのみ
-- Step1フォーム成功時のみ記録
-- Step2で真の重複のみスキップ
-```
-
-### 3. キーワードベース判定追加（提案）
-```
-実装箇所: Step2のフォーム検証失敗後
-条件: Navigation検出 + keyword検出 + form検証失敗
-結果: キーワードベースで成功判定
-```
-
-## 結論
-
-**Step2は「Navigation/Footer解析による高信頼度ページの救済機能」**として位置づけ、GASの制約を考慮したキーワードベース判定により実用性を大幅向上。
+6:30:47	情報
+=== Testing improved fallback processing: http://www.cybercartel.net/ ===
+6:30:47	情報	Using MAX_TOTAL_TIME from script properties: 60000ms
+6:30:47	情報	Checking domain availability for: http://www.cybercartel.net/
+6:30:47	情報	Testing domain availability: http://www.cybercartel.net/
+6:30:48	情報	Domain check status: 200
+6:30:48	情報	Domain is available, proceeding with contact search
+6:30:48	情報	Starting contact page search for: http://www.cybercartel.net/
+6:30:48	情報	Step 1: URL pattern guessing (primary strategy)
+6:30:48	情報	Using MAX_TOTAL_TIME from script properties: 60000ms
+6:30:48	情報	Starting priority-based URL pattern search with structured form validation
+6:30:48	情報	Testing: http://www.cybercartel.net/contact/
+6:30:49	情報	Got HTML content for http://www.cybercartel.net/contact/, length: 7008
+6:30:49	情報	Validity check - hasInvalidContent: false, hasMinimumContent: true, length: 7008
+6:30:49	情報	http://www.cybercartel.net/contact/ passed validity check
+6:30:49	情報	Starting simple contact form validation...
+6:30:49	情報	No form elements found
+6:30:49	情報	No forms with submit buttons found
+6:30:49	情報	Checking for JavaScript forms with reCAPTCHA...
+6:30:49	情報	Script tags found, checking for reCAPTCHA...
+6:30:49	情報	Checking reCAPTCHA patterns...
+6:30:49	情報	No reCAPTCHA patterns found
+6:30:49	情報	No valid forms found (standard or reCAPTCHA forms)
+6:30:49	情報	Pattern /contact/: 200 OK, contact form: false
+6:30:49	情報	No standard form found at http://www.cybercartel.net/contact/, checking for Google Forms...
+6:30:49	情報	Starting Google Forms detection...
+6:30:49	情報	No Google Forms detected
+6:30:49	情報	No contact forms found at http://www.cybercartel.net/contact/, logging as candidate and continuing
+6:30:49	情報	Structured form analysis complete: 0 forms, 0 total fields, contact fields: false
+6:30:49	情報	Structured form analysis complete: 0 forms, 0 total fields, contact fields: false
+6:30:49	情報	Starting simple contact form validation...
+6:30:49	情報	No form elements found
+6:30:49	情報	No forms with submit buttons found
+6:30:49	情報	Checking for JavaScript forms with reCAPTCHA...
+6:30:49	情報	Script tags found, checking for reCAPTCHA...
+6:30:49	情報	Checking reCAPTCHA patterns...
+6:30:49	情報	No reCAPTCHA patterns found
+6:30:49	情報	No valid forms found (standard or reCAPTCHA forms)
+6:30:49	情報	Form analysis - Valid:false, Method:simple_form_validation
+6:30:49	情報	Candidate logged: http://www.cybercartel.net/contact/ (no_contact_form, score: 8)
+6:30:49	情報	Testing: http://www.cybercartel.net/contact
+6:30:50	情報	Got HTML content for http://www.cybercartel.net/contact, length: 7008
+6:30:50	情報	Validity check - hasInvalidContent: false, hasMinimumContent: true, length: 7008
+6:30:50	情報	http://www.cybercartel.net/contact passed validity check
+6:30:50	情報	Starting simple contact form validation...
+6:30:50	情報	No form elements found
+6:30:50	情報	No forms with submit buttons found
+6:30:50	情報	Checking for JavaScript forms with reCAPTCHA...
+6:30:50	情報	Script tags found, checking for reCAPTCHA...
+6:30:50	情報	Checking reCAPTCHA patterns...
+6:30:50	情報	No reCAPTCHA patterns found
+6:30:50	情報	No valid forms found (standard or reCAPTCHA forms)
+6:30:50	情報	Pattern /contact: 200 OK, contact form: false
+6:30:50	情報	No standard form found at http://www.cybercartel.net/contact, checking for Google Forms...
+6:30:50	情報	Starting Google Forms detection...
+6:30:50	情報	No Google Forms detected
+6:30:50	情報	No contact forms found at http://www.cybercartel.net/contact, logging as candidate and continuing
+6:30:50	情報	Structured form analysis complete: 0 forms, 0 total fields, contact fields: false
+6:30:50	情報	Structured form analysis complete: 0 forms, 0 total fields, contact fields: false
+6:30:50	情報	Starting simple contact form validation...
+6:30:50	情報	No form elements found
+6:30:50	情報	No forms with submit buttons found
+6:30:50	情報	Checking for JavaScript forms with reCAPTCHA...
+6:30:50	情報	Script tags found, checking for reCAPTCHA...
+6:30:50	情報	Checking reCAPTCHA patterns...
+6:30:50	情報	No reCAPTCHA patterns found
+6:30:50	情報	No valid forms found (standard or reCAPTCHA forms)
+6:30:50	情報	Form analysis - Valid:false, Method:simple_form_validation
+6:30:50	情報	Candidate logged: http://www.cybercartel.net/contact (no_contact_form, score: 0)
+6:30:50	情報	Testing: http://www.cybercartel.net/contact.php
+6:30:51	情報	Got HTML content for http://www.cybercartel.net/contact.php, length: 7008
+6:30:51	情報	Validity check - hasInvalidContent: false, hasMinimumContent: true, length: 7008
+6:30:51	情報	http://www.cybercartel.net/contact.php passed validity check
+6:30:51	情報	Starting simple contact form validation...
+6:30:51	情報	No form elements found
+6:30:51	情報	No forms with submit buttons found
+6:30:51	情報	Checking for JavaScript forms with reCAPTCHA...
+6:30:51	情報	Script tags found, checking for reCAPTCHA...
+6:30:51	情報	Checking reCAPTCHA patterns...
+6:30:51	情報	No reCAPTCHA patterns found
+6:30:51	情報	No valid forms found (standard or reCAPTCHA forms)
+6:30:51	情報	Pattern /contact.php: 200 OK, contact form: false
+6:30:51	情報	No standard form found at http://www.cybercartel.net/contact.php, checking for Google Forms...
+6:30:51	情報	Starting Google Forms detection...
+6:30:51	情報	No Google Forms detected
+6:30:51	情報	No contact forms found at http://www.cybercartel.net/contact.php, logging as candidate and continuing
+6:30:51	情報	Structured form analysis complete: 0 forms, 0 total fields, contact fields: false
+6:30:51	情報	Structured form analysis complete: 0 forms, 0 total fields, contact fields: false
+6:30:51	情報	Starting simple contact form validation...
+6:30:51	情報	No form elements found
+6:30:51	情報	No forms with submit buttons found
+6:30:51	情報	Checking for JavaScript forms with reCAPTCHA...
+6:30:51	情報	Script tags found, checking for reCAPTCHA...
+6:30:51	情報	Checking reCAPTCHA patterns...
+6:30:51	情報	No reCAPTCHA patterns found
+6:30:51	情報	No valid forms found (standard or reCAPTCHA forms)
+6:30:51	情報	Form analysis - Valid:false, Method:simple_form_validation
+6:30:51	情報	Candidate logged: http://www.cybercartel.net/contact.php (no_contact_form, score: 0)
+6:30:51	情報	Testing: http://www.cybercartel.net/inquiry/
+6:30:51	情報	Got HTML content for http://www.cybercartel.net/inquiry/, length: 7008
+6:30:51	情報	Validity check - hasInvalidContent: false, hasMinimumContent: true, length: 7008
+6:30:51	情報	http://www.cybercartel.net/inquiry/ passed validity check
+6:30:51	情報	Starting simple contact form validation...
+6:30:51	情報	No form elements found
+6:30:51	情報	No forms with submit buttons found
+6:30:51	情報	Checking for JavaScript forms with reCAPTCHA...
+6:30:51	情報	Script tags found, checking for reCAPTCHA...
+6:30:51	情報	Checking reCAPTCHA patterns...
+6:30:51	情報	No reCAPTCHA patterns found
+6:30:51	情報	No valid forms found (standard or reCAPTCHA forms)
+6:30:51	情報	Pattern /inquiry/: 200 OK, contact form: false
+6:30:51	情報	No standard form found at http://www.cybercartel.net/inquiry/, checking for Google Forms...
+6:30:51	情報	Starting Google Forms detection...
+6:30:51	情報	No Google Forms detected
+6:30:51	情報	No contact forms found at http://www.cybercartel.net/inquiry/, logging as candidate and continuing
+6:30:51	情報	Structured form analysis complete: 0 forms, 0 total fields, contact fields: false
+6:30:51	情報	Structured form analysis complete: 0 forms, 0 total fields, contact fields: false
+6:30:51	情報	Starting simple contact form validation...
+6:30:51	情報	No form elements found
+6:30:51	情報	No forms with submit buttons found
+6:30:51	情報	Checking for JavaScript forms with reCAPTCHA...
+6:30:51	情報	Script tags found, checking for reCAPTCHA...
+6:30:51	情報	Checking reCAPTCHA patterns...
+6:30:51	情報	No reCAPTCHA patterns found
+6:30:51	情報	No valid forms found (standard or reCAPTCHA forms)
+6:30:51	情報	Form analysis - Valid:false, Method:simple_form_validation
+6:30:51	情報	Candidate logged: http://www.cybercartel.net/inquiry/ (no_contact_form, score: 12)
+6:30:51	情報	Testing: http://www.cybercartel.net/inquiry
+6:30:52	情報	Got HTML content for http://www.cybercartel.net/inquiry, length: 7008
+6:30:52	情報	Validity check - hasInvalidContent: false, hasMinimumContent: true, length: 7008
+6:30:52	情報	http://www.cybercartel.net/inquiry passed validity check
+6:30:52	情報	Starting simple contact form validation...
+6:30:52	情報	No form elements found
+6:30:52	情報	No forms with submit buttons found
+6:30:52	情報	Checking for JavaScript forms with reCAPTCHA...
+6:30:52	情報	Script tags found, checking for reCAPTCHA...
+6:30:52	情報	Checking reCAPTCHA patterns...
+6:30:52	情報	No reCAPTCHA patterns found
+6:30:52	情報	No valid forms found (standard or reCAPTCHA forms)
+6:30:52	情報	Pattern /inquiry: 200 OK, contact form: false
+6:30:52	情報	No standard form found at http://www.cybercartel.net/inquiry, checking for Google Forms...
+6:30:52	情報	Starting Google Forms detection...
+6:30:52	情報	No Google Forms detected
+6:30:52	情報	No contact forms found at http://www.cybercartel.net/inquiry, logging as candidate and continuing
+6:30:52	情報	Structured form analysis complete: 0 forms, 0 total fields, contact fields: false
+6:30:52	情報	Structured form analysis complete: 0 forms, 0 total fields, contact fields: false
+6:30:52	情報	Starting simple contact form validation...
+6:30:52	情報	No form elements found
+6:30:52	情報	No forms with submit buttons found
+6:30:52	情報	Checking for JavaScript forms with reCAPTCHA...
+6:30:52	情報	Script tags found, checking for reCAPTCHA...
+6:30:52	情報	Checking reCAPTCHA patterns...
+6:30:52	情報	No reCAPTCHA patterns found
+6:30:52	情報	No valid forms found (standard or reCAPTCHA forms)
+6:30:52	情報	Form analysis - Valid:false, Method:simple_form_validation
+6:30:52	情報	Candidate logged: http://www.cybercartel.net/inquiry (no_contact_form, score: 0)
+6:30:52	情報	Testing: http://www.cybercartel.net/inquiry.php
+6:30:53	情報	Got HTML content for http://www.cybercartel.net/inquiry.php, length: 7008
+6:30:53	情報	Validity check - hasInvalidContent: false, hasMinimumContent: true, length: 7008
+6:30:53	情報	http://www.cybercartel.net/inquiry.php passed validity check
+6:30:53	情報	Starting simple contact form validation...
+6:30:53	情報	No form elements found
+6:30:53	情報	No forms with submit buttons found
+6:30:53	情報	Checking for JavaScript forms with reCAPTCHA...
+6:30:53	情報	Script tags found, checking for reCAPTCHA...
+6:30:53	情報	Checking reCAPTCHA patterns...
+6:30:53	情報	No reCAPTCHA patterns found
+6:30:53	情報	No valid forms found (standard or reCAPTCHA forms)
+6:30:53	情報	Pattern /inquiry.php: 200 OK, contact form: false
+6:30:53	情報	No standard form found at http://www.cybercartel.net/inquiry.php, checking for Google Forms...
+6:30:53	情報	Starting Google Forms detection...
+6:30:53	情報	No Google Forms detected
+6:30:53	情報	No contact forms found at http://www.cybercartel.net/inquiry.php, logging as candidate and continuing
+6:30:53	情報	Structured form analysis complete: 0 forms, 0 total fields, contact fields: false
+6:30:53	情報	Structured form analysis complete: 0 forms, 0 total fields, contact fields: false
+6:30:53	情報	Starting simple contact form validation...
+6:30:53	情報	No form elements found
+6:30:53	情報	No forms with submit buttons found
+6:30:53	情報	Checking for JavaScript forms with reCAPTCHA...
+6:30:53	情報	Script tags found, checking for reCAPTCHA...
+6:30:53	情報	Checking reCAPTCHA patterns...
+6:30:53	情報	No reCAPTCHA patterns found
+6:30:53	情報	No valid forms found (standard or reCAPTCHA forms)
+6:30:53	情報	Form analysis - Valid:false, Method:simple_form_validation
+6:30:53	情報	Candidate logged: http://www.cybercartel.net/inquiry.php (no_contact_form, score: 0)
+6:30:53	情報	Testing: http://www.cybercartel.net/form
+6:30:54	情報	Got HTML content for http://www.cybercartel.net/form, length: 7008
+6:30:54	情報	Validity check - hasInvalidContent: false, hasMinimumContent: true, length: 7008
+6:30:54	情報	http://www.cybercartel.net/form passed validity check
+6:30:54	情報	Starting simple contact form validation...
+6:30:54	情報	No form elements found
+6:30:54	情報	No forms with submit buttons found
+6:30:54	情報	Checking for JavaScript forms with reCAPTCHA...
+6:30:54	情報	Script tags found, checking for reCAPTCHA...
+6:30:54	情報	Checking reCAPTCHA patterns...
+6:30:54	情報	No reCAPTCHA patterns found
+6:30:54	情報	No valid forms found (standard or reCAPTCHA forms)
+6:30:54	情報	Pattern /form: 200 OK, contact form: false
+6:30:54	情報	No standard form found at http://www.cybercartel.net/form, checking for Google Forms...
+6:30:54	情報	Starting Google Forms detection...
+6:30:54	情報	No Google Forms detected
+6:30:54	情報	No contact forms found at http://www.cybercartel.net/form, logging as candidate and continuing
+6:30:54	情報	Structured form analysis complete: 0 forms, 0 total fields, contact fields: false
+6:30:54	情報	Structured form analysis complete: 0 forms, 0 total fields, contact fields: false
+6:30:54	情報	Starting simple contact form validation...
+6:30:54	情報	No form elements found
+6:30:54	情報	No forms with submit buttons found
+6:30:54	情報	Checking for JavaScript forms with reCAPTCHA...
+6:30:54	情報	Script tags found, checking for reCAPTCHA...
+6:30:54	情報	Checking reCAPTCHA patterns...
+6:30:54	情報	No reCAPTCHA patterns found
+6:30:54	情報	No valid forms found (standard or reCAPTCHA forms)
+6:30:54	情報	Form analysis - Valid:false, Method:simple_form_validation
+6:30:54	情報	Candidate logged: http://www.cybercartel.net/form (no_contact_form, score: 0)
+6:30:54	情報	Testing: http://www.cybercartel.net/form/
+6:30:55	情報	Got HTML content for http://www.cybercartel.net/form/, length: 7008
+6:30:55	情報	Validity check - hasInvalidContent: false, hasMinimumContent: true, length: 7008
+6:30:55	情報	http://www.cybercartel.net/form/ passed validity check
+6:30:55	情報	Starting simple contact form validation...
+6:30:55	情報	No form elements found
+6:30:55	情報	No forms with submit buttons found
+6:30:55	情報	Checking for JavaScript forms with reCAPTCHA...
+6:30:55	情報	Script tags found, checking for reCAPTCHA...
+6:30:55	情報	Checking reCAPTCHA patterns...
+6:30:55	情報	No reCAPTCHA patterns found
+6:30:55	情報	No valid forms found (standard or reCAPTCHA forms)
+6:30:55	情報	Pattern /form/: 200 OK, contact form: false
+6:30:55	情報	No standard form found at http://www.cybercartel.net/form/, checking for Google Forms...
+6:30:55	情報	Starting Google Forms detection...
+6:30:55	情報	No Google Forms detected
+6:30:55	情報	No contact forms found at http://www.cybercartel.net/form/, logging as candidate and continuing
+6:30:55	情報	Structured form analysis complete: 0 forms, 0 total fields, contact fields: false
+6:30:55	情報	Structured form analysis complete: 0 forms, 0 total fields, contact fields: false
+6:30:55	情報	Starting simple contact form validation...
+6:30:55	情報	No form elements found
+6:30:55	情報	No forms with submit buttons found
+6:30:55	情報	Checking for JavaScript forms with reCAPTCHA...
+6:30:55	情報	Script tags found, checking for reCAPTCHA...
+6:30:55	情報	Checking reCAPTCHA patterns...
+6:30:55	情報	No reCAPTCHA patterns found
+6:30:55	情報	No valid forms found (standard or reCAPTCHA forms)
+6:30:55	情報	Form analysis - Valid:false, Method:simple_form_validation
+6:30:55	情報	Candidate logged: http://www.cybercartel.net/form/ (no_contact_form, score: 10)
+6:30:55	情報	Testing: http://www.cybercartel.net/form.php
+6:30:55	情報	Got HTML content for http://www.cybercartel.net/form.php, length: 7008
+6:30:55	情報	Validity check - hasInvalidContent: false, hasMinimumContent: true, length: 7008
+6:30:55	情報	http://www.cybercartel.net/form.php passed validity check
+6:30:55	情報	Starting simple contact form validation...
+6:30:55	情報	No form elements found
+6:30:55	情報	No forms with submit buttons found
+6:30:55	情報	Checking for JavaScript forms with reCAPTCHA...
+6:30:55	情報	Script tags found, checking for reCAPTCHA...
+6:30:55	情報	Checking reCAPTCHA patterns...
+6:30:55	情報	No reCAPTCHA patterns found
+6:30:55	情報	No valid forms found (standard or reCAPTCHA forms)
+6:30:55	情報	Pattern /form.php: 200 OK, contact form: false
+6:30:55	情報	No standard form found at http://www.cybercartel.net/form.php, checking for Google Forms...
+6:30:55	情報	Starting Google Forms detection...
+6:30:55	情報	No Google Forms detected
+6:30:55	情報	No contact forms found at http://www.cybercartel.net/form.php, logging as candidate and continuing
+6:30:55	情報	Structured form analysis complete: 0 forms, 0 total fields, contact fields: false
+6:30:55	情報	Structured form analysis complete: 0 forms, 0 total fields, contact fields: false
+6:30:55	情報	Starting simple contact form validation...
+6:30:55	情報	No form elements found
+6:30:55	情報	No forms with submit buttons found
+6:30:55	情報	Checking for JavaScript forms with reCAPTCHA...
+6:30:55	情報	Script tags found, checking for reCAPTCHA...
+6:30:55	情報	Checking reCAPTCHA patterns...
+6:30:55	情報	No reCAPTCHA patterns found
+6:30:55	情報	No valid forms found (standard or reCAPTCHA forms)
+6:30:55	情報	Form analysis - Valid:false, Method:simple_form_validation
+6:30:55	情報	Candidate logged: http://www.cybercartel.net/form.php (no_contact_form, score: 0)
+6:30:55	情報	Testing: http://www.cybercartel.net/contact-us/
+6:30:56	情報	Got HTML content for http://www.cybercartel.net/contact-us/, length: 7008
+6:30:56	情報	Validity check - hasInvalidContent: false, hasMinimumContent: true, length: 7008
+6:30:56	情報	http://www.cybercartel.net/contact-us/ passed validity check
+6:30:56	情報	Starting simple contact form validation...
+6:30:56	情報	No form elements found
+6:30:56	情報	No forms with submit buttons found
+6:30:56	情報	Checking for JavaScript forms with reCAPTCHA...
+6:30:56	情報	Script tags found, checking for reCAPTCHA...
+6:30:56	情報	Checking reCAPTCHA patterns...
+6:30:56	情報	No reCAPTCHA patterns found
+6:30:56	情報	No valid forms found (standard or reCAPTCHA forms)
+6:30:56	情報	Pattern /contact-us/: 200 OK, contact form: false
+6:30:56	情報	No standard form found at http://www.cybercartel.net/contact-us/, checking for Google Forms...
+6:30:56	情報	Starting Google Forms detection...
+6:30:56	情報	No Google Forms detected
+6:30:56	情報	No contact forms found at http://www.cybercartel.net/contact-us/, logging as candidate and continuing
+6:30:56	情報	Structured form analysis complete: 0 forms, 0 total fields, contact fields: false
+6:30:56	情報	Structured form analysis complete: 0 forms, 0 total fields, contact fields: false
+6:30:56	情報	Starting simple contact form validation...
+6:30:56	情報	No form elements found
+6:30:56	情報	No forms with submit buttons found
+6:30:56	情報	Checking for JavaScript forms with reCAPTCHA...
+6:30:56	情報	Script tags found, checking for reCAPTCHA...
+6:30:56	情報	Checking reCAPTCHA patterns...
+6:30:56	情報	No reCAPTCHA patterns found
+6:30:56	情報	No valid forms found (standard or reCAPTCHA forms)
+6:30:56	情報	Form analysis - Valid:false, Method:simple_form_validation
+6:30:56	情報	Candidate logged: http://www.cybercartel.net/contact-us/ (no_contact_form, score: 0)
+6:30:56	情報	Testing: http://www.cybercartel.net/contact-us
+6:30:57	情報	Got HTML content for http://www.cybercartel.net/contact-us, length: 7008
+6:30:57	情報	Validity check - hasInvalidContent: false, hasMinimumContent: true, length: 7008
+6:30:57	情報	http://www.cybercartel.net/contact-us passed validity check
+6:30:57	情報	Starting simple contact form validation...
+6:30:57	情報	No form elements found
+6:30:57	情報	No forms with submit buttons found
+6:30:57	情報	Checking for JavaScript forms with reCAPTCHA...
+6:30:57	情報	Script tags found, checking for reCAPTCHA...
+6:30:57	情報	Checking reCAPTCHA patterns...
+6:30:57	情報	No reCAPTCHA patterns found
+6:30:57	情報	No valid forms found (standard or reCAPTCHA forms)
+6:30:57	情報	Pattern /contact-us: 200 OK, contact form: false
+6:30:57	情報	No standard form found at http://www.cybercartel.net/contact-us, checking for Google Forms...
+6:30:57	情報	Starting Google Forms detection...
+6:30:57	情報	No Google Forms detected
+6:30:57	情報	No contact forms found at http://www.cybercartel.net/contact-us, logging as candidate and continuing
+6:30:57	情報	Structured form analysis complete: 0 forms, 0 total fields, contact fields: false
+6:30:57	情報	Structured form analysis complete: 0 forms, 0 total fields, contact fields: false
+6:30:57	情報	Starting simple contact form validation...
+6:30:57	情報	No form elements found
+6:30:57	情報	No forms with submit buttons found
+6:30:57	情報	Checking for JavaScript forms with reCAPTCHA...
+6:30:57	情報	Script tags found, checking for reCAPTCHA...
+6:30:57	情報	Checking reCAPTCHA patterns...
+6:30:57	情報	No reCAPTCHA patterns found
+6:30:57	情報	No valid forms found (standard or reCAPTCHA forms)
+6:30:57	情報	Form analysis - Valid:false, Method:simple_form_validation
+6:30:57	情報	Candidate logged: http://www.cybercartel.net/contact-us (no_contact_form, score: 0)
+6:30:57	情報	Testing: http://www.cybercartel.net/%E3%81%8A%E5%95%8F%E3%81%84%E5%90%88%E3%82%8F%E3%81%9B/
+6:30:57	情報	Got HTML content for http://www.cybercartel.net/%E3%81%8A%E5%95%8F%E3%81%84%E5%90%88%E3%82%8F%E3%81%9B/, length: 7008
+6:30:57	情報	Validity check - hasInvalidContent: false, hasMinimumContent: true, length: 7008
+6:30:57	情報	http://www.cybercartel.net/%E3%81%8A%E5%95%8F%E3%81%84%E5%90%88%E3%82%8F%E3%81%9B/ passed validity check
+6:30:57	情報	Starting simple contact form validation...
+6:30:57	情報	No form elements found
+6:30:57	情報	No forms with submit buttons found
+6:30:57	情報	Checking for JavaScript forms with reCAPTCHA...
+6:30:57	情報	Script tags found, checking for reCAPTCHA...
+6:30:57	情報	Checking reCAPTCHA patterns...
+6:30:57	情報	No reCAPTCHA patterns found
+6:30:57	情報	No valid forms found (standard or reCAPTCHA forms)
+6:30:57	情報	Pattern /%E3%81%8A%E5%95%8F%E3%81%84%E5%90%88%E3%82%8F%E3%81%9B/: 200 OK, contact form: false
+6:30:57	情報	No standard form found at http://www.cybercartel.net/%E3%81%8A%E5%95%8F%E3%81%84%E5%90%88%E3%82%8F%E3%81%9B/, checking for Google Forms...
+6:30:57	情報	Starting Google Forms detection...
+6:30:57	情報	No Google Forms detected
+6:30:57	情報	No contact forms found at http://www.cybercartel.net/%E3%81%8A%E5%95%8F%E3%81%84%E5%90%88%E3%82%8F%E3%81%9B/, logging as candidate and continuing
+6:30:57	情報	Structured form analysis complete: 0 forms, 0 total fields, contact fields: false
+6:30:57	情報	Structured form analysis complete: 0 forms, 0 total fields, contact fields: false
+6:30:57	情報	Starting simple contact form validation...
+6:30:57	情報	No form elements found
+6:30:57	情報	No forms with submit buttons found
+6:30:57	情報	Checking for JavaScript forms with reCAPTCHA...
+6:30:57	情報	Script tags found, checking for reCAPTCHA...
+6:30:57	情報	Checking reCAPTCHA patterns...
+6:30:57	情報	No reCAPTCHA patterns found
+6:30:57	情報	No valid forms found (standard or reCAPTCHA forms)
+6:30:57	情報	Form analysis - Valid:false, Method:simple_form_validation
+6:30:57	情報	Candidate logged: http://www.cybercartel.net/%E3%81%8A%E5%95%8F%E3%81%84%E5%90%88%E3%82%8F%E3%81%9B/ (no_contact_form, score: 0)
+6:30:57	情報	Testing: http://www.cybercartel.net/%E5%95%8F%E3%81%84%E5%90%88%E3%82%8F%E3%81%9B/
+6:30:58	情報	Got HTML content for http://www.cybercartel.net/%E5%95%8F%E3%81%84%E5%90%88%E3%82%8F%E3%81%9B/, length: 7008
+6:30:58	情報	Validity check - hasInvalidContent: false, hasMinimumContent: true, length: 7008
+6:30:58	情報	http://www.cybercartel.net/%E5%95%8F%E3%81%84%E5%90%88%E3%82%8F%E3%81%9B/ passed validity check
+6:30:58	情報	Starting simple contact form validation...
+6:30:58	情報	No form elements found
+6:30:58	情報	No forms with submit buttons found
+6:30:58	情報	Checking for JavaScript forms with reCAPTCHA...
+6:30:58	情報	Script tags found, checking for reCAPTCHA...
+6:30:58	情報	Checking reCAPTCHA patterns...
+6:30:58	情報	No reCAPTCHA patterns found
+6:30:58	情報	No valid forms found (standard or reCAPTCHA forms)
+6:30:58	情報	Pattern /%E5%95%8F%E3%81%84%E5%90%88%E3%82%8F%E3%81%9B/: 200 OK, contact form: false
+6:30:58	情報	No standard form found at http://www.cybercartel.net/%E5%95%8F%E3%81%84%E5%90%88%E3%82%8F%E3%81%9B/, checking for Google Forms...
+6:30:58	情報	Starting Google Forms detection...
+6:30:58	情報	No Google Forms detected
+6:30:58	情報	No contact forms found at http://www.cybercartel.net/%E5%95%8F%E3%81%84%E5%90%88%E3%82%8F%E3%81%9B/, logging as candidate and continuing
+6:30:58	情報	Structured form analysis complete: 0 forms, 0 total fields, contact fields: false
+6:30:58	情報	Structured form analysis complete: 0 forms, 0 total fields, contact fields: false
+6:30:58	情報	Starting simple contact form validation...
+6:30:58	情報	No form elements found
+6:30:58	情報	No forms with submit buttons found
+6:30:58	情報	Checking for JavaScript forms with reCAPTCHA...
+6:30:58	情報	Script tags found, checking for reCAPTCHA...
+6:30:58	情報	Checking reCAPTCHA patterns...
+6:30:58	情報	No reCAPTCHA patterns found
+6:30:58	情報	No valid forms found (standard or reCAPTCHA forms)
+6:30:58	情報	Form analysis - Valid:false, Method:simple_form_validation
+6:30:58	情報	Candidate logged: http://www.cybercartel.net/%E5%95%8F%E3%81%84%E5%90%88%E3%82%8F%E3%81%9B/ (no_contact_form, score: 0)
+6:30:58	情報	=== Pattern Search Summary ===
+6:30:58	情報	Tested patterns: 13
+6:30:58	情報	Structured form pages: 0
+6:30:58	情報	Candidate pages: 13
+6:30:58	情報	Step 2: Homepage HTML analysis as fallback for special cases
+6:30:58	情報	Trying multiple encodings for content decoding...
+6:30:58	情報	Encoding validation: 0 replacement chars out of 7008 (0.00%) - VALID
+6:30:58	情報	✅ Successfully decoded with utf-8
+6:30:58	情報	=== Starting navigation-only HTML analysis ===
+6:30:58	情報	Stage 1: Navigation search
+6:30:58	情報	Searching in navigation with 9 selectors (including #naviArea, .nav, .navigation, .menu)...
+6:30:58	情報	Navigation selector 1: Found 1 matches
+6:30:58	情報	Analyzing navigation match 1 (598 chars): <nav id="navi">
+		<ul>
+			<li><a href="#about" class="over" data-fancybox="close"><img src="./img/me...
+6:30:58	情報	=== EXTRACTING ALL LINKS DEBUG ===
+6:30:58	情報	Input content length: 598
+6:30:58	情報	Input content preview: <nav id="navi">
+		<ul>
+			<li><a href="#about" class="over" data-fancybox="close"><img src="./img/menu_about.png" width="226" height="80" alt="ABOUT US"></a></li>
+			<li><a href="#company" class="over...
+6:30:58	情報	HIGH_PRIORITY_CONTACT_KEYWORDS: ["contact","contact us","contact form","inquiry","enquiry","get in touch","reach out","send message","message us","お問い合わせ"]
+6:30:58	情報	--- Link 1 RAW DATA ---
+6:30:58	情報	Raw URL: "#about"
+6:30:58	情報	Raw linkText: "<img src="./img/menu_about.png" width="226" height="80" alt="ABOUT US">"
+6:30:58	情報	Raw linkText hex: 3c 69 6d 67 20 73 72 63 3d 22 2e 2f 69 6d 67 2f 6d 65 6e 75 5f 61 62 6f 75 74 2e 70 6e 67 22 20 77 69 64 74 68 3d 22 32 32 36 22 20 68 65 69 67 68 74 3d 22 38 30 22 20 61 6c 74 3d 22 41 42 4f 55 54 20 55 53 22 3e
+6:30:58	情報	Clean linkText: ""
+6:30:58	情報	Clean linkText hex:
+6:30:58	情報	--- Keyword Matching Debug ---
+6:30:58	情報	URL lower: "#about"
+6:30:58	情報	Text lower: ""
+6:30:58	情報	Matched keywords:
+6:30:58	情報	❌ Excluded: no contact keywords
+6:30:58	情報	--- Link 2 RAW DATA ---
+6:30:58	情報	Raw URL: "#company"
+6:30:58	情報	Raw linkText: "<img src="./img/menu_company.png" width="226" height="80" alt="COMPANY">"
+6:30:58	情報	Raw linkText hex: 3c 69 6d 67 20 73 72 63 3d 22 2e 2f 69 6d 67 2f 6d 65 6e 75 5f 63 6f 6d 70 61 6e 79 2e 70 6e 67 22 20 77 69 64 74 68 3d 22 32 32 36 22 20 68 65 69 67 68 74 3d 22 38 30 22 20 61 6c 74 3d 22 43 4f 4d 50 41 4e 59 22 3e
+6:30:58	情報	Clean linkText: ""
+6:30:58	情報	Clean linkText hex:
+6:30:58	情報	--- Keyword Matching Debug ---
+6:30:58	情報	URL lower: "#company"
+6:30:58	情報	Text lower: ""
+6:30:58	情報	Matched keywords:
+6:30:58	情報	❌ Excluded: no contact keywords
+6:30:58	情報	--- Link 3 RAW DATA ---
+6:30:58	情報	Raw URL: "#work"
+6:30:58	情報	Raw linkText: "<img src="./img/menu_work.png" width="226" height="80" alt="WORK">"
+6:30:58	情報	Raw linkText hex: 3c 69 6d 67 20 73 72 63 3d 22 2e 2f 69 6d 67 2f 6d 65 6e 75 5f 77 6f 72 6b 2e 70 6e 67 22 20 77 69 64 74 68 3d 22 32 32 36 22 20 68 65 69 67 68 74 3d 22 38 30 22 20 61 6c 74 3d 22 57 4f 52 4b 22 3e
+6:30:58	情報	Clean linkText: ""
+6:30:58	情報	Clean linkText hex:
+6:30:58	情報	--- Keyword Matching Debug ---
+6:30:58	情報	URL lower: "#work"
+6:30:58	情報	Text lower: ""
+6:30:58	情報	Matched keywords:
+6:30:58	情報	❌ Excluded: no contact keywords
+6:30:58	情報	--- Link 4 RAW DATA ---
+6:30:58	情報	Raw URL: "#contact"
+6:30:58	情報	Raw linkText: "<img src="./img/menu_contact.png" width="226" height="80" alt="CONTACT">"
+6:30:58	情報	Raw linkText hex: 3c 69 6d 67 20 73 72 63 3d 22 2e 2f 69 6d 67 2f 6d 65 6e 75 5f 63 6f 6e 74 61 63 74 2e 70 6e 67 22 20 77 69 64 74 68 3d 22 32 32 36 22 20 68 65 69 67 68 74 3d 22 38 30 22 20 61 6c 74 3d 22 43 4f 4e 54 41 43 54 22 3e
+6:30:58	情報	Clean linkText: ""
+6:30:58	情報	Clean linkText hex:
+6:30:58	情報	--- Keyword Matching Debug ---
+6:30:58	情報	URL lower: "#contact"
+6:30:58	情報	Text lower: ""
+6:30:58	情報	Matched keywords: contact(URL)
+6:30:58	情報	✓ URL match found: "contact" in "#contact"
+6:30:58	情報	✅ CONTACT LINK FOUND: "" -> #contact (score: 13)
+6:30:58	情報	=== EXTRACT SUMMARY ===
+6:30:58	情報	Total links found: 4
+6:30:58	情報	Keyword-containing links: 1
+6:30:58	情報	=== END EXTRACT DEBUG ===
+6:30:58	情報	Navigation match 1 added 1 candidates
+6:30:58	情報	Navigation selector 2: Found 0 matches
+6:30:58	情報	Navigation selector 3: Found 1 matches
+6:30:58	情報	Analyzing navigation match 1 (88 chars): <footer>
+	<p class="copy">&copy; Cybercartel Co,.Ltd. All Rights Reserved.</p>
+</footer>...
+6:30:58	情報	=== EXTRACTING ALL LINKS DEBUG ===
+6:30:58	情報	Input content length: 88
+6:30:58	情報	Input content preview: <footer>
+	<p class="copy">&copy; Cybercartel Co,.Ltd. All Rights Reserved.</p>
+</footer>...
+6:30:58	情報	HIGH_PRIORITY_CONTACT_KEYWORDS: ["contact","contact us","contact form","inquiry","enquiry","get in touch","reach out","send message","message us","お問い合わせ"]
+6:30:58	情報	=== EXTRACT SUMMARY ===
+6:30:58	情報	Total links found: 0
+6:30:58	情報	Keyword-containing links: 0
+6:30:58	情報	=== END EXTRACT DEBUG ===
+6:30:58	情報	Navigation match 1 added 0 candidates
+6:30:58	情報	Navigation selector 4: Found 0 matches
+6:30:58	情報	Navigation selector 5: Found 0 matches
+6:30:58	情報	Navigation selector 6: Found 0 matches
+6:30:58	情報	Navigation selector 7: Found 0 matches
+6:30:58	情報	Navigation selector 8: Found 0 matches
+6:30:58	情報	Navigation selector 9: Found 0 matches
+6:30:58	情報	Found 1 total candidates, 1 with contact keywords
+6:30:58	情報	Navigation search best result: http://www.cybercartel.net/#contact (score: 13)
+6:30:58	情報	Navigation search result: http://www.cybercartel.net/#contact (score: 13, reasons: high_priority_url:contact,navigation_context_bonus)
+6:30:58	情報	🔍 New URL found, performing detailed validation: http://www.cybercartel.net/#contact
+6:30:59	情報	Starting simple contact form validation...
+6:30:59	情報	No form elements found
+6:30:59	情報	No forms with submit buttons found
+6:30:59	情報	Checking for JavaScript forms with reCAPTCHA...
+6:30:59	情報	Script tags found, checking for reCAPTCHA...
+6:30:59	情報	Checking reCAPTCHA patterns...
+6:30:59	情報	No reCAPTCHA patterns found
+6:30:59	情報	No valid forms found (standard or reCAPTCHA forms)
+6:30:59	情報	Starting Google Forms detection...
+6:30:59	情報	No Google Forms detected
+6:30:59	情報	No forms detected at http://www.cybercartel.net/#contact, checking keyword-based validation...
+6:30:59	情報	❌ No valid forms or sufficient keywords at http://www.cybercartel.net/#contact
+6:30:59	情報	Navigation search found no candidates
+6:30:59	情報	=== HTML content analysis completed - no viable candidates found ===
+6:30:59	情報	HTML analysis fallback found nothing
+6:30:59	情報	All search methods failed
