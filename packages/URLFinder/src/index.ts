@@ -18,6 +18,9 @@ private static candidatePages: Array<{
 // 200 OK URLリスト（フォールバック用）
 private static validUrls: Array<{ url: string, pattern: string }> = [];
 
+// 成功したフォームURLリスト（Step2重複回避用）
+private static successfulFormUrls: Array<string> = [];
+
 // BtoB問い合わせ特化：純粋な問い合わせキーワードのみ
 private static readonly HIGH_PRIORITY_CONTACT_KEYWORDS = [
   // 直接的問い合わせ（最高優先度）
@@ -338,10 +341,10 @@ private static readonly CONTACT_KEYWORDS = [
     if (navResult.url && navResult.score > 0) {
       console.log(`Navigation search result: ${navResult.url} (score: ${navResult.score}, reasons: ${navResult.reasons.join(',')})`);
 
-      // 重複回避チェック：Step1で200だったURLはスキップ
-      const isDuplicate = this.validUrls.some(validUrl => validUrl.url === navResult.url);
-      if (isDuplicate) {
-        console.log(`⏭ Skipping duplicate URL (already processed in Step1): ${navResult.url}`);
+      // 重複回避チェック：Step1で成功したフォームURLのみスキップ（失敗したURLは再検証）
+      const isSuccessfulFormDuplicate = this.successfulFormUrls.includes(navResult.url);
+      if (isSuccessfulFormDuplicate) {
+        console.log(`⏭ Skipping duplicate URL (already succeeded in Step1): ${navResult.url}`);
       } else {
         // 新規URLの場合：実際にアクセスしてform検証+Google Forms検証
         console.log(`🔍 New URL found, performing detailed validation: ${navResult.url}`);
@@ -351,7 +354,7 @@ private static readonly CONTACT_KEYWORDS = [
           if (response.getResponseCode() === 200) {
             const candidateHtml = response.getContentText();
 
-            // form検証
+            // A. 標準フォーム検証
             const isValidForm = this.isValidContactForm(candidateHtml);
             if (isValidForm) {
               console.log(`✅ Standard form confirmed at ${navResult.url}`);
@@ -363,7 +366,7 @@ private static readonly CONTACT_KEYWORDS = [
               };
             }
 
-            // Google Forms検証
+            // B. Google Forms検証
             const googleFormsResult = this.detectGoogleForms(candidateHtml);
             if (googleFormsResult.found && googleFormsResult.url) {
               console.log(`✅ Google Forms confirmed at ${navResult.url} -> ${googleFormsResult.url}`);
@@ -375,7 +378,19 @@ private static readonly CONTACT_KEYWORDS = [
               };
             }
 
-            console.log(`❌ No valid forms found at ${navResult.url}`);
+            // C. キーワードベース判定（Step2の高信頼度fallback）
+            console.log(`No forms detected at ${navResult.url}, checking keyword-based validation...`);
+            if (navResult.score >= 15) { // Navigation + contact keyword = 高信頼度
+              console.log(`✅ Keyword-based validation: Navigation detection + contact keywords (score: ${navResult.score})`);
+              return {
+                contactUrl: navResult.url,
+                actualFormUrl: navResult.url,
+                foundKeywords: [...navResult.keywords, 'keyword_based_validation'],
+                searchMethod: 'homepage_navigation_keyword_based'
+              };
+            }
+
+            console.log(`❌ No valid forms or sufficient keywords at ${navResult.url}`);
           } else {
             console.log(`❌ Navigation result returned non-200 status: ${response.getResponseCode()}`);
           }
@@ -1383,7 +1398,7 @@ private static readonly CONTACT_KEYWORDS = [
       return true;
     }
 
-    console.log('No valid forms found (neither standard nor JavaScript with reCAPTCHA)');
+    console.log('No valid forms found (standard or reCAPTCHA forms)');
     return false;
   }
 
@@ -1567,6 +1582,7 @@ private static readonly CONTACT_KEYWORDS = [
   private static resetCandidates() {
     this.candidatePages = [];
     this.validUrls = [];
+    this.successfulFormUrls = [];
   }
 
   // 候補を活用したfallback処理
@@ -2028,6 +2044,9 @@ private static readonly CONTACT_KEYWORDS = [
               structuredFormPages++;
               console.log(`✅ Contact form confirmed at ${testUrl} - form elements + contact submit confirmed`);
 
+              // 成功したURLを記録（Step2重複回避用）
+              this.successfulFormUrls.push(testUrl);
+
               // 問い合わせフォーム確認済み → 即座に成功
               return {
                 contactUrl: testUrl,
@@ -2042,6 +2061,10 @@ private static readonly CONTACT_KEYWORDS = [
               const googleFormsResult = this.detectGoogleForms(html);
               if (googleFormsResult.found && googleFormsResult.url) {
                 console.log(`✅ Google Forms found at ${testUrl} -> ${googleFormsResult.url}`);
+                
+                // 成功したURLを記録（Step2重複回避用）
+                this.successfulFormUrls.push(testUrl);
+                
                 return {
                   contactUrl: testUrl,
                   actualFormUrl: googleFormsResult.url,
