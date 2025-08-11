@@ -1,3 +1,5 @@
+import { Environment } from './env';
+
 interface ContactPageResult {
   contactUrl: string | null;
   actualFormUrl: string | null;
@@ -281,29 +283,8 @@ private static readonly CONTACT_KEYWORDS = [
     return { score, reasons };
   }
 
-  // 早期終了用の閾値定義
-  private static readonly HIGH_CONFIDENCE_THRESHOLD = 15; // 高優先度 + コンテキストボーナス
-  private static readonly MEDIUM_CONFIDENCE_THRESHOLD = 10; // 高優先度キーワードのみ
-  private static readonly MINIMUM_ACCEPTABLE_THRESHOLD = 5; // 受容可能な最低スコア
+  // 早期終了用の閾値定義とタイムアウト設定は env.ts で管理
 
-  // タイムアウト設定（ミリ秒）- スクリプトプロパティから動的取得
-  private static getMaxTotalTime(): number {
-    const properties = PropertiesService.getScriptProperties();
-    const maxTimeStr = properties.getProperty('MAX_TOTAL_TIME');
-
-    if (maxTimeStr) {
-      const maxTime = parseInt(maxTimeStr, 10);
-      if (!isNaN(maxTime) && maxTime > 0) {
-        console.log(`Using MAX_TOTAL_TIME from script properties: ${maxTime}ms`);
-        return maxTime;
-      } else {
-        console.log(`Invalid MAX_TOTAL_TIME value: ${maxTimeStr}, using default 30000ms`);
-      }
-    }
-
-    console.log('MAX_TOTAL_TIME not set in script properties, using default 30000ms');
-    return 30000; // デフォルト30秒
-  }
 
   // **NEW: SPA Analysis Execution** - Step1内でのSPA検出時に実行
   private static executeSPAAnalysis(html: string, baseUrl: string): ContactPageResult {
@@ -508,7 +489,7 @@ private static readonly CONTACT_KEYWORDS = [
 
   static findContactPage(baseUrl: string): ContactPageResult {
     const startTime = Date.now();
-    const maxTotalTime = this.getMaxTotalTime();
+    const maxTotalTime = Environment.getMaxTotalTime();
 
     try {
       // 候補リストのリセット（新しい検索開始時）
@@ -1040,7 +1021,7 @@ private static readonly CONTACT_KEYWORDS = [
         console.log(`✓ Contact link candidate: "${cleanLinkText}" -> ${fullUrl} (score: ${totalScore}, reasons: ${allReasons.join(',')})`);
 
         // Early termination for high confidence candidates
-        if (totalScore >= this.HIGH_CONFIDENCE_THRESHOLD) {
+        if (totalScore >= Environment.getHighConfidenceThreshold()) {
           console.log(`✅ HIGH CONFIDENCE contact link found: ${fullUrl} (score: ${totalScore}) - terminating search early`);
           return {
             url: fullUrl,
@@ -2044,7 +2025,7 @@ private static readonly CONTACT_KEYWORDS = [
   private static searchWithPriorityPatterns(domainUrl: string, startTime: number): ContactPageResult {
     // 200 OK URLリストをリセット
     this.validUrls = [];
-    const maxTotalTime = this.getMaxTotalTime();
+    const maxTotalTime = Environment.getMaxTotalTime();
     console.log('Starting priority-based URL pattern search with integrated SPA detection');
 
     // 優先度順にパターンをテスト
