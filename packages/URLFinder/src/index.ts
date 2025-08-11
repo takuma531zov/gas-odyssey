@@ -1,27 +1,62 @@
 import { Environment } from './env';
 
+/**
+ * 問い合わせページ検索結果インターフェース
+ */
 interface ContactPageResult {
-  contactUrl: string | null;
-  actualFormUrl: string | null;
-  foundKeywords: string[];
-  searchMethod: string;
+  contactUrl: string | null;      // 発見された問い合わせページURL
+  actualFormUrl: string | null;   // 実際のフォームURL（Google Forms等）
+  foundKeywords: string[];        // 発見されたキーワード一覧
+  searchMethod: string;           // 使用された検索手法
 }
 
+/**
+ * ContactPageFinder - BtoB営業用問い合わせページ自動検索システム
+ * 
+ * 目的:
+ * - 企業サイトから問い合わせページを自動発見
+ * - Google Apps Script環境での安定動作
+ * - BtoB営業活動の効率化支援
+ * 
+ * 検索戦略:
+ * Step1: URLパターン推測（高速・高精度）
+ * Step2: HTML解析によるフォールバック検索
+ * Final: 最終フォールバック（Step1の200 OKページ使用）
+ * 
+ * 特徴:
+ * - SPA（Single Page Application）対応
+ * - Google Forms検出
+ * - 埋め込みフォーム対応
+ * - JavaScript動的フォーム検出
+ * - タイムアウト管理による安定性確保
+ */
 class ContactPageFinder {
-// 候補ページ記録システム
-private static candidatePages: Array<{
-  url: string,
-  reason: string,
-  score: number,
-  structuredForms: number,
-  legacyScore: number
-}> = [];
+  /**
+   * 候補ページ記録システム
+   * Step1で発見されたが確定できなかった候補を保存
+   */
+  private static candidatePages: Array<{
+    url: string,           // 候補URL
+    reason: string,        // 候補理由
+    score: number,         // 信頼度スコア
+    structuredForms: number,  // 構造化フォーム数
+    legacyScore: number    // 旧式スコア（互換性用）
+  }> = [];
 
-// 200 OK URLリスト（フォールバック用）
-private static validUrls: Array<{ url: string, pattern: string }> = [];
+  /**
+   * 200 OK URLリスト（フォールバック用）
+   * Step1で200応答したがフォーム検証で失敗したURL群
+   */
+  private static validUrls: Array<{ 
+    url: string,     // 有効URL
+    pattern: string  // マッチしたパターン
+  }> = [];
 
-// 成功したフォームURLリスト（Step2重複回避用）
-private static successfulFormUrls: Array<string> = [];
+  /**
+   * 成功したフォームURLリスト（Step2重複回避用）
+   * 既に検証済みのURLを記録し重複処理を防止
+   */
+  private static successfulFormUrls: Array<string> = [];
 
 // BtoB問い合わせ特化：純粋な問い合わせキーワードのみ
 private static readonly HIGH_PRIORITY_CONTACT_KEYWORDS = [
@@ -487,6 +522,26 @@ private static readonly CONTACT_KEYWORDS = [
   ];
 
 
+  /**
+   * 問い合わせページ検索のメインエントリーポイント
+   * 
+   * @param baseUrl 検索対象のベースURL（企業サイトのトップページ等）
+   * @returns ContactPageResult 検索結果（URL、フォーム情報、検索手法等）
+   * 
+   * 処理フロー:
+   * 1. 初期化処理（候補リセット、タイマー開始）
+   * 2. SNSページ判定（Facebook、Twitter等は除外）
+   * 3. ドメイン生存確認（サイト閉鎖チェック）
+   * 4. Step1: URLパターン推測検索
+   * 5. Step2: HTML解析フォールバック検索
+   * 6. 最終フォールバック: Step1の200 OKページ使用
+   * 
+   * 実装注意事項:
+   * - GAS環境でのタイムアウト管理（デフォルト80秒）
+   * - メモリ効率を考慮したキャッシュ管理
+   * - BtoB営業用途に特化したキーワード重み付け
+   * - SPA（Single Page Application）対応
+   */
   static findContactPage(baseUrl: string): ContactPageResult {
     const startTime = Date.now();
     const maxTotalTime = Environment.getMaxTotalTime();
@@ -639,6 +694,31 @@ private static readonly CONTACT_KEYWORDS = [
     }
   }
 
+  /**
+   * Step2フロー: ホームページHTML解析によるフォールバック検索
+   * 
+   * 処理手順:
+   * 1. Google Forms最優先検索（HTML内のdocs.google.com URL検出）
+   * 2. 埋め込みフォーム検証（外部サービス: Form.run, HubSpot等）
+   * 3. ナビゲーション内リンク解析（<nav>要素、メニュー系クラス解析）
+   * 4. リンク先フォーム検証（発見したリンクの実際の内容確認）
+   * 5. 重複回避処理（Step1成功URLとの重複チェック）
+   * 
+   * 検索範囲:
+   * - Navigation（<nav>、.menu、.navigation等）
+   * - Header内のリスト構造（<header><ul>構造）
+   * - グローバルナビゲーション（.global-nav、.site-nav等）
+   * 
+   * 特別処理:
+   * - アンカーリンク特別処理（#contact等の内部リンク）
+   * - JavaScript無効環境でのフォーム検出
+   * - 動的コンテンツの静的解析
+   * 
+   * 品質保証:
+   * - キーワードマッチング重み付けスコア
+   * - コンテキストボーナス（navigation内 +5点）
+   * - 早期終了による高信頼度結果優先
+   */
   private static analyzeHtmlContent(html: string, baseUrl: string): ContactPageResult {
     console.log('=== Starting navigation-only HTML analysis ===');
 
@@ -2022,6 +2102,28 @@ private static readonly CONTACT_KEYWORDS = [
     }
   }
 
+  /**
+   * Step1フロー: URLパターン推測による高速検索
+   * 
+   * 処理手順:
+   * 1. 優先URLパターンテスト (/contact/ → /contact → /inquiry/ → ...)
+   * 2. 各URLでHTTP通信実行（200 OK確認）
+   * 3. SPA検出（同一HTML判定による単一ページアプリ識別）
+   * 4. 構造化フォーム検証（<form>要素 + 送信ボタン検証）
+   * 5. Google Forms検証（docs.google.com URLパターン）
+   * 6. アンカー分析（SPA対応: #contact等の内部リンク解析）
+   * 7. 成功時即座に結果返却、失敗時は200 OK URLを記録
+   * 
+   * SPA対応機能:
+   * - 同一HTMLハッシュ検出による動的ページ判定
+   * - アンカーリンク（#hash）の内容分析
+   * - セクション内フォーム検証
+   * 
+   * パフォーマンス最適化:
+   * - 高信頼度パターンから優先実行
+   * - 成功時の早期終了
+   * - タイムアウト管理による無限ループ防止
+   */
   private static searchWithPriorityPatterns(domainUrl: string, startTime: number): ContactPageResult {
     // 200 OK URLリストをリセット
     this.validUrls = [];
@@ -2454,6 +2556,18 @@ private static readonly CONTACT_KEYWORDS = [
 
 }
 
+/**
+ * 後方互換性維持のためのラッパー関数
+ * 既存の呼び出し元コードを変更せずに新しいアーキテクチャを使用可能
+ * 
+ * @param url 検索対象URL
+ * @returns ContactPageResult 検索結果
+ * 
+ * 使用例:
+ * const result = findContactPage('https://example.com');
+ * console.log(result.contactUrl); // 問い合わせページURL
+ * console.log(result.searchMethod); // 使用された検索手法
+ */
 function findContactPage(url: string): ContactPageResult {
   return ContactPageFinder.findContactPage(url);
 }
