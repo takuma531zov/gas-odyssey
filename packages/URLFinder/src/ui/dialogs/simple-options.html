@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f8f9fa;
+    }
+    
+    .container {
+      background: white;
+      border-radius: 8px;
+      padding: 24px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      max-width: 400px;
+      margin: 0 auto;
+    }
+    
+    .title {
+      display: flex;
+      align-items: center;
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      color: #1a73e8;
+    }
+    
+    .title .icon {
+      margin-right: 8px;
+      font-size: 20px;
+    }
+    
+    .subtitle {
+      color: #5f6368;
+      margin-bottom: 24px;
+      font-size: 14px;
+    }
+    
+    .option {
+      margin: 16px 0;
+      padding: 16px;
+      border: 2px solid #e8eaed;
+      border-radius: 8px;
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+    
+    .option:hover {
+      border-color: #1a73e8;
+      background-color: #f8f9ff;
+    }
+    
+    .option.selected {
+      border-color: #1a73e8;
+      background-color: #e8f0fe;
+    }
+    
+    .option-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    
+    .option input[type="radio"] {
+      margin-right: 12px;
+      transform: scale(1.2);
+    }
+    
+    .option-title {
+      font-weight: 600;
+      color: #202124;
+      font-size: 15px;
+    }
+    
+    .option-details {
+      color: #5f6368;
+      font-size: 13px;
+      margin-left: 28px;
+      line-height: 1.4;
+    }
+    
+    .option-stats {
+      color: #1a73e8;
+      font-weight: 500;
+      margin-top: 4px;
+    }
+    
+    .button-container {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      margin-top: 24px;
+      padding-top: 16px;
+      border-top: 1px solid #e8eaed;
+    }
+    
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .btn-secondary {
+      background-color: #f8f9fa;
+      color: #3c4043;
+      border: 1px solid #dadce0;
+    }
+    
+    .btn-secondary:hover {
+      background-color: #e8eaed;
+    }
+    
+    .btn-primary {
+      background-color: #1a73e8;
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background-color: #1557b0;
+    }
+    
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    
+    .warning {
+      background-color: #fef7e0;
+      border: 1px solid #fbbc04;
+      border-radius: 6px;
+      padding: 12px;
+      margin: 16px 0;
+      font-size: 13px;
+      color: #b06000;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="title">
+      <span class="icon">🔍</span>
+      URLFinder - 実行オプション
+    </div>
+    
+    <div class="subtitle">
+      処理方法を選択してください
+    </div>
+    
+    <div class="option" onclick="selectOption('normal')">
+      <div class="option-header">
+        <input type="radio" name="mode" value="normal" id="normal">
+        <label for="normal" class="option-title">通常処理</label>
+      </div>
+      <div class="option-details">
+        MAX_COUNT設定に基づいて順次処理<br>
+        <span class="option-stats"><?= maxCount ?>行 / 推定時間: 約<?= Math.ceil(maxCount * 0.05) ?>-<?= Math.ceil(maxCount * 0.08) ?>分</span>
+      </div>
+    </div>
+    
+    <div class="option" onclick="selectOption('checked')">
+      <div class="option-header">
+        <input type="radio" name="mode" value="checked" id="checked" checked>
+        <label for="checked" class="option-title">チェック行のみ処理</label>
+      </div>
+      <div class="option-details">
+        AQ列でチェックされた行のみを処理<br>
+        <span class="option-stats"><?= checkedCount ?>行 / 推定時間: 約<?= Math.ceil(checkedCount * 0.05) ?>-<?= Math.ceil(checkedCount * 0.08) ?>分</span>
+      </div>
+    </div>
+    
+    <? if (checkedCount === 0) { ?>
+      <div class="warning">
+        ⚠️ チェックされた行がありません。AQ列でチェックボックスを選択してください。
+      </div>
+    <? } ?>
+    
+    <div class="button-container">
+      <button class="btn btn-secondary" onclick="closeDialog()">
+        キャンセル
+      </button>
+      <button class="btn btn-primary" onclick="executeSelected()" id="executeBtn">
+        実行
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // サーバーサイドから渡された値
+    const CHECKED_COUNT = parseInt('<?= checkedCount || 0 ?>');
+    const MAX_COUNT = parseInt('<?= maxCount || 10 ?>');
+    
+    let selectedMode = 'checked'; // デフォルト選択
+    
+    // オプション選択時の処理
+    function selectOption(mode) {
+      selectedMode = mode;
+      
+      // ラジオボタンを更新
+      document.getElementById('normal').checked = (mode === 'normal');
+      document.getElementById('checked').checked = (mode === 'checked');
+      
+      // 視覚的選択状態を更新
+      document.querySelectorAll('.option').forEach(option => {
+        option.classList.remove('selected');
+      });
+      
+      event.currentTarget.classList.add('selected');
+      
+      // 実行ボタンの状態を更新
+      updateExecuteButton();
+    }
+    
+    // 実行ボタンの状態更新
+    function updateExecuteButton() {
+      const executeBtn = document.getElementById('executeBtn');
+      
+      if (selectedMode === 'checked' && CHECKED_COUNT === 0) {
+        executeBtn.disabled = true;
+        executeBtn.textContent = 'チェック行なし';
+      } else {
+        executeBtn.disabled = false;
+        executeBtn.textContent = '実行';
+      }
+    }
+    
+    // 選択された処理を実行
+    function executeSelected() {
+      
+      if (selectedMode === 'checked' && CHECKED_COUNT === 0) {
+        alert('チェックされた行がありません。');
+        return;
+      }
+      
+      // 確認ダイアログ
+      const modeText = selectedMode === 'normal' ? '通常処理' : 'チェック行処理';
+      const countText = selectedMode === 'normal' ? MAX_COUNT + '行' : CHECKED_COUNT + '行';
+      
+      if (confirm(`${modeText}を実行します。\n対象: ${countText}\n\nよろしいですか？`)) {
+        // サーバーサイド関数を呼び出し
+        google.script.run
+          .withSuccessHandler(onExecutionComplete)
+          .withFailureHandler(onExecutionError)
+          .executeSelectedMode(selectedMode);
+        
+        // ダイアログを無効化
+        disableDialog();
+      }
+    }
+    
+    // ダイアログを閉じる
+    function closeDialog() {
+      google.script.host.close();
+    }
+    
+    // 実行開始時にダイアログを無効化
+    function disableDialog() {
+      document.getElementById('executeBtn').disabled = true;
+      document.getElementById('executeBtn').textContent = '処理中...';
+      document.querySelectorAll('input[type="radio"]').forEach(radio => {
+        radio.disabled = true;
+      });
+    }
+    
+    // 実行完了時の処理
+    function onExecutionComplete(result) {
+      alert('処理が完了しました！');
+      google.script.host.close();
+    }
+    
+    // 実行エラー時の処理
+    function onExecutionError(error) {
+      alert('エラーが発生しました: ' + error);
+      
+      // ダイアログを再有効化
+      document.getElementById('executeBtn').disabled = false;
+      document.getElementById('executeBtn').textContent = '実行';
+      document.querySelectorAll('input[type="radio"]').forEach(radio => {
+        radio.disabled = false;
+      });
+    }
+    
+    // 初期化
+    document.addEventListener('DOMContentLoaded', function() {
+      selectOption('checked'); // デフォルト選択を適用
+      updateExecuteButton();
+    });
+  </script>
+</body>
+</html>

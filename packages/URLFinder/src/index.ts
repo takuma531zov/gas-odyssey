@@ -2797,3 +2797,240 @@ function testFormValidation() {
 
   console.log('=== Form Validation Test End ===');
 }
+
+/**
+ * スプレッドシートUI付きURLFinder実行関数
+ * GAS上のスプレッドシートボタンから実行される
+ */
+function executeUrlFinderWithUI(): void {
+  console.log('=== URLFinder UI 開始 ===');
+  
+  try {
+    // チェック行数を取得
+    const checkedCount = getCheckedRowsCount();
+    const maxCount = getMaxCountSetting();
+    
+    // 実行オプション選択ダイアログを表示
+    const htmlTemplate = HtmlService.createTemplateFromFile('ui/dialogs/simple-options');
+    htmlTemplate.checkedCount = checkedCount;
+    htmlTemplate.maxCount = maxCount;
+    
+    const htmlOutput = htmlTemplate.evaluate()
+      .setWidth(450)
+      .setHeight(320)
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+    
+    SpreadsheetApp.getUi()
+      .showModalDialog(htmlOutput, 'URLFinder - 実行オプション');
+    
+  } catch (error) {
+    console.error('UI実行エラー:', error);
+    SpreadsheetApp.getUi().alert('エラー', `実行中にエラーが発生しました: ${error}`, SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * 選択されたオプションに基づいて処理を実行
+ * @param mode 'normal' | 'checked'
+ */
+function executeSelectedMode(mode: string): void {
+  console.log(`選択されたモード: ${mode}`);
+  
+  if (mode === 'normal') {
+    executeNormalProcessing();
+  } else if (mode === 'checked') {
+    executeCheckedRowsProcessing();
+  } else {
+    throw new Error(`不明な実行モード: ${mode}`);
+  }
+}
+
+/**
+ * 通常処理（既存ロジックをそのまま使用）
+ */
+function executeNormalProcessing(): void {
+  console.log('=== 通常処理開始 ===');
+  
+  try {
+    const sheet = SpreadsheetApp.getActiveSheet();
+    const properties = PropertiesService.getScriptProperties();
+    
+    const maxCountStr = properties.getProperty('MAX_COUNT');
+    const headerRowStr = properties.getProperty('HEADER_ROW');
+    
+    const maxCount = maxCountStr ? parseInt(maxCountStr, 10) : 10;
+    const headerRow = headerRowStr ? parseInt(headerRowStr, 10) : 2;
+    
+    console.log(`通常処理設定 - MAX_COUNT: ${maxCount}, HEADER_ROW: ${headerRow}`);
+    
+    // AP列の最終行を見つけて開始位置を決定
+    const apColumn = 42; // AP列
+    const lastRow = sheet.getLastRow();
+    
+    let startRow = headerRow;
+    for (let row = headerRow; row <= lastRow; row++) {
+      const cellValue = sheet.getRange(row, apColumn).getValue();
+      if (cellValue && cellValue.toString().trim() !== '') {
+        startRow = row + 1; // 次の行から開始
+      }
+    }
+    
+    console.log(`処理開始行: ${startRow}`);
+    
+    // 指定行数分を処理
+    let successCount = 0;
+    let failureCount = 0;
+    
+    for (let row = startRow; row < startRow + maxCount; row++) {
+      try {
+        // L列からURL取得
+        const url = getUrlFromRow(row);
+        
+        if (!url || typeof url !== 'string' || url.trim() === '') {
+          continue;
+        }
+        
+        console.log(`${row}行目を処理中: ${url}`);
+        
+        // 既存のfindContactPage関数を使用
+        const result: ContactPageResult = findContactPage(url);
+        
+        // AP列に結果を書き込み
+        writeResultToSheet(row, result);
+        
+        if (result.contactUrl) {
+          successCount++;
+        } else {
+          failureCount++;
+        }
+        
+      } catch (error) {
+        console.error(`${row}行目の処理でエラー:`, error);
+        failureCount++;
+      }
+    }
+    
+    // 完了メッセージ
+    SpreadsheetApp.getUi().alert('処理完了', `通常処理が完了しました。成功: ${successCount}件、失敗: ${failureCount}件`, SpreadsheetApp.getUi().ButtonSet.OK);
+    
+  } catch (error) {
+    console.error('通常処理エラー:', error);
+    SpreadsheetApp.getUi().alert('エラー', `通常処理中にエラーが発生しました: ${error}`, SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * チェック行のみ処理（新機能）
+ */
+function executeCheckedRowsProcessing(): void {
+  console.log('=== チェック行処理開始 ===');
+  
+  try {
+    const checkedRows = getCheckedRows();
+    
+    if (checkedRows.length === 0) {
+      SpreadsheetApp.getUi().alert('チェックされた行がありません。');
+      return;
+    }
+    
+    // 各チェック行を順次処理
+    let successCount = 0;
+    let failureCount = 0;
+    
+    for (const rowNumber of checkedRows) {
+      try {
+        // L列からURL取得
+        const url = getUrlFromRow(rowNumber!);
+        
+        if (!url || typeof url !== 'string' || url.trim() === '') {
+          console.log(`${rowNumber}行目: URLが空です`);
+          continue;
+        }
+        
+        console.log(`${rowNumber}行目を処理中: ${url}`);
+        
+        // 既存のfindContactPage関数を使用
+        const result: ContactPageResult = findContactPage(url);
+        
+        // AP列に結果を書き込み
+        writeResultToSheet(rowNumber!, result);
+        
+        if (result.contactUrl) {
+          successCount++;
+        } else {
+          failureCount++;
+        }
+        
+      } catch (error) {
+        console.error(`${rowNumber}行目の処理でエラー:`, error);
+        failureCount++;
+      }
+    }
+    
+    // 完了メッセージ
+    SpreadsheetApp.getUi().alert('処理完了', `チェック行処理が完了しました。成功: ${successCount}件、失敗: ${failureCount}件`, SpreadsheetApp.getUi().ButtonSet.OK);
+    
+  } catch (error) {
+    console.error('チェック行処理エラー:', error);
+    SpreadsheetApp.getUi().alert('エラー', `チェック行処理中にエラーが発生しました: ${error}`, SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * 指定行のL列からURLを取得
+ */
+function getUrlFromRow(rowNumber: number): string {
+  const sheet = SpreadsheetApp.getActiveSheet();
+  const lColumn = 12; // L列
+  
+  const cellValue = sheet.getRange(rowNumber, lColumn).getValue();
+  return cellValue ? cellValue.toString().trim() : '';
+}
+
+/**
+ * 結果をAP列に書き込み
+ */
+function writeResultToSheet(rowNumber: number, result: ContactPageResult): void {
+  const sheet = SpreadsheetApp.getActiveSheet();
+  const apColumn = 42; // AP列
+  
+  const resultText = result.contactUrl || '見つかりませんでした';
+  sheet.getRange(rowNumber, apColumn).setValue(resultText);
+}
+
+/**
+ * AQ列でチェックされた行番号一覧を取得
+ */
+function getCheckedRows(): number[] {
+  const sheet = SpreadsheetApp.getActiveSheet();
+  const aqColumn = 43; // AQ列
+  const lastRow = sheet.getLastRow();
+  
+  const checkedRows: number[] = [];
+  
+  for (let row = 2; row <= lastRow; row++) {
+    const checkboxValue = sheet.getRange(row, aqColumn).getValue();
+    if (checkboxValue === true) {
+      checkedRows.push(row);
+    }
+  }
+  
+  console.log(`チェック済み行: ${checkedRows.length}行`, checkedRows);
+  return checkedRows.filter((row): row is number => typeof row === 'number');
+}
+
+/**
+ * チェックされた行数を取得
+ */
+function getCheckedRowsCount(): number {
+  return getCheckedRows().length;
+}
+
+/**
+ * MAX_COUNT設定値を取得
+ */
+function getMaxCountSetting(): number {
+  const properties = PropertiesService.getScriptProperties();
+  const maxCountStr = properties.getProperty('MAX_COUNT');
+  return maxCountStr ? parseInt(maxCountStr, 10) : 10;
+}

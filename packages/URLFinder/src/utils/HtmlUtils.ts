@@ -52,7 +52,7 @@ export class HtmlUtils {
 
     while ((match = linkRegex.exec(html)) !== null) {
       const href = match[1];
-      const text = this.stripHtmlTags(match[2]).trim();
+      const text = this.stripHtmlTags(match[2] || '').trim();
       
       if (href && text) {
         links.push({ href, text });
@@ -87,13 +87,13 @@ export class HtmlUtils {
   static detectEncoding(html: string): string {
     // Check meta charset
     const charsetMatch = html.match(/<meta[^>]*charset=['"]?([^'"\s>]+)/i);
-    if (charsetMatch) {
+    if (charsetMatch?.[1]) {
       return charsetMatch[1].toLowerCase();
     }
 
     // Check HTTP-equiv content-type
     const contentTypeMatch = html.match(/<meta[^>]*http-equiv=['"]?content-type['"]?[^>]*content=['"]?[^'"]*charset=([^'"\s;]+)/i);
-    if (contentTypeMatch) {
+    if (contentTypeMatch?.[1]) {
       return contentTypeMatch[1].toLowerCase();
     }
 
@@ -122,7 +122,7 @@ export class HtmlUtils {
 
     while ((formMatch = formRegex.exec(html)) !== null) {
       const formTag = formMatch[0];
-      const formContent = formMatch[1];
+      const formContent = formMatch[1] || '';
 
       // Extract form attributes
       const actionMatch = formTag.match(/action=['"]?([^'"\s>]+)/i);
@@ -139,18 +139,31 @@ export class HtmlUtils {
         const nameMatch = inputTag.match(/name=['"]?([^'"\s>]+)/i);
         const valueMatch = inputTag.match(/value=['"]?([^'"]*)/i);
 
-        inputs.push({
-          type: typeMatch ? typeMatch[1] : 'text',
-          name: nameMatch ? nameMatch[1] : undefined,
-          value: valueMatch ? valueMatch[1] : undefined
-        });
+        const input: {type: string, name?: string, value?: string} = {
+          type: typeMatch?.[1] || 'text'
+        };
+        
+        if (nameMatch?.[1]) {
+          input.name = nameMatch[1];
+        }
+        
+        if (valueMatch?.[1]) {
+          input.value = valueMatch[1];
+        }
+        
+        inputs.push(input);
       }
 
-      forms.push({
-        action: actionMatch ? actionMatch[1] : undefined,
-        method: methodMatch ? methodMatch[1] : 'get',
+      const form: {action?: string, method?: string, inputs: Array<{type: string, name?: string, value?: string}>} = {
+        method: methodMatch?.[1] || 'get',
         inputs
-      });
+      };
+      
+      if (actionMatch?.[1]) {
+        form.action = actionMatch[1];
+      }
+      
+      forms.push(form);
     }
 
     return forms;
