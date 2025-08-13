@@ -27,7 +27,7 @@ export function executeUrlFinderWithUI(): void {
  * 実行オプション選択ダイアログを表示
  */
 function showExecutionOptionsDialog(): void {
-  const htmlTemplate = HtmlService.createTemplateFromFile('ui/dialogs/simple-options');
+  const htmlTemplate = HtmlService.createTemplateFromFile('simple-options');
   
   // チェック行数を事前取得して渡す
   const checkedCount = getCheckedRowsCount();
@@ -294,7 +294,7 @@ function getMaxCountSetting(): number {
  * @param message メッセージ
  */
 function showProgressDialog(title: string, message: string): void {
-  const htmlTemplate = HtmlService.createTemplateFromFile('ui/dialogs/progress');
+  const htmlTemplate = HtmlService.createTemplateFromFile('progress');
   htmlTemplate.title = title;
   htmlTemplate.message = message;
   
