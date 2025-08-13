@@ -69,13 +69,8 @@ function executeNormalProcessing(): void {
   console.log('=== 通常処理開始 ===');
   
   try {
-    // プログレスダイアログ表示
-    showProgressDialog('通常処理', 'MAX_COUNT設定に基づいて処理中...');
-    
-    // 既存のprocessContactPageFinder()関数を呼び出し
-    // 注意: この関数は../index.tsで定義されているが、exportされていないため
-    // 一旦、既存ロジックを模倣した実装を行う
-    executeNormalProcessingLogic();
+    // 既存のprocessContactPageFinder()関数を直接呼び出し（100%既存ロジック使用）
+    (globalThis as any).processContactPageFinder();
     
     // 完了ダイアログ表示
     showCompletionDialog('通常処理が完了しました');
@@ -150,77 +145,6 @@ function executeCheckedRowsProcessing(): void {
   }
 }
 
-/**
- * 通常処理のロジック実装（既存ロジックを模倣）
- */
-function executeNormalProcessingLogic(): void {
-  const sheet = SpreadsheetApp.getActiveSheet();
-  const properties = PropertiesService.getScriptProperties();
-  
-  // スクリプトプロパティから設定値を取得
-  const maxCountStr = properties.getProperty('MAX_COUNT');
-  const headerRowStr = properties.getProperty('HEADER_ROW');
-  
-  const maxCount = maxCountStr ? parseInt(maxCountStr, 10) : 10;
-  const headerRow = headerRowStr ? parseInt(headerRowStr, 10) : 2;
-  
-  console.log(`通常処理設定 - MAX_COUNT: ${maxCount}, HEADER_ROW: ${headerRow}`);
-  
-  // AP列の最終行を見つけて開始位置を決定
-  const apColumn = 42; // AP列
-  const lastRow = sheet.getLastRow();
-  
-  let startRow = headerRow;
-  for (let row = headerRow; row <= lastRow; row++) {
-    const cellValue = sheet.getRange(row, apColumn).getValue();
-    if (cellValue && cellValue.toString().trim() !== '') {
-      startRow = row + 1; // 次の行から開始
-    }
-  }
-  
-  console.log(`処理開始行: ${startRow}`);
-  
-  // 指定行数分を処理
-  let processedCount = 0;
-  let successCount = 0;
-  let failureCount = 0;
-  
-  for (let row = startRow; row < startRow + maxCount; row++) {
-    try {
-      // L列からURL取得
-      const url = getUrlFromRow(row);
-      
-      if (!url || typeof url !== 'string' || url.trim() === '') {
-        continue;
-      }
-      
-      console.log(`${row}行目を処理中: ${url}`);
-      
-      // index.tsのfindContactPage関数を直接呼び出し
-      const result: ContactPageResult = (globalThis as any).findContactPage(url);
-      
-      // AP列に結果を書き込み
-      writeResultToSheet(row, result);
-      
-      if (result.contactUrl) {
-        successCount++;
-      } else {
-        failureCount++;
-      }
-      
-      processedCount++;
-      
-      // プログレス更新
-      updateProgress(processedCount, maxCount, successCount, failureCount);
-      
-    } catch (error) {
-      console.error(`${row}行目の処理でエラー:`, error);
-      failureCount++;
-    }
-  }
-  
-  console.log(`通常処理完了 - 処理: ${processedCount}件、成功: ${successCount}件、失敗: ${failureCount}件`);
-}
 
 /**
  * 指定行のL列からURLを取得

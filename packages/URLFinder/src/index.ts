@@ -3046,3 +3046,8 @@ function getMaxCountSetting(): number {
     return 10; // デフォルト値
   }
 }
+
+// ===== グローバル関数登録 =====
+// UI層から呼び出し可能にするため、関数をグローバルスコープに明示的に登録
+(globalThis as any).findContactPage = findContactPage;
+(globalThis as any).processContactPageFinder = processContactPageFinder;
