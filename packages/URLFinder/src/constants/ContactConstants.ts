@@ -39,3 +39,19 @@ export const MEDIUM_PRIORITY_CONTACT_KEYWORDS = [
 export const EXCLUDED_KEYWORDS = [
   'download', 'recruit', 'career'
 ];
+
+// 送信系ボタンキーワード（BtoB問い合わせ特化）
+export const SUBMIT_BUTTON_KEYWORDS = [
+  // 基本送信キーワード
+  '送信', '送る', 'submit', 'send',
+
+  // 問い合わせ関連のみ（営業系削除）
+  'お問い合わせ', '問い合わせ', 'お問合せ', '問合せ',
+  'ご相談', '相談', 'contact', 'inquiry'
+];
+
+// フォーム関連キーワード
+export const FORM_KEYWORDS = [
+  'フォーム', 'form', '入力', '送信',
+  'googleフォーム', 'google form', 'submit'
+];
