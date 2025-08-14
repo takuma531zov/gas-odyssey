@@ -131,6 +131,11 @@ export class ContactPageFinder {
     }
 
     const strategy = this.strategies[strategyIndex];
+    if (!strategy) {
+      console.log(`❌ 戦略が見つかりません: インデックス ${strategyIndex}`);
+      return null;
+    }
+    
     console.log(`🎯 特定戦略実行: ${strategy.getStrategyName()}`);
     
     try {

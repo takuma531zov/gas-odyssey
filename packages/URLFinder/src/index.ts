@@ -1,5 +1,6 @@
 import { Environment } from './env';
 import type { ContactPageResult } from './types/interfaces';
+import { HIGH_PRIORITY_PATTERNS, EXCLUDED_KEYWORDS, HIGH_PRIORITY_CONTACT_KEYWORDS, MEDIUM_PRIORITY_CONTACT_KEYWORDS } from './constants/ContactConstants';
 
 /**
  * ContactPageFinder - BtoB営業用問い合わせページ自動検索システム
@@ -49,47 +50,9 @@ class ContactPageFinder {
    */
   private static successfulFormUrls: Array<string> = [];
 
-// BtoB問い合わせ特化：純粋な問い合わせキーワードのみ
-private static readonly HIGH_PRIORITY_CONTACT_KEYWORDS = [
-  // 直接的問い合わせ（最高優先度）
-  'contact', 'contact us', 'contact form', 'inquiry', 'enquiry',
-  'get in touch', 'reach out', 'send message', 'message us',
-  'お問い合わせ', '問い合わせ', 'お問合せ', '問合せ',
-  'ご相談', '相談', 'お客様窓口', 'お問い合わせフォーム',
-  'お問い合わせはこちら', '問い合わせフォーム',
-  // フォーム関連を追加
-  'form', 'フォーム',
-  // URL内検索用（日本語エンコード版）
-  '%E3%81%8A%E5%95%8F%E3%81%84%E5%90%88%E3%82%8F%E3%81%9B', // お問い合わせ
-  '%E5%95%8F%E3%81%84%E5%90%88%E3%82%8F%E3%81%9B', // 問い合わせ
-  '%E3%81%8A%E5%95%8F%E5%90%88%E3%81%9B', // お問合せ
-  '%E5%95%8F%E5%90%88%E3%81%9B' // 問合せ
-];
 
-private static readonly MEDIUM_PRIORITY_CONTACT_KEYWORDS = [
-  // 間接的問い合わせ（中優先度） - 営業系削除済み
-  'form', 'フォーム', 'submit', 'send', 'mail form',
-  'feedback'
-];
 
-private static readonly EXCLUDED_KEYWORDS = [
-  // 精度の妨げになる明確な除外キーワードのみ（最小限）
-  'download', 'recruit', 'career'
-];
 
-// 後方互換性のため従来のキーワードも保持
-private static readonly CONTACT_KEYWORDS = [
-  ...this.HIGH_PRIORITY_CONTACT_KEYWORDS,
-  ...this.MEDIUM_PRIORITY_CONTACT_KEYWORDS
-];
-  // URL推測専用パターン（URL推測でテストするパス）
-  private static readonly HIGH_PRIORITY_PATTERNS = [
-
-    '/contact/', '/contact',  '/contact.php', '/inquiry/','/inquiry', '/inquiry.php',  '/form','/form/',  '/form.php','/contact-us/', '/contact-us',
-    '/%E3%81%8A%E5%95%8F%E3%81%84%E5%90%88%E3%82%8F%E3%81%9B/', // お問い合わせ
-    '/%E5%95%8F%E3%81%84%E5%90%88%E3%82%8F%E3%81%9B/', // 問い合わせ
-
-  ];
 
 
 
@@ -234,7 +197,7 @@ private static readonly CONTACT_KEYWORDS = [
     const lowerLinkText = linkText.toLowerCase();
 
     // 除外キーワードチェック（即座に低スコア）
-    for (const excludedKeyword of this.EXCLUDED_KEYWORDS) {
+    for (const excludedKeyword of EXCLUDED_KEYWORDS) {
       if (lowerUrl.includes(excludedKeyword.toLowerCase()) ||
           lowerLinkText.includes(excludedKeyword.toLowerCase())) {
         score -= 15;
@@ -244,7 +207,7 @@ private static readonly CONTACT_KEYWORDS = [
     }
 
     // 高優先度キーワード（「含む」判定で柔軟マッチング・重複防止）
-    for (const keyword of this.HIGH_PRIORITY_CONTACT_KEYWORDS) {
+    for (const keyword of HIGH_PRIORITY_CONTACT_KEYWORDS) {
       const normalizedKeyword = keyword.toLowerCase();
 
       // リンクテキストに含まれる場合（例: "お問い合わせフォーム" に "お問い合わせ" が含まれる）
@@ -269,7 +232,7 @@ private static readonly CONTACT_KEYWORDS = [
     }
 
     // 中優先度キーワード（中純度・重複防止）
-    for (const keyword of this.MEDIUM_PRIORITY_CONTACT_KEYWORDS) {
+    for (const keyword of MEDIUM_PRIORITY_CONTACT_KEYWORDS) {
       const normalizedKeyword = keyword.toLowerCase();
 
       if (lowerLinkText.includes(normalizedKeyword) && !foundKeywords.has(normalizedKeyword)) {
@@ -848,7 +811,7 @@ private static readonly CONTACT_KEYWORDS = [
 
     // 全リンクからキーワード含有リンクのみを選別
     const contactLinks = allCandidates.filter(candidate =>
-      this.HIGH_PRIORITY_CONTACT_KEYWORDS.some(keyword =>
+      HIGH_PRIORITY_CONTACT_KEYWORDS.some(keyword =>
         candidate.url.toLowerCase().includes(keyword.toLowerCase()) ||
         candidate.keywords.some(k => k.toLowerCase().includes(keyword.toLowerCase()))
       )
@@ -933,8 +896,8 @@ private static readonly CONTACT_KEYWORDS = [
     console.log(`Input content length: ${content.length}`);
     console.log(`Input content preview: ${content.substring(0, 200)}...`);
 
-    // 🔥 デバッグ: HIGH_PRIORITY_CONTACT_KEYWORDS の内容確認
-    console.log(`HIGH_PRIORITY_CONTACT_KEYWORDS: ${JSON.stringify(this.HIGH_PRIORITY_CONTACT_KEYWORDS.slice(0, 10))}`);
+    // HIGH_PRIORITY_CONTACT_KEYWORDS の初期化確認
+    console.log('HIGH_PRIORITY_CONTACT_KEYWORDS loaded for link extraction');
 
     while ((match = linkRegex.exec(content)) !== null) {
       totalLinksFound++;
@@ -969,7 +932,7 @@ private static readonly CONTACT_KEYWORDS = [
       console.log(`Text lower: "${textLower}"`);
 
       let matchedKeywords = [];
-      for (const keyword of this.HIGH_PRIORITY_CONTACT_KEYWORDS) {
+      for (const keyword of HIGH_PRIORITY_CONTACT_KEYWORDS) {
         const keywordLower = keyword.toLowerCase();
         const urlMatch = urlLower.includes(keywordLower);
         const textMatch = textLower.includes(keywordLower);
@@ -988,7 +951,7 @@ private static readonly CONTACT_KEYWORDS = [
       }
 
       // 除外キーワードチェック
-      const hasExcludedKeywords = this.EXCLUDED_KEYWORDS.some(keyword =>
+      const hasExcludedKeywords = EXCLUDED_KEYWORDS.some(keyword =>
         url.toLowerCase().includes(keyword.toLowerCase()) ||
         cleanLinkText.toLowerCase().includes(keyword.toLowerCase())
       );
@@ -1406,7 +1369,7 @@ private static readonly CONTACT_KEYWORDS = [
 
     const hasContactKeywords = foundContactKeywords.length >= 1;
     // 問い合わせ純度チェック（直接的な問い合わせ意図の確認）
-    const hasDirectContactIntent = this.HIGH_PRIORITY_CONTACT_KEYWORDS.some(keyword =>
+    const hasDirectContactIntent = HIGH_PRIORITY_CONTACT_KEYWORDS.some(keyword =>
       lowerHtml.includes(keyword.toLowerCase())
     );
 
@@ -2123,7 +2086,7 @@ private static readonly CONTACT_KEYWORDS = [
 
     // 優先度順にパターンをテスト
     const allPatterns = [
-      ...this.HIGH_PRIORITY_PATTERNS,
+      ...HIGH_PRIORITY_PATTERNS,
     ];
 
     let testedPatterns = 0;
