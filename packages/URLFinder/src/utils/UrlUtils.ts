@@ -126,4 +126,28 @@ export class UrlUtils {
     const domain2 = this.extractDomain(url2);
     return domain1 === domain2;
   }
+
+  /**
+   * SNSページかどうかを判定
+   * @param url 判定対象のURL
+   * @returns SNSページの場合true
+   */
+  static isSNSPage(url: string): boolean {
+    const snsPatterns = [
+      'facebook.com',
+      'twitter.com',
+      'x.com',
+      'instagram.com',
+      'linkedin.com',
+      'youtube.com',
+      'tiktok.com',
+      'line.me',
+      'ameba.jp',
+      'note.com',
+      'qiita.com'
+    ];
+
+    const lowerUrl = url.toLowerCase();
+    return snsPatterns.some(pattern => lowerUrl.includes(pattern));
+  }
 }

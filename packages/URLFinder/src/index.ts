@@ -1,6 +1,7 @@
 import { Environment } from './env';
 import type { ContactPageResult } from './types/interfaces';
 import { HIGH_PRIORITY_PATTERNS, EXCLUDED_KEYWORDS, HIGH_PRIORITY_CONTACT_KEYWORDS, MEDIUM_PRIORITY_CONTACT_KEYWORDS } from './constants/ContactConstants';
+import { UrlUtils } from './utils/UrlUtils';
 
 /**
  * ContactPageFinder - BtoB営業用問い合わせページ自動検索システム
@@ -505,7 +506,7 @@ class ContactPageFinder {
       this.resetCandidates();
 
       // SNSページの検出
-      if (this.isSNSPage(baseUrl)) {
+      if (UrlUtils.isSNSPage(baseUrl)) {
         console.log(`SNS page detected: ${baseUrl}, returning not found`);
         return {
           contactUrl: null,
@@ -530,7 +531,7 @@ class ContactPageFinder {
       console.log(`Domain is available, proceeding with contact search`);
 
       // Extract domain for subdirectory pattern support
-      const domainUrl = this.extractDomain(baseUrl);
+      const domainUrl = UrlUtils.extractDomain(baseUrl);
 
       console.log(`Starting contact page search for: ${baseUrl}`);
 
@@ -1295,7 +1296,7 @@ class ContactPageFinder {
     const fullUrl = this.resolveUrl(url, baseUrl);
 
     // ベースドメインを抽出
-    const baseDomain = this.extractDomain(baseUrl);
+    const baseDomain = UrlUtils.extractDomain(baseUrl);
 
     // トップページパターン
     const homepagePatterns = [
@@ -2473,39 +2474,7 @@ class ContactPageFinder {
     }
   }
 
-  private static isSNSPage(url: string): boolean {
-    const snsPatterns = [
-      'facebook.com',
-      'twitter.com',
-      'x.com',
-      'instagram.com',
-      'linkedin.com',
-      'youtube.com',
-      'tiktok.com',
-      'line.me',
-      'ameba.jp',
-      'note.com',
-      'qiita.com'
-    ];
 
-    const lowerUrl = url.toLowerCase();
-    return snsPatterns.some(pattern => lowerUrl.includes(pattern));
-  }
-
-  private static extractDomain(url: string): string {
-    // Extract protocol and host from URL
-    const protocolMatch = url.match(/^https?:/);
-    const hostMatch = url.match(/^https?:\/\/([^\/]+)/);
-
-    if (!protocolMatch || !hostMatch) {
-      return url;
-    }
-
-    const protocol = protocolMatch[0];
-    const host = hostMatch[1];
-
-    return `${protocol}//${host}/`;
-  }
 
 
 }
