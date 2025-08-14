@@ -692,4 +692,14 @@ export class FormAnalyzer {
 
     return { shouldExclude: false, reason: `Valid form (method: ${method || 'unspecified'}, action: ${action || 'unspecified'})`, priority };
   }
+
+  /**
+   * ページに重要なフォームコンテンツが存在するかチェック
+   * @param html 検証対象のHTML
+   * @returns 重要なフォームコンテンツが存在する場合true
+   */
+  static hasSignificantFormContent(html: string): boolean {
+    const analysis = this.analyzeFormElements(html);
+    return analysis.isValidForm;
+  }
 }

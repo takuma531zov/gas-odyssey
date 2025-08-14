@@ -971,7 +971,7 @@ class ContactPageFinder {
           }
 
           // より寛容な検証：フォーム関連コンテンツの存在確認
-          const hasFormContent = this.hasSignificantFormContent(candidateHtml);
+          const hasFormContent = FormAnalyzer.hasSignificantFormContent(candidateHtml);
           if (hasFormContent) {
             console.log(`Validated: Form content found at ${candidate.url}`);
             return candidate.url;
@@ -1087,11 +1087,6 @@ class ContactPageFinder {
 
   // 候補を活用したfallback処理
 
-  // 従来のhasSignificantFormContentは統合版に置き換え済み（互換性のため残置）
-  private static hasSignificantFormContent(html: string): boolean {
-    const analysis = FormAnalyzer.analyzeFormElements(html);
-    return analysis.isValidForm;
-  }
 
   // ページ内に問い合わせ関連のリンクが存在するかチェック（BtoB営業用途特化）
   private static hasContactRelatedLinks(html: string): { hasLinks: boolean, linkTexts: string[] } {
