@@ -150,4 +150,43 @@ export class UrlUtils {
     const lowerUrl = url.toLowerCase();
     return snsPatterns.some(pattern => lowerUrl.includes(pattern));
   }
+
+  /**
+   * アンカーリンクかどうかを判定
+   * @param url 判定対象のURL
+   * @returns アンカーリンクの場合true
+   */
+  static isAnchorLink(url: string): boolean {
+    return url.includes('#');
+  }
+
+  /**
+   * 文字列のハッシュ値を生成
+   * @param str ハッシュ化対象の文字列
+   * @returns 16進数のハッシュ値
+   */
+  static hashString(str: string): string {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return hash.toString(16);
+  }
+
+  /**
+   * 文字列を16進数表現に変換
+   * @param str 変換対象の文字列
+   * @returns 16進数表現
+   */
+  static toHexString(str: string): string {
+    try {
+      return Array.from(str).map(char =>
+        char.charCodeAt(0).toString(16).padStart(2, '0')
+      ).join(' ');
+    } catch (e) {
+      return `[hex conversion error: ${e}]`;
+    }
+  }
 }

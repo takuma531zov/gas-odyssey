@@ -61,7 +61,7 @@ class ContactPageFinder {
   private static sameHtmlCache: { [url: string]: string } = {};
   
   private static detectSameHtmlPattern(urls: string[], htmlContent: string): boolean {
-    const contentHash = this.hashString(htmlContent);
+    const contentHash = UrlUtils.hashString(htmlContent);
     let sameCount = 0;
     
     for (const url of urls) {
@@ -76,15 +76,6 @@ class ContactPageFinder {
     return sameCount >= 2;
   }
 
-  private static hashString(str: string): string {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // Convert to 32-bit integer
-    }
-    return hash.toString(16);
-  }
 
   // **NEW: Final Fallback** - Step1の最初の200 OK URLを最終手段として返却
   private static getFinalFallbackUrl(): ContactPageResult {
@@ -283,7 +274,7 @@ class ContactPageFinder {
       
       // Navigation search for anchor links in the current HTML
       const navResult = this.searchInNavigation(html, baseUrl);
-      if (navResult.url && this.isAnchorLink(navResult.url)) {
+      if (navResult.url && UrlUtils.isAnchorLink(navResult.url)) {
         console.log(`Anchor link found in SPA navigation: ${navResult.url}`);
         
         // Analyze the corresponding section in the same HTML
@@ -316,9 +307,6 @@ class ContactPageFinder {
   }
 
   // **NEW: Check if URL is an anchor link**
-  private static isAnchorLink(url: string): boolean {
-    return url.includes('#');
-  }
 
   // **NEW: Analyze anchor section content**
   private static analyzeAnchorSection(html: string, anchorUrl: string, baseUrl: string): ContactPageResult {
@@ -689,7 +677,7 @@ class ContactPageFinder {
         console.log(`⏭ Skipping duplicate URL (already succeeded in Step1): ${navResult.url}`);
       } else {
         // Check if this is an anchor link for special processing
-        if (this.isAnchorLink(navResult.url)) {
+        if (UrlUtils.isAnchorLink(navResult.url)) {
           console.log(`🔍 Anchor link detected: ${navResult.url}, analyzing section content`);
           const anchorSectionResult = this.analyzeAnchorSection(html, navResult.url, baseUrl);
           if (anchorSectionResult.contactUrl) {
@@ -840,15 +828,6 @@ class ContactPageFinder {
 
 
   // 文字化けデバッグ用ヘルパー
-  private static toHexString(str: string): string {
-    try {
-      return Array.from(str).map(char =>
-        char.charCodeAt(0).toString(16).padStart(2, '0')
-      ).join(' ');
-    } catch (e) {
-      return `[hex conversion error: ${e}]`;
-    }
-  }
 
   // 🔥 文字化け解決: 複数エンコーディング試行
   private static getContentWithEncoding(response: any): string {
@@ -909,7 +888,7 @@ class ContactPageFinder {
       console.log(`--- Link ${totalLinksFound} RAW DATA ---`);
       console.log(`Raw URL: "${url}"`);
       console.log(`Raw linkText: "${linkText}"`);
-      console.log(`Raw linkText hex: ${linkText ? this.toHexString(linkText) : 'undefined'}`);
+      console.log(`Raw linkText hex: ${linkText ? UrlUtils.toHexString(linkText) : 'undefined'}`);
 
       if (!url || !linkText) {
         console.log(`Skipped: empty url or linkText`);
@@ -918,7 +897,7 @@ class ContactPageFinder {
 
       const cleanLinkText = linkText.replace(/<[^>]*>/g, '').trim();
       console.log(`Clean linkText: "${cleanLinkText}"`);
-      console.log(`Clean linkText hex: ${this.toHexString(cleanLinkText)}`);
+      console.log(`Clean linkText hex: ${UrlUtils.toHexString(cleanLinkText)}`);
 
       // 非ウェブURLをスキップ
       if (url.startsWith('mailto:') || url.startsWith('javascript:') || url.startsWith('tel:')) {
