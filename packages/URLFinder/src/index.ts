@@ -2734,60 +2734,6 @@ function test() {
   console.log('=====================================');
 }
 
-// 新しいform検証のテスト関数
-function testFormValidation() {
-  console.log('=== Form Validation Test ===');
-
-  // テスト用HTMLサンプル
-  const testHtmlWithForm = `
-    <html>
-      <body>
-        <form action="/contact" method="post">
-          <input type="text" name="name" placeholder="お名前">
-          <input type="email" name="email" placeholder="メールアドレス">
-          <textarea name="message" placeholder="お問い合わせ内容"></textarea>
-          <input type="submit" value="送信">
-        </form>
-      </body>
-    </html>
-  `;
-
-  const testHtmlWithoutForm = `
-    <html>
-      <body>
-        <div>
-          <input type="text" name="search">
-          <button onclick="search()">検索</button>
-        </div>
-      </body>
-    </html>
-  `;
-
-  const testHtmlWithGoogleForms = `
-    <html>
-      <body>
-        <h1>お問い合わせ</h1>
-        <p>下記のフォームからお問い合わせください。</p>
-        <iframe src="https://docs.google.com/forms/d/1A2B3C4D5E6F/viewform" width="640" height="800"></iframe>
-      </body>
-    </html>
-  `;
-
-  // プライベートメソッドを呼ぶためのテスト
-  try {
-    const result1 = (ContactPageFinder as any).isValidContactForm(testHtmlWithForm);
-    const result2 = (ContactPageFinder as any).isValidContactForm(testHtmlWithoutForm);
-    const googleResult = (ContactPageFinder as any).detectGoogleForms(testHtmlWithGoogleForms);
-
-    console.log(`Test 1 (with form): ${result1 ? 'PASS' : 'FAIL'}`);
-    console.log(`Test 2 (without form): ${result2 ? 'FAIL (should be false)' : 'PASS'}`);
-    console.log(`Test 3 (Google Forms): ${googleResult.found ? 'PASS' : 'FAIL'} - URL: ${googleResult.url}`);
-  } catch (error) {
-    console.error(`Test error: ${error}`);
-  }
-
-  console.log('=== Form Validation Test End ===');
-}
 
 /**
  * スプレッドシートUI付きURLFinder実行関数
