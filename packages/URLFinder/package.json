@@ -1,8 +1,8 @@
 {
-  "name": "FormFinder",
+  "name": "URLFinder",
   "version": "1.0.0",
   "description": "営業リスト問い合わせフォーム抽出システム",
-  "main": "dist/index.js",
+  "main": "dist/index.ts",
   "scripts": {
     "build": "node esbuild.config.js",
     "deploy": "clasp push",

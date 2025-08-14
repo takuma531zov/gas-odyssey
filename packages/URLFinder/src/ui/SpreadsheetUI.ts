@@ -6,6 +6,10 @@
 // 型定義のみをインポート
 import type { ContactPageResult } from '../types/interfaces';
 
+// 既存関数の宣言（実装は index.ts にある）
+declare function processContactPageFinder(): void;
+declare function findContactPage(url: string): ContactPageResult;
+
 /**
  * スプレッドシートボタンから実行されるメインエントリーポイント
  * ユーザーに実行オプションを選択させ、適切な処理を実行
@@ -70,7 +74,7 @@ function executeNormalProcessing(): void {
   
   try {
     // 既存のprocessContactPageFinder()関数を直接呼び出し（100%既存ロジック使用）
-    (globalThis as any).processContactPageFinder();
+    processContactPageFinder();
     
     // 完了ダイアログ表示
     showCompletionDialog('通常処理が完了しました');
@@ -116,7 +120,7 @@ function executeCheckedRowsProcessing(): void {
         console.log(`${rowNumber}行目を処理中: ${url}`);
         
         // index.tsのfindContactPage関数を直接呼び出し
-        const result: ContactPageResult = (globalThis as any).findContactPage(url);
+        const result: ContactPageResult = findContactPage(url);
         
         // AP列に結果を書き込み
         writeResultToSheet(rowNumber, result);
