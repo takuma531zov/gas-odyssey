@@ -1,6 +1,7 @@
 import { Environment } from './env';
 import type { ContactPageResult } from './types/interfaces';
 import { HIGH_PRIORITY_PATTERNS, EXCLUDED_KEYWORDS, HIGH_PRIORITY_CONTACT_KEYWORDS, MEDIUM_PRIORITY_CONTACT_KEYWORDS, SUBMIT_BUTTON_KEYWORDS, FORM_KEYWORDS } from './constants/ContactConstants';
+import { SEARCH_PATTERNS, CONFIDENCE_LEVELS, NAVIGATION_SELECTORS, VALIDATION_PATTERNS, FORM_LINK_PATTERNS, FORM_TEXT_PATTERNS, NEGATIVE_KEYWORDS, HOMEPAGE_PATTERNS, CONTACT_LINK_KEYWORDS, GOOGLE_FORM_EXCLUDE_KEYWORDS, GOOGLE_FORM_CONTACT_KEYWORDS } from './constants/SearchConstants';
 import { UrlUtils } from './utils/UrlUtils';
 import { HtmlAnalyzer } from './analyzers/HtmlAnalyzer';
 import { FormAnalyzer } from './analyzers/FormAnalyzer';
@@ -119,17 +120,9 @@ class ContactPageFinder {
     }
 
     // 優先度順にcontact関連URLを探す
-    const contactPriorityPatterns = [
-      '/contact/',
-      '/contact', 
-      '/inquiry/',
-      '/inquiry',
-      '/form/',
-      '/form'
-    ];
 
     // 高優先度contact patternを探す
-    for (const priorityPattern of contactPriorityPatterns) {
+    for (const priorityPattern of SEARCH_PATTERNS.CONTACT_PRIORITY) {
       const matchingUrl = this.validUrls.find(urlInfo => 
         urlInfo.pattern === priorityPattern
       );
@@ -177,30 +170,27 @@ class ContactPageFinder {
    * @returns 信頼度とキーワード配列
    */
   private static evaluateFallbackUrlQuality(url: string, pattern: string): { confidence: number, keywords: string[] } {
-    let confidence = 0.5; // ベーススコア
+    let confidence = CONFIDENCE_LEVELS.BASE; // ベーススコア
     const keywords: string[] = [];
 
     // 高信頼度パターン（contact/inquiry系）
-    const highConfidencePatterns = ['/contact/', '/contact', '/inquiry/', '/inquiry'];
-    if (highConfidencePatterns.includes(pattern)) {
-      confidence += 0.3;
+    if (SEARCH_PATTERNS.HIGH_CONFIDENCE.includes(pattern)) {
+      confidence += CONFIDENCE_LEVELS.HIGH_BONUS;
       keywords.push('high_confidence_pattern');
     }
 
     // 中信頼度パターン（form系）
-    const mediumConfidencePatterns = ['/form/', '/form'];
-    if (mediumConfidencePatterns.includes(pattern)) {
-      confidence += 0.1;
+    if (SEARCH_PATTERNS.MEDIUM_CONFIDENCE.includes(pattern)) {
+      confidence += CONFIDENCE_LEVELS.MEDIUM_BONUS;
       keywords.push('medium_confidence_pattern');
     }
 
     // URL内のcontactキーワードチェック（ドメイン除外）
     const urlPath = url.replace(/https?:\/\/[^/]+/, ''); // ドメインを除外
-    const contactKeywords = ['contact', 'inquiry', 'form', 'お問い合わせ', '問い合わせ'];
     
-    for (const keyword of contactKeywords) {
+    for (const keyword of SEARCH_PATTERNS.CONTACT_KEYWORDS) {
       if (urlPath.toLowerCase().includes(keyword.toLowerCase())) {
-        confidence += 0.1;
+        confidence += CONFIDENCE_LEVELS.KEYWORD_BONUS;
         keywords.push(`path_contains_${keyword}`);
       }
     }
@@ -302,8 +292,7 @@ class ContactPageFinder {
 
       if (!sectionContent) {
         // Fallback: search around anchor keywords in the entire HTML
-        const contactKeywords = ['contact', 'お問い合わせ', '問い合わせ'];
-        for (const keyword of contactKeywords) {
+        for (const keyword of SEARCH_PATTERNS.CONTACT_KEYWORDS) {
           const keywordIndex = html.toLowerCase().indexOf(keyword);
           if (keywordIndex !== -1) {
             // Extract surrounding content (2000 characters)
@@ -704,28 +693,14 @@ class ContactPageFinder {
    */
   private static searchInNavigation(html: string, baseUrl: string): { url: string | null, keywords: string[], score: number, reasons: string[] } {
     // ナビゲーション要素の選択パターン
-    const navigationSelectors = [
-      // 主要ナビゲーション要素
-      /<nav[\s\S]*?<\/nav>/gi,                    // <nav>タグ
-      /<[^>]*id=['"]menu['"][^>]*>[\s\S]*?<\/[^>]+>/gi,  // #menu ID
-      /<footer[\s\S]*?<\/footer>/gi,              // <footer>タグ
-      
-      // 追加セレクター（既存サイト対応）
-      /<ul[^>]*id=['"]naviArea['"][^>]*>[\s\S]*<\/ul>/gi, // #naviArea - 貪欲マッチでネスト対応
-      /<[^>]*id=['"]navigation['"][^>]*>[\s\S]*?<\/[^>]+>/gi, // #navigation
-      /<[^>]*id=['"]nav['"][^>]*>[\s\S]*?<\/[^>]+>/gi, // #nav
-      /<div[^>]*class=['"][^'"]*\bnav\b[^'"]*['"][^>]*>[\s\S]*<\/div>/gi, // .navクラス
-      /<nav[^>]*class=['"][^'"]*\bnavigation\b[^'"]*['"][^>]*>[\s\S]*<\/nav>/gi, // .navigationクラス
-      /<ul[^>]*class=['"][^'"]*\bmenu\b[^'"]*['"][^>]*>[\s\S]*<\/ul>/gi // .menuクラス
-    ];
 
     console.log('Searching in navigation with 9 selectors (including #naviArea, .nav, .navigation, .menu)...');
 
     let totalMatches = 0;
     let allCandidates: Array<{ url: string, keywords: string[], score: number, reasons: string[] }> = [];
 
-    for (let i = 0; i < navigationSelectors.length; i++) {
-      const regex = navigationSelectors[i];
+    for (let i = 0; i < NAVIGATION_SELECTORS.length; i++) {
+      const regex = NAVIGATION_SELECTORS[i];
       if (!regex) continue;
 
       const matches = html.match(regex) || [];
@@ -922,19 +897,8 @@ class ContactPageFinder {
   // ２段階リンク検出の新メソッド
   private static findSecondStageFormLink(html: string, contactPageUrl: string): string | null {
     // フォームページを示唆するキーワードパターン（BtoB営業用途に特化）
-    const formLinkPatterns = [
-      // URL内のパターン（一般問い合わせのみ）
-      'form', 'フォーム', 'submit', '送信',
-      // 特定のフォームサービス
-      'formzu', 'fc2', 'google.com/forms', 'forms.gle'
-    ];
 
     // より具体的なテキストパターン（一般問い合わせ限定）
-    const formTextPatterns = [
-      'フォームはこちら', 'フォームへ', '問い合わせフォーム',
-      '入力フォーム', '送信フォーム',
-      'form here', 'click here', 'go to form'
-    ];
 
     const linkRegex = /<a[^>]*href=['"]([^'\"]*?)['"][^>]*>([\s\S]*?)<\/a>/gi;
     let match;
@@ -956,9 +920,7 @@ class ContactPageFinder {
       const reasons: string[] = [];
 
       // ネガティブキーワードチェック（BtoB営業に不適切なページを除外）
-      const negativeKeywords = ['recruit', 'career', 'job', 'hire', 'employment', '採用', '求人',
-                               'request', 'download', 'material', '資料', '資料請求', 'brochure'];
-      const hasNegativeKeyword = negativeKeywords.some(keyword =>
+      const hasNegativeKeyword = NEGATIVE_KEYWORDS.some(keyword =>
         lowerUrl.includes(keyword.toLowerCase()) || cleanLinkText.includes(keyword.toLowerCase())
       );
 
@@ -974,7 +936,7 @@ class ContactPageFinder {
       }
 
       // URL内のフォームパターンをチェック
-      for (const pattern of formLinkPatterns) {
+      for (const pattern of FORM_LINK_PATTERNS) {
         if (lowerUrl.includes(pattern.toLowerCase())) {
           score += 3; // URL内のパターンは高スコア
           reasons.push(`url_pattern:${pattern}`);
@@ -982,7 +944,7 @@ class ContactPageFinder {
       }
 
       // リンクテキスト内のフォームパターンをチェック
-      for (const pattern of formTextPatterns) {
+      for (const pattern of FORM_TEXT_PATTERNS) {
         if (cleanLinkText.includes(pattern.toLowerCase())) {
           score += 2; // テキストパターンは中スコア
           reasons.push(`text_pattern:${pattern}`);
@@ -1075,7 +1037,7 @@ class ContactPageFinder {
     const baseDomain = UrlUtils.extractDomain(baseUrl);
 
     // トップページパターン
-    const homepagePatterns = [
+    const fullDomainPatterns = [
       baseDomain,                     // https://example.com/
       baseDomain.replace(/\/$/, ''),  // https://example.com
       baseDomain + 'index.html',
@@ -1086,12 +1048,12 @@ class ContactPageFinder {
     ];
 
     // 完全一致チェック
-    const isHomepage = homepagePatterns.some(pattern =>
+    const isHomepage = fullDomainPatterns.some(pattern =>
       fullUrl.toLowerCase() === pattern.toLowerCase()
     );
 
     if (isHomepage) {
-      console.log(`Detected homepage URL: ${fullUrl} matches pattern in ${homepagePatterns.join(',')}`);
+      console.log(`Detected homepage URL: ${fullUrl} matches pattern in ${fullDomainPatterns.join(',')}`);
     }
 
     return isHomepage;
@@ -1189,16 +1151,6 @@ class ContactPageFinder {
    * @returns リンク存在情報とリンクテキスト配列
    */
   private static hasContactRelatedLinks(html: string): { hasLinks: boolean, linkTexts: string[] } {
-    const contactLinkKeywords = [
-      'フォーム', 'form', 'お問い合わせフォーム', '問い合わせフォーム',
-      'contact form', 'inquiry form', '送信', 'submit', '入力',
-      'フォームへ', 'フォームはこちら', 'click here', 'こちらから', 'お進みください',
-      // URL内のパターンも追加
-      'contact', 'inquiry',
-      // 日本語URLエンコード版
-      '%E3%81%8A%E5%95%8F%E3%81%84%E5%90%88%E3%82%8F%E3%81%9B', // お問い合わせ
-      '%E5%95%8F%E3%81%84%E5%90%88%E3%82%8F%E3%81%9B'  // 問い合わせ
-    ];
 
     const linkRegex = /<a[^>]*href=['"]([^'\"]*?)['"][^>]*>([\s\S]*?)<\/a>/gi;
     let match;
@@ -1217,7 +1169,7 @@ class ContactPageFinder {
       const lowerUrl = url.toLowerCase();
 
       // URLまたはリンクテキストに問い合わせ関連キーワードが含まれているかチェック
-      for (const keyword of contactLinkKeywords) {
+      for (const keyword of CONTACT_LINK_KEYWORDS) {
         if (cleanLinkText.includes(keyword.toLowerCase()) || lowerUrl.includes(keyword.toLowerCase())) {
           foundLinkTexts.push(cleanLinkText || url);
           console.log(`Contact link found: "${cleanLinkText}" -> ${url}`);
@@ -1269,23 +1221,18 @@ class ContactPageFinder {
 
   private static isValidContactPage(html: string): boolean {
     // 404ページや無効なページを除外（より厳密なパターンに変更）
-    const invalidPatterns = [
-      'page not found', 'ページが見つかりません', '404 not found',
-      'under construction', '工事中', 'site under construction',
-      'coming soon'
-    ];
 
     const lowerHtml = html.toLowerCase();
-    const hasInvalidContent = invalidPatterns.some(pattern =>
+    const hasInvalidContent = VALIDATION_PATTERNS.INVALID_PAGE.some(pattern =>
       lowerHtml.includes(pattern.toLowerCase())
     );
 
     // 最低限のコンテンツ長チェック
-    const hasMinimumContent = html.length > 500;
+    const hasMinimumContent = html.length > VALIDATION_PATTERNS.MINIMUM_CONTENT_LENGTH;
 
     console.log(`Validity check - hasInvalidContent: ${hasInvalidContent}, hasMinimumContent: ${hasMinimumContent}, length: ${html.length}`);
     if (hasInvalidContent) {
-      const matchedPattern = invalidPatterns.find(pattern => lowerHtml.includes(pattern.toLowerCase()));
+      const matchedPattern = VALIDATION_PATTERNS.INVALID_PAGE.find(pattern => lowerHtml.includes(pattern.toLowerCase()));
       console.log(`Invalid pattern found: ${matchedPattern}`);
     }
 
@@ -1356,21 +1303,8 @@ class ContactPageFinder {
    */
   private static validateGoogleFormContent(html: string, googleFormUrl: string): boolean {
     // 除外すべきキーワード（BtoB営業用途に関係ないフォーム）
-    const excludeKeywords = [
-      'ライター', 'writer', '募集', 'recruit', 'recruitment', 'career', 'job', 'hire', 'employment',
-      '採用', '求人', '応募', 'apply', 'application',
-      '資料請求', 'download', 'material', 'brochure', 'request',
-      'アンケート', 'survey', 'questionnaire', 'feedback',
-      'セミナー', 'seminar', 'webinar', 'event', 'workshop',
-      'メルマガ', 'newsletter', 'subscription', 'subscribe'
-    ];
 
     // 問い合わせ関連キーワード
-    const contactKeywords = [
-      'お問い合わせ', '問い合わせ', 'お問合せ', '問合せ',
-      'contact', 'inquiry', 'ご相談', '相談', 'support',
-      'business inquiry', 'general inquiry'
-    ];
 
     const lowerHtml = html.toLowerCase();
 
@@ -1381,27 +1315,27 @@ class ContactPageFinder {
     const context = html.substring(contextStart, contextEnd).toLowerCase();
 
     // 除外キーワードが含まれているかチェック
-    const hasExcludeKeyword = excludeKeywords.some(keyword =>
+    const hasExcludeKeyword = GOOGLE_FORM_EXCLUDE_KEYWORDS.some(keyword =>
       context.includes(keyword.toLowerCase())
     );
 
     if (hasExcludeKeyword) {
-      console.log(`Google Form excluded due to keywords: ${excludeKeywords.filter(k => context.includes(k.toLowerCase())).join(',')}`);
+      console.log(`Google Form excluded due to keywords: ${GOOGLE_FORM_EXCLUDE_KEYWORDS.filter(k => context.includes(k.toLowerCase())).join(',')}`);
       return false;
     }
 
     // 問い合わせ関連キーワードの存在確認
-    const hasContactKeyword = contactKeywords.some(keyword =>
+    const hasContactKeyword = GOOGLE_FORM_CONTACT_KEYWORDS.some(keyword =>
       context.includes(keyword.toLowerCase())
     );
 
     if (hasContactKeyword) {
-      console.log(`Google Form validated with contact keywords: ${contactKeywords.filter(k => context.includes(k.toLowerCase())).join(',')}`);
+      console.log(`Google Form validated with contact keywords: ${GOOGLE_FORM_CONTACT_KEYWORDS.filter(k => context.includes(k.toLowerCase())).join(',')}`);
       return true;
     }
 
     // コンテキストが不明な場合は、より広範囲でチェック
-    const hasPageLevelContactKeyword = contactKeywords.some(keyword =>
+    const hasPageLevelContactKeyword = GOOGLE_FORM_CONTACT_KEYWORDS.some(keyword =>
       lowerHtml.includes(keyword.toLowerCase())
     );
 
