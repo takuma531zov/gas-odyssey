@@ -3,6 +3,7 @@ import type { ContactPageResult } from './types/interfaces';
 import { HIGH_PRIORITY_PATTERNS, EXCLUDED_KEYWORDS, HIGH_PRIORITY_CONTACT_KEYWORDS, MEDIUM_PRIORITY_CONTACT_KEYWORDS, SUBMIT_BUTTON_KEYWORDS, FORM_KEYWORDS } from './constants/ContactConstants';
 import { SEARCH_PATTERNS, CONFIDENCE_LEVELS, NAVIGATION_SELECTORS, VALIDATION_PATTERNS, FORM_LINK_PATTERNS, FORM_TEXT_PATTERNS, NEGATIVE_KEYWORDS, HOMEPAGE_PATTERNS, CONTACT_LINK_KEYWORDS, GOOGLE_FORM_EXCLUDE_KEYWORDS, GOOGLE_FORM_CONTACT_KEYWORDS } from './constants/SearchConstants';
 import { UrlUtils } from './utils/UrlUtils';
+import { PurityUtils } from './utils/PurityUtils';
 import { HtmlAnalyzer } from './analyzers/HtmlAnalyzer';
 import { FormAnalyzer } from './analyzers/FormAnalyzer';
 import { UrlPatternStrategy } from './strategies/UrlPatternStrategy';
@@ -170,36 +171,7 @@ class ContactPageFinder {
    * @returns 信頼度とキーワード配列
    */
   private static evaluateFallbackUrlQuality(url: string, pattern: string): { confidence: number, keywords: string[] } {
-    let confidence = CONFIDENCE_LEVELS.BASE; // ベーススコア
-    const keywords: string[] = [];
-
-    // 高信頼度パターン（contact/inquiry系）
-    if (SEARCH_PATTERNS.HIGH_CONFIDENCE.includes(pattern)) {
-      confidence += CONFIDENCE_LEVELS.HIGH_BONUS;
-      keywords.push('high_confidence_pattern');
-    }
-
-    // 中信頼度パターン（form系）
-    if (SEARCH_PATTERNS.MEDIUM_CONFIDENCE.includes(pattern)) {
-      confidence += CONFIDENCE_LEVELS.MEDIUM_BONUS;
-      keywords.push('medium_confidence_pattern');
-    }
-
-    // URL内のcontactキーワードチェック（ドメイン除外）
-    const urlPath = url.replace(/https?:\/\/[^/]+/, ''); // ドメインを除外
-    
-    for (const keyword of SEARCH_PATTERNS.CONTACT_KEYWORDS) {
-      if (urlPath.toLowerCase().includes(keyword.toLowerCase())) {
-        confidence += CONFIDENCE_LEVELS.KEYWORD_BONUS;
-        keywords.push(`path_contains_${keyword}`);
-      }
-    }
-
-    // 信頼度を上限で制限
-    confidence = Math.min(confidence, 1.0);
-
-    console.log(`URL quality evaluation for ${url}: confidence=${confidence.toFixed(2)}, keywords=[${keywords.join(', ')}]`);
-    return { confidence, keywords };
+    return PurityUtils.evaluateUrlQuality(url, pattern);
   }
 
 
@@ -1030,33 +1002,7 @@ class ContactPageFinder {
    * @returns トップページの場合true
    */
   private static isHomepageUrl(url: string, baseUrl: string): boolean {
-    // 相対URLを絶対URLに変換
-    const fullUrl = UrlUtils.resolveUrl(url, baseUrl);
-
-    // ベースドメインを抽出
-    const baseDomain = UrlUtils.extractDomain(baseUrl);
-
-    // トップページパターン
-    const fullDomainPatterns = [
-      baseDomain,                     // https://example.com/
-      baseDomain.replace(/\/$/, ''),  // https://example.com
-      baseDomain + 'index.html',
-      baseDomain + 'index.htm',
-      baseDomain + 'index.php',
-      baseDomain + 'home/',
-      baseDomain + 'home'
-    ];
-
-    // 完全一致チェック
-    const isHomepage = fullDomainPatterns.some(pattern =>
-      fullUrl.toLowerCase() === pattern.toLowerCase()
-    );
-
-    if (isHomepage) {
-      console.log(`Detected homepage URL: ${fullUrl} matches pattern in ${fullDomainPatterns.join(',')}`);
-    }
-
-    return isHomepage;
+    return PurityUtils.isHomepageUrl(url, baseUrl);
   }
 
 
@@ -1350,27 +1296,7 @@ class ContactPageFinder {
   }
 
   private static getDetailedErrorMessage(statusCode: number): string {
-    const errorMessages: { [key: number]: string } = {
-      400: 'Bad Request - 不正なリクエスト',
-      401: 'Unauthorized - 認証が必要',
-      403: 'Forbidden - アクセス拒否（Bot対策またはアクセス制限）',
-      404: 'Not Found - ページが存在しません',
-      405: 'Method Not Allowed - 許可されていないHTTPメソッド',
-      408: 'Request Timeout - リクエストタイムアウト',
-      429: 'Too Many Requests - レート制限（アクセス過多）',
-      500: 'Internal Server Error - サーバー内部エラー',
-      501: 'Not Implemented - Bot対策によりブロック',
-      502: 'Bad Gateway - ゲートウェイエラー',
-      503: 'Service Unavailable - サービス利用不可（メンテナンス中）',
-      504: 'Gateway Timeout - ゲートウェイタイムアウト',
-      520: 'Web Server Error - Webサーバーエラー（Cloudflare）',
-      521: 'Web Server Down - Webサーバーダウン（Cloudflare）',
-      522: 'Connection Timed Out - 接続タイムアウト（Cloudflare）',
-      523: 'Origin Unreachable - オリジンサーバー到達不可（Cloudflare）',
-      524: 'A Timeout Occurred - タイムアウト発生（Cloudflare）'
-    };
-
-    return errorMessages[statusCode] || `HTTP Error ${statusCode} - 不明なエラー`;
+    return PurityUtils.getDetailedErrorMessage(statusCode);
   }
 
   /**
@@ -1380,53 +1306,7 @@ class ContactPageFinder {
    * @returns 詳細エラーメッセージ
    */
   private static getDetailedNetworkError(error: any): string {
-    const errorString = String(error);
-
-    // DNS関連エラー
-    if (errorString.includes('DNS') || errorString.includes('NXDOMAIN') || errorString.includes('Name or service not known')) {
-      return 'DNS解決失敗: ドメインが存在しません';
-    }
-
-    // タイムアウトエラー
-    if (errorString.includes('timeout') || errorString.includes('Timeout')) {
-      return 'タイムアウト: サーバーからの応答が遅すぎます';
-    }
-
-    // 接続拒否エラー
-    if (errorString.includes('Connection refused') || errorString.includes('ECONNREFUSED')) {
-      return '接続拒否: サーバーが接続を拒否しました';
-    }
-
-    // SSL/TLS関連エラー
-    if (errorString.includes('SSL') || errorString.includes('TLS') || errorString.includes('certificate')) {
-      return 'SSL/TLS証明書エラー: セキュア接続に失敗';
-    }
-
-    // ネットワーク到達不可
-    if (errorString.includes('Network is unreachable') || errorString.includes('ENETUNREACH')) {
-      return 'ネットワーク到達不可: サーバーに到達できません';
-    }
-
-    // ホスト到達不可
-    if (errorString.includes('No route to host') || errorString.includes('EHOSTUNREACH')) {
-      return 'ホスト到達不可: 指定されたホストに到達できません';
-    }
-
-    // GAS固有エラー（Address unavailable等）
-    if (errorString.includes('Address unavailable') ||
-        errorString.includes('Exception:') ||
-        errorString.includes('Request failed') ||
-        errorString.includes('Service unavailable')) {
-      return 'GASエラー: アクセスに失敗しました';
-    }
-
-    // その他のネットワークエラー
-    if (errorString.includes('Failed to fetch') || errorString.includes('Network error')) {
-      return 'ネットワークエラー: 通信に失敗しました';
-    }
-
-    // 不明なエラー
-    return `不明なエラー: ${errorString}`;
+    return PurityUtils.getDetailedNetworkError(error);
   }
 
   private static checkDomainAvailability(baseUrl: string): { available: boolean, error?: string } {

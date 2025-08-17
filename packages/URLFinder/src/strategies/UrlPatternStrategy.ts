@@ -120,20 +120,7 @@ export class UrlPatternStrategy implements SearchStrategy {
       }
     }
 
-    // Step1で成功せず、有効URLがある場合は最初のものを最終フォールバックとして使用
-    if (this.validUrls.length > 0) {
-      const firstValidUrl = this.validUrls[0];
-      if (firstValidUrl) {
-        console.log(`Step1 final fallback: using first 200 OK URL: ${firstValidUrl.url}`);
-        
-        return {
-          contactUrl: firstValidUrl.url,
-          actualFormUrl: firstValidUrl.url,
-          foundKeywords: ['step1_final_fallback', firstValidUrl.pattern],
-          searchMethod: 'step1_final_fallback'
-        };
-      }
-    }
+    // Step1で成功せず、有効URLがある場合でも失敗として返す（Step2以降に委ねる）
 
     console.log('❌ Step1 failed - no valid patterns found');
     return {
