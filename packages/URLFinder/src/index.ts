@@ -4,21 +4,22 @@ import { HIGH_PRIORITY_PATTERNS, EXCLUDED_KEYWORDS, HIGH_PRIORITY_CONTACT_KEYWOR
 import { UrlUtils } from './utils/UrlUtils';
 import { HtmlAnalyzer } from './analyzers/HtmlAnalyzer';
 import { FormAnalyzer } from './analyzers/FormAnalyzer';
+import { UrlPatternStrategy } from './strategies/UrlPatternStrategy';
 
 /**
  * ContactPageFinder - BtoB営業用問い合わせページ自動検索システム
  * 
- * 目的:
+ * 【目的】
  * - 企業サイトから問い合わせページを自動発見
  * - Google Apps Script環境での安定動作
  * - BtoB営業活動の効率化支援
  * 
- * 検索戦略:
+ * 【検索戦略】
  * Step1: URLパターン推測（高速・高精度）
  * Step2: HTML解析によるフォールバック検索
  * Final: 最終フォールバック（Step1の200 OKページ使用）
  * 
- * 特徴:
+ * 【対応機能】
  * - SPA（Single Page Application）対応
  * - Google Forms検出
  * - 埋め込みフォーム対応
@@ -26,6 +27,11 @@ import { FormAnalyzer } from './analyzers/FormAnalyzer';
  * - タイムアウト管理による安定性確保
  */
 class ContactPageFinder {
+
+  // ==========================================
+  // 状態管理・キャッシュシステム
+  // ==========================================
+
   /**
    * 候補ページ記録システム
    * Step1で発見されたが確定できなかった候補を保存
@@ -57,11 +63,23 @@ class ContactPageFinder {
 
 
 
+  // ==========================================
+  // SPA検出・同一HTML判定システム
+  // ==========================================
 
-
-  // **OPTIMIZED: Same HTML response detection for SPA efficiency**
+  /**
+   * 同一HTMLレスポンス検出キャッシュ
+   * SPAサイトの効率的な検出用
+   */
   private static sameHtmlCache: { [url: string]: string } = {};
   
+  /**
+   * 同一HTMLパターンの検出
+   * 複数URLが同じHTMLを返す場合SPAと判定
+   * @param urls 検証対象URL群
+   * @param htmlContent HTML内容
+   * @returns SPAの可能性がある場合true
+   */
   private static detectSameHtmlPattern(urls: string[], htmlContent: string): boolean {
     const contentHash = UrlUtils.hashString(htmlContent);
     let sameCount = 0;
@@ -74,12 +92,19 @@ class ContactPageFinder {
       }
     }
     
-    // If 2 or more URLs return the same HTML, likely SPA
+    // 2つ以上のURLが同じHTMLを返す場合SPAと判定
     return sameCount >= 2;
   }
 
+  // ==========================================
+  // フォールバック検索システム
+  // ==========================================
 
-  // **NEW: Final Fallback** - Step1の最初の200 OK URLを最終手段として返却
+  /**
+   * 最終フォールバック処理
+   * Step1の200 OK URLを最終手段として返却
+   * @returns 最終フォールバック結果
+   */
   private static getFinalFallbackUrl(): ContactPageResult {
     console.log(`Checking final fallback from ${this.validUrls.length} valid URLs`);
     
@@ -144,19 +169,25 @@ class ContactPageFinder {
     };
   }
 
-  // **NEW: Fallback URL Quality Evaluation** - フォールバックURLの品質評価
+  /**
+   * フォールバックURL品質評価
+   * URLパターンに基づく信頼度スコアリング
+   * @param url 評価対象URL
+   * @param pattern マッチしたパターン
+   * @returns 信頼度とキーワード配列
+   */
   private static evaluateFallbackUrlQuality(url: string, pattern: string): { confidence: number, keywords: string[] } {
     let confidence = 0.5; // ベーススコア
     const keywords: string[] = [];
 
-    // 高信頼度パターン
+    // 高信頼度パターン（contact/inquiry系）
     const highConfidencePatterns = ['/contact/', '/contact', '/inquiry/', '/inquiry'];
     if (highConfidencePatterns.includes(pattern)) {
       confidence += 0.3;
       keywords.push('high_confidence_pattern');
     }
 
-    // 中信頼度パターン
+    // 中信頼度パターン（form系）
     const mediumConfidencePatterns = ['/form/', '/form'];
     if (mediumConfidencePatterns.includes(pattern)) {
       confidence += 0.1;
@@ -182,10 +213,17 @@ class ContactPageFinder {
   }
 
 
-  // 早期終了用の閾値定義とタイムアウト設定は env.ts で管理
+  // ==========================================
+  // SPA解析・アンカーリンク処理システム
+  // ==========================================
 
-
-  // **NEW: SPA Analysis Execution** - Step1内でのSPA検出時に実行
+  /**
+   * SPA解析実行
+   * Single Page Applicationで検出されたアンカーリンクを解析
+   * @param html SPA HTML内容
+   * @param baseUrl ベースURL
+   * @returns SPA解析結果
+   */
   private static executeSPAAnalysis(html: string, baseUrl: string): ContactPageResult {
     try {
       console.log('Executing SPA analysis on detected single-page application');
@@ -224,9 +262,14 @@ class ContactPageFinder {
     }
   }
 
-  // **NEW: Check if URL is an anchor link**
-
-  // **NEW: Analyze anchor section content**
+  /**
+   * アンカーセクション解析
+   * HTMLページ内の特定アンカーセクションを解析
+   * @param html 対象HTML
+   * @param anchorUrl アンカーURL（#contact等）
+   * @param baseUrl ベースURL
+   * @returns アンカーセクション解析結果
+   */
   private static analyzeAnchorSection(html: string, anchorUrl: string, baseUrl: string): ContactPageResult {
     try {
       // Extract anchor name from URL (e.g., "#contact" -> "contact")
@@ -336,11 +379,9 @@ class ContactPageFinder {
     }
   }
 
-  // **NEW: Extract contact information from HTML content**
-
-
-  // 送信系ボタンキーワード（BtoB問い合わせ特化）
-
+  // ==========================================
+  // メイン検索エントリーポイント
+  // ==========================================
 
   /**
    * 問い合わせページ検索のメインエントリーポイント
@@ -348,7 +389,7 @@ class ContactPageFinder {
    * @param baseUrl 検索対象のベースURL（企業サイトのトップページ等）
    * @returns ContactPageResult 検索結果（URL、フォーム情報、検索手法等）
    * 
-   * 処理フロー:
+   * 【処理フロー】
    * 1. 初期化処理（候補リセット、タイマー開始）
    * 2. SNSページ判定（Facebook、Twitter等は除外）
    * 3. ドメイン生存確認（サイト閉鎖チェック）
@@ -402,16 +443,24 @@ class ContactPageFinder {
 
       // STEP 1: URL pattern guessing with integrated SPA detection (HIGHEST PRIORITY - Fast & Accurate)
       console.log('Step 1: URL pattern guessing with SPA optimization (primary strategy)');
-      const priorityResult = this.searchWithPriorityPatterns(domainUrl, startTime);
-      if (priorityResult.contactUrl) {
-        console.log(`✅ Found via URL pattern search: ${priorityResult.contactUrl}`);
-        return priorityResult;
-      }
+      const urlPatternStrategy = new UrlPatternStrategy();
+      const strategyResult = urlPatternStrategy.searchDetailed(domainUrl);
+      
+      if (strategyResult) {
+        const priorityResult = strategyResult.result;
+        // 有効URLリストを更新
+        this.validUrls = strategyResult.validUrls;
+        
+        if (priorityResult.contactUrl) {
+          console.log(`✅ Found via URL pattern search: ${priorityResult.contactUrl}`);
+          return priorityResult;
+        }
 
-      // エラーの場合は即座に返す（fallback処理をスキップ）
-      if (priorityResult.searchMethod === 'dns_error' || priorityResult.searchMethod === 'bot_blocked') {
-        console.log(`URL pattern search returned error: ${priorityResult.searchMethod}, stopping here`);
-        return priorityResult;
+        // エラーの場合は即座に返す（fallback処理をスキップ）
+        if (priorityResult.searchMethod === 'dns_error' || priorityResult.searchMethod === 'bot_blocked') {
+          console.log(`URL pattern search returned error: ${priorityResult.searchMethod}, stopping here`);
+          return priorityResult;
+        }
       }
 
       // Check remaining time
@@ -514,30 +563,38 @@ class ContactPageFinder {
     }
   }
 
+  // ==========================================
+  // HTML解析・フォールバック検索システム
+  // ==========================================
+
   /**
-   * Step2フロー: ホームページHTML解析によるフォールバック検索
+   * Step2: ホームページHTML解析によるフォールバック検索
    * 
-   * 処理手順:
+   * 【処理手順】
    * 1. Google Forms最優先検索（HTML内のdocs.google.com URL検出）
    * 2. 埋め込みフォーム検証（外部サービス: Form.run, HubSpot等）
    * 3. ナビゲーション内リンク解析（<nav>要素、メニュー系クラス解析）
    * 4. リンク先フォーム検証（発見したリンクの実際の内容確認）
    * 5. 重複回避処理（Step1成功URLとの重複チェック）
    * 
-   * 検索範囲:
+   * 【検索範囲】
    * - Navigation（<nav>、.menu、.navigation等）
    * - Header内のリスト構造（<header><ul>構造）
    * - グローバルナビゲーション（.global-nav、.site-nav等）
    * 
-   * 特別処理:
+   * 【特別処理】
    * - アンカーリンク特別処理（#contact等の内部リンク）
    * - JavaScript無効環境でのフォーム検出
    * - 動的コンテンツの静的解析
    * 
-   * 品質保証:
+   * 【品質保証】
    * - キーワードマッチング重み付けスコア
    * - コンテキストボーナス（navigation内 +5点）
    * - 早期終了による高信頼度結果優先
+   * 
+   * @param html 解析対象HTML
+   * @param baseUrl ベースURL
+   * @returns HTML解析結果
    */
   private static analyzeHtmlContent(html: string, baseUrl: string): ContactPageResult {
     console.log('=== Starting navigation-only HTML analysis ===');
@@ -634,19 +691,32 @@ class ContactPageFinder {
     };
   }
 
+  // ==========================================
+  // ナビゲーション解析システム
+  // ==========================================
+
+  /**
+   * ナビゲーション内検索
+   * ページのナビゲーション要素から問い合わせリンクを検索
+   * @param html 検索対象HTML
+   * @param baseUrl ベースURL
+   * @returns ナビゲーション検索結果
+   */
   private static searchInNavigation(html: string, baseUrl: string): { url: string | null, keywords: string[], score: number, reasons: string[] } {
+    // ナビゲーション要素の選択パターン
     const navigationSelectors = [
-      // 主要ナビゲーション要素（icube-inc.co.jp等に対応）
+      // 主要ナビゲーション要素
       /<nav[\s\S]*?<\/nav>/gi,                    // <nav>タグ
       /<[^>]*id=['"]menu['"][^>]*>[\s\S]*?<\/[^>]+>/gi,  // #menu ID
       /<footer[\s\S]*?<\/footer>/gi,              // <footer>タグ
+      
       // 追加セレクター（既存サイト対応）
-      /<ul[^>]*id=['"]naviArea['"][^>]*>[\s\S]*<\/ul>/gi, // #naviArea (icube-inc.co.jp) - 貪欲マッチでネスト対応
+      /<ul[^>]*id=['"]naviArea['"][^>]*>[\s\S]*<\/ul>/gi, // #naviArea - 貪欲マッチでネスト対応
       /<[^>]*id=['"]navigation['"][^>]*>[\s\S]*?<\/[^>]+>/gi, // #navigation
       /<[^>]*id=['"]nav['"][^>]*>[\s\S]*?<\/[^>]+>/gi, // #nav
-      /<div[^>]*class=['"][^'"]*\bnav\b[^'"]*['"][^>]*>[\s\S]*<\/div>/gi, // .navクラス - 貪欲マッチ
-      /<nav[^>]*class=['"][^'"]*\bnavigation\b[^'"]*['"][^>]*>[\s\S]*<\/nav>/gi, // .navigationクラス - 貪欲マッチ
-      /<ul[^>]*class=['"][^'"]*\bmenu\b[^'"]*['"][^>]*>[\s\S]*<\/ul>/gi // .menuクラス - 貪欲マッチ
+      /<div[^>]*class=['"][^'"]*\bnav\b[^'"]*['"][^>]*>[\s\S]*<\/div>/gi, // .navクラス
+      /<nav[^>]*class=['"][^'"]*\bnavigation\b[^'"]*['"][^>]*>[\s\S]*<\/nav>/gi, // .navigationクラス
+      /<ul[^>]*class=['"][^'"]*\bmenu\b[^'"]*['"][^>]*>[\s\S]*<\/ul>/gi // .menuクラス
     ];
 
     console.log('Searching in navigation with 9 selectors (including #naviArea, .nav, .navigation, .menu)...');
@@ -696,7 +766,9 @@ class ContactPageFinder {
     return { url: null, keywords: [], score: 0, reasons: [] };
   }
 
-  // 200 OK URLsの評価（キーワード検出による問い合わせページ判定）
+  // ==========================================
+  // リンク抽出・解析システム
+  // ==========================================
 
 
 
@@ -704,16 +776,14 @@ class ContactPageFinder {
 
 
 
-  // 文字化けデバッグ用ヘルパー
-
-  // 🔥 文字化け解決: 複数エンコーディング試行
-
-  // エンコーディング有効性検証
-
-  // キーワード含有リンクを全て拽出（新フロー用）
-
-  // 動的サイト用厳格キーワード検証
-
+  /**
+   * 問い合わせリンク抽出
+   * HTML内容から問い合わせ関連リンクを抽出・解析
+   * @param content 解析対象HTML内容
+   * @param baseUrl ベースURL
+   * @param contextType コンテキストタイプ（general/navigation等）
+   * @returns 抽出されたリンク情報
+   */
   private static extractContactLinks(content: string, baseUrl: string, contextType: string = 'general'): { url: string | null, keywords: string[], score: number, reasons: string[], linkText: string } {
     const candidates: Array<{ url: string, keywords: string[], score: number, reasons: string[], linkText: string }> = [];
     const linkRegex = /<a[^>]*href=['"]([^'\"]*?)['"][^>]*>([\s\S]*?)<\/a>/gi;
@@ -986,7 +1056,17 @@ class ContactPageFinder {
     return null;
   }
 
-  // トップページURLかどうかを判定（２段階リンク検出での除外用）
+  // ==========================================
+  // ユーティリティ・補助機能システム
+  // ==========================================
+
+  /**
+   * トップページURL判定
+   * ２段階リンク検出での除外用判定
+   * @param url 判定対象URL
+   * @param baseUrl ベースURL
+   * @returns トップページの場合true
+   */
   private static isHomepageUrl(url: string, baseUrl: string): boolean {
     // 相対URLを絶対URLに変換
     const fullUrl = UrlUtils.resolveUrl(url, baseUrl);
@@ -1017,20 +1097,26 @@ class ContactPageFinder {
     return isHomepage;
   }
 
-  // 統合フォーム解析：フォーム要素 + キーワード + 送信要素の3要素統合
-
-  // 構造化フォーム解析：実際の<form>タグ内要素を解析
-
-  // 新しいシンプルな問い合わせフォーム判定
 
 
 
 
 
-  // Google Forms検証（2段階リンク検証）
 
 
-  // 候補ページの記録
+
+
+  // ==========================================
+  // 候補管理・スコアリングシステム
+  // ==========================================
+
+  /**
+   * 潜在的候補ページの記録
+   * Step1で発見されたが確定できなかった候補を記録・評価
+   * @param url 候補URL
+   * @param reason 候補理由
+   * @param html ページHTML内容
+   */
   private static logPotentialCandidate(url: string, reason: string, html: string) {
     const structuredAnalysis = FormAnalyzer.analyzeStructuredForms(html);
     const formAnalysis = FormAnalyzer.analyzeFormElements(html);
@@ -1048,7 +1134,15 @@ class ContactPageFinder {
     console.log(`Candidate logged: ${url} (${reason}, score: ${score})`);
   }
 
-  // 候補スコア計算
+  /**
+   * 候補スコア計算
+   * 候補ページの品質をURL、フォーム分析結果に基づいて数値化
+   * @param url 候補URL
+   * @param reason 候補理由
+   * @param structuredAnalysis 構造化フォーム解析結果
+   * @param formAnalysis フォーム解析結果
+   * @returns 計算されたスコア
+   */
   private static calculateCandidateScore(
     url: string,
     reason: string,
@@ -1077,7 +1171,10 @@ class ContactPageFinder {
     return score;
   }
 
-  // 候補リストのリセット（新しい検索開始時）
+  /**
+   * 候補リストのリセット
+   * 新しい検索開始時に全候補データをクリア
+   */
   private static resetCandidates() {
     this.candidatePages = [];
     this.validUrls = [];
@@ -1085,10 +1182,12 @@ class ContactPageFinder {
     this.sameHtmlCache = {}; // Reset SPA detection cache
   }
 
-  // 候補を活用したfallback処理
-
-
-  // ページ内に問い合わせ関連のリンクが存在するかチェック（BtoB営業用途特化）
+  /**
+   * 問い合わせ関連リンク存在チェック
+   * ページ内に問い合わせ関連のリンクが存在するかチェック（BtoB営業用途特化）
+   * @param html 検索対象HTML
+   * @returns リンク存在情報とリンクテキスト配列
+   */
   private static hasContactRelatedLinks(html: string): { hasLinks: boolean, linkTexts: string[] } {
     const contactLinkKeywords = [
       'フォーム', 'form', 'お問い合わせフォーム', '問い合わせフォーム',
@@ -1138,6 +1237,17 @@ class ContactPageFinder {
 
 
 
+  // ==========================================
+  // HTTP通信・エラーハンドリングシステム
+  // ==========================================
+
+  /**
+   * タイムアウト付きHTTP取得
+   * GAS環境でのHTTPリクエスト実行（タイムアウト管理）
+   * @param url 取得対象URL
+   * @param _timeoutMs タイムアウト時間（ms）※GASでは利用不可
+   * @returns HTTPレスポンス
+   */
   private static fetchWithTimeout(url: string, _timeoutMs: number = 5000) {
     try {
       // GASのUrlFetchAppはtimeoutオプションをサポートしていないため、
@@ -1156,182 +1266,6 @@ class ContactPageFinder {
     }
   }
 
-  /**
-   * Step1フロー: URLパターン推測による高速検索
-   * 
-   * 処理手順:
-   * 1. 優先URLパターンテスト (/contact/ → /contact → /inquiry/ → ...)
-   * 2. 各URLでHTTP通信実行（200 OK確認）
-   * 3. SPA検出（同一HTML判定による単一ページアプリ識別）
-   * 4. 構造化フォーム検証（<form>要素 + 送信ボタン検証）
-   * 5. Google Forms検証（docs.google.com URLパターン）
-   * 6. アンカー分析（SPA対応: #contact等の内部リンク解析）
-   * 7. 成功時即座に結果返却、失敗時は200 OK URLを記録
-   * 
-   * SPA対応機能:
-   * - 同一HTMLハッシュ検出による動的ページ判定
-   * - アンカーリンク（#hash）の内容分析
-   * - セクション内フォーム検証
-   * 
-   * パフォーマンス最適化:
-   * - 高信頼度パターンから優先実行
-   * - 成功時の早期終了
-   * - タイムアウト管理による無限ループ防止
-   */
-  private static searchWithPriorityPatterns(domainUrl: string, startTime: number): ContactPageResult {
-    // 200 OK URLリストをリセット
-    this.validUrls = [];
-    const maxTotalTime = Environment.getMaxTotalTime();
-    console.log('Starting priority-based URL pattern search with integrated SPA detection');
-
-    // 優先度順にパターンをテスト
-    const allPatterns = [
-      ...HIGH_PRIORITY_PATTERNS,
-    ];
-
-    let testedPatterns = 0;
-    let structuredFormPages = 0;
-    const testedUrls: string[] = []; // For SPA detection
-    const htmlResponses: string[] = []; // Store HTML for SPA analysis
-
-    for (const pattern of allPatterns) {
-      // タイムアウトチェック
-      if (Date.now() - startTime > maxTotalTime) {
-        console.log('Timeout during priority search');
-        break;
-      }
-
-      try {
-        const testUrl = domainUrl.replace(/\/$/, '') + pattern;
-        console.log(`Testing: ${testUrl}`);
-        testedPatterns++;
-
-        const response = this.fetchWithTimeout(testUrl, 5000); // 5秒タイムアウト
-
-        if (response.getResponseCode() === 200) {
-          const html = response.getContentText();
-          console.log(`Got HTML content for ${testUrl}, length: ${html.length}`);
-          
-          // **SPA OPTIMIZATION: Detect same HTML pattern and apply anchor analysis**
-          testedUrls.push(testUrl);
-          htmlResponses.push(html);
-          
-          // Check for SPA pattern after 2nd URL
-          if (testedUrls.length >= 2 && this.detectSameHtmlPattern(testedUrls, html)) {
-            console.log('Single Page Application detected: same HTML returned for multiple URLs');
-            console.log('Executing anchor-based analysis to optimize remaining URL tests');
-            
-            // Try anchor analysis on the current HTML (represents the homepage content)
-            const anchorResult = this.executeSPAAnalysis(html, domainUrl);
-            if (anchorResult.contactUrl) {
-              console.log(`✅ SPA optimization successful: ${anchorResult.contactUrl}`);
-              console.log(`Skipping remaining ${allPatterns.length - testedPatterns} URL pattern tests`);
-              return anchorResult;
-            }
-            
-            console.log('SPA detected but anchor analysis unsuccessful, continuing with remaining URL tests');
-          }
-
-          // ページの有効性を確認
-          if (this.isValidContactPage(html)) {
-            console.log(`${testUrl} passed validity check`);
-
-            // 200 OK URLを記録（フォールバック用）
-            this.validUrls.push({ url: testUrl, pattern: pattern });
-
-            // シンプルな2段階問い合わせフォーム判定
-            const isContactForm = FormAnalyzer.isValidContactForm(html);
-            console.log(`Pattern ${pattern}: 200 OK, contact form: ${isContactForm}`);
-
-            if (isContactForm) {
-              structuredFormPages++;
-              console.log(`✅ Contact form confirmed at ${testUrl} - form elements + contact submit confirmed`);
-
-              // 成功したURLを記録（Step2重複回避用）
-              this.successfulFormUrls.push(testUrl);
-
-              // 問い合わせフォーム確認済み → 即座に成功
-              return {
-                contactUrl: testUrl,
-                actualFormUrl: testUrl, // シンプルに同じURLを返す
-                foundKeywords: [pattern.replace(/\//g, ''), 'contact_form_confirmed'],
-                searchMethod: 'contact_form_priority_search'
-              };
-            } else {
-              // フォーム検証失敗 → Google Forms検証を実行
-              console.log(`No standard form found at ${testUrl}, checking for Google Forms...`);
-
-              const googleFormsResult = FormAnalyzer.detectGoogleForms(html);
-              if (googleFormsResult.found && googleFormsResult.url) {
-                console.log(`✅ Google Forms found at ${testUrl} -> ${googleFormsResult.url}`);
-                
-                // 成功したURLを記録（Step2重複回避用）
-                this.successfulFormUrls.push(testUrl);
-                
-                return {
-                  contactUrl: testUrl,
-                  actualFormUrl: googleFormsResult.url,
-                  foundKeywords: [pattern.replace(/\//g, ''), 'google_forms', googleFormsResult.type],
-                  searchMethod: 'google_forms_priority_search'
-                };
-              }
-
-              // Google Formsも見つからない → 候補として記録して継続
-              console.log(`No contact forms found at ${testUrl}, logging as candidate and continuing`);
-              this.logPotentialCandidate(testUrl, 'no_contact_form', html);
-              continue; // 次のパターンへ
-            }
-          } else {
-            console.log(`${testUrl} failed validity check`);
-          }
-        } else {
-          const statusCode = response.getResponseCode();
-          const detailedError = this.getDetailedErrorMessage(statusCode);
-          console.log(`${testUrl} returned status code: ${statusCode} - ${detailedError}`);
-
-          // Bot対策エラー（403, 501）の場合は即座に処理を中断
-          if (statusCode === 403 || statusCode === 501) {
-            console.log(`Bot blocking detected (${statusCode}), breaking priority pattern search`);
-            return {
-              contactUrl: null,
-              actualFormUrl: null,
-              foundKeywords: [detailedError],
-              searchMethod: 'bot_blocked'
-            };
-          }
-        }
-      } catch (error) {
-        const detailedError = this.getDetailedNetworkError(error);
-        console.log(`Error testing ${pattern}: ${detailedError}`);
-
-        // DNS解決失敗の場合は即座に処理を中断
-        if (detailedError.includes('DNS解決失敗')) {
-          console.log('DNS resolution failed, breaking priority pattern search');
-          return {
-            contactUrl: null,
-            actualFormUrl: null,
-            foundKeywords: [detailedError],
-            searchMethod: 'dns_error'
-          };
-        }
-
-        continue;
-      }
-    }
-
-    // パターン検索完了のサマリー
-    console.log(`=== Pattern Search Summary ===`);
-    console.log(`Tested patterns: ${testedPatterns}`);
-    console.log(`Structured form pages: ${structuredFormPages}`);
-    console.log(`Candidate pages: ${this.candidatePages.length}`);
-
-    return {
-      contactUrl: null,
-      actualFormUrl: null,
-      foundKeywords: ['priority_search_no_structured_forms'],
-      searchMethod: 'priority_search_failed'
-    };
-  }
 
   private static isValidContactPage(html: string): boolean {
     // 404ページや無効なページを除外（より厳密なパターンに変更）
@@ -1358,6 +1292,17 @@ class ContactPageFinder {
     return !hasInvalidContent && hasMinimumContent;
   }
 
+  // ==========================================
+  // フォーム検証・内容解析システム
+  // ==========================================
+
+  /**
+   * 問い合わせページ内容検証
+   * ページHTMLから実際のフォームURLを検出・検証
+   * @param html ページHTML内容
+   * @param pageUrl ページURL
+   * @returns 検証結果（フォームURLとキーワード）
+   */
   private static validateContactPageContent(html: string, pageUrl: string): { actualFormUrl: string | null, keywords: string[] } {
     // 1. 埋め込みHTMLフォーム検索（最優先）
     const embeddedForm = FormAnalyzer.findEmbeddedHTMLForm(html);
@@ -1402,7 +1347,13 @@ class ContactPageFinder {
     return { actualFormUrl: null, keywords: [] };
   }
 
-  // Google Formの内容を検証して問い合わせフォームかどうか判定
+  /**
+   * Google Form内容検証
+   * Google Formが問い合わせフォームかどうか判定（採用・アンケート等を除外）
+   * @param html ページHTML内容
+   * @param googleFormUrl Google FormのURL
+   * @returns 有効な問い合わせフォームの場合true
+   */
   private static validateGoogleFormContent(html: string, googleFormUrl: string): boolean {
     // 除外すべきキーワード（BtoB営業用途に関係ないフォーム）
     const excludeKeywords = [
@@ -1488,6 +1439,12 @@ class ContactPageFinder {
     return errorMessages[statusCode] || `HTTP Error ${statusCode} - 不明なエラー`;
   }
 
+  /**
+   * 詳細ネットワークエラー解析
+   * エラーオブジェクトから詳細なエラー原因を特定
+   * @param error エラーオブジェクト
+   * @returns 詳細エラーメッセージ
+   */
   private static getDetailedNetworkError(error: any): string {
     const errorString = String(error);
 

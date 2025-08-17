@@ -14,4 +14,4 @@ packagesディレクトリ内でアプリケーションを開発します。
 現行プロジェクト
 URLFinder
 参照
-URLFinder.md
+/Users/takuma531zov/git/gas-odyssey-master/packages/URLFinder/URLFinder.md

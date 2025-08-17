@@ -4,11 +4,13 @@
  * 対象: /contact/, /inquiry/, /form/ 等の定型パターン
  */
 
-import { ContactPageResult, SearchStrategy } from '../types/interfaces';
+import { ContactPageResult, SearchStrategy, UrlSearchStrategyResult, ValidUrlInfo } from '../types/interfaces';
 import { Environment } from '../env';
-import { NetworkUtils } from '../utils/NetworkUtils';
 import { UrlUtils } from '../utils/UrlUtils';
-import { FormDetector } from '../detectors/FormDetector';
+import { FormAnalyzer } from '../analyzers/FormAnalyzer';
+
+// GAS専用インポート（ESBuildでは無視される）
+declare const UrlFetchApp: any;
 
 export class UrlPatternStrategy implements SearchStrategy {
 
@@ -23,6 +25,9 @@ export class UrlPatternStrategy implements SearchStrategy {
   // SPA検出用のHTMLキャッシュ
   private static sameHtmlCache: { [url: string]: string } = {};
 
+  // 有効URL管理（フォールバック用）
+  private static validUrls: ValidUrlInfo[] = [];
+
   /**
    * 戦略名を取得
    */
@@ -34,23 +39,37 @@ export class UrlPatternStrategy implements SearchStrategy {
    * URLパターン推測検索の実行
    */
   search(baseUrl: string): ContactPageResult | null {
+    const result = this.searchDetailed(baseUrl);
+    return result ? result.result : null;
+  }
+
+  /**
+   * URLパターン推測検索の実行（詳細結果付き）
+   */
+  searchDetailed(baseUrl: string): UrlSearchStrategyResult | null {
     console.log(`=== ${this.getStrategyName()} Starting ===`);
     
     const startTime = Date.now();
     const maxTotalTime = Environment.getMaxTotalTime();
     const domainUrl = UrlUtils.extractDomain(baseUrl);
 
-    return UrlPatternStrategy.searchWithPriorityPatterns(domainUrl, startTime, maxTotalTime);
+    const result = UrlPatternStrategy.searchWithPriorityPatterns(domainUrl, startTime, maxTotalTime);
+    
+    return {
+      result,
+      validUrls: [...UrlPatternStrategy.validUrls]
+    };
   }
 
   /**
    * 優先順位付きURLパターンテスト
    * SPA検出と統合されたロジック
    */
-  private static searchWithPriorityPatterns(domainUrl: string, startTime: number, maxTotalTime: number): ContactPageResult | null {
+  private static searchWithPriorityPatterns(domainUrl: string, startTime: number, maxTotalTime: number): ContactPageResult {
     console.log(`Testing priority patterns for domain: ${domainUrl}`);
     
-    const validUrls: Array<{ url: string, pattern: string }> = [];
+    // validUrlsをリセット
+    this.validUrls = [];
     let spaDetected = false;
     
     for (const pattern of this.HIGH_PRIORITY_PATTERNS) {
@@ -64,7 +83,7 @@ export class UrlPatternStrategy implements SearchStrategy {
       console.log(`Testing pattern: ${pattern} -> ${testUrl}`);
 
       try {
-        const response = NetworkUtils.fetchWithTimeout(testUrl, 7000);
+        const response = this.fetchWithTimeout(testUrl, 7000);
         const statusCode = response.getResponseCode();
 
         if (statusCode === 200) {
@@ -89,21 +108,21 @@ export class UrlPatternStrategy implements SearchStrategy {
           }
 
           // 有効URLとして記録（フォールバック用）
-          validUrls.push({ url: testUrl, pattern });
+          this.validUrls.push({ url: testUrl, pattern });
         } else {
           console.log(`❌ Pattern ${pattern} returned ${statusCode}`);
         }
 
       } catch (error) {
-        const detailedError = NetworkUtils.getDetailedNetworkError(error);
+        const detailedError = this.getDetailedNetworkError(error);
         console.log(`Error testing ${pattern}: ${detailedError}`);
         continue;
       }
     }
 
     // Step1で成功せず、有効URLがある場合は最初のものを最終フォールバックとして使用
-    if (validUrls.length > 0) {
-      const firstValidUrl = validUrls[0];
+    if (this.validUrls.length > 0) {
+      const firstValidUrl = this.validUrls[0];
       if (firstValidUrl) {
         console.log(`Step1 final fallback: using first 200 OK URL: ${firstValidUrl.url}`);
         
@@ -117,7 +136,12 @@ export class UrlPatternStrategy implements SearchStrategy {
     }
 
     console.log('❌ Step1 failed - no valid patterns found');
-    return null;
+    return {
+      contactUrl: null,
+      actualFormUrl: null,
+      foundKeywords: ['step1_failed'],
+      searchMethod: 'step1_pattern_search_failed'
+    };
   }
 
   /**
@@ -226,15 +250,15 @@ export class UrlPatternStrategy implements SearchStrategy {
       console.log(`Found section content for #${anchor}, length: ${sectionContent.length}`);
       
       // セクション内でフォーム検証
-      const hasForm = FormDetector.detectAnyForm(sectionContent);
-      if (hasForm.found) {
+      const hasForm = FormAnalyzer.isValidContactForm(sectionContent);
+      if (hasForm) {
         const contactUrl = `${UrlUtils.extractDomain(baseUrl)}#${anchor}`;
         console.log(`✅ Contact form found in SPA section: ${contactUrl}`);
         
         return {
           contactUrl,
-          actualFormUrl: hasForm.formUrl || contactUrl,
-          foundKeywords: ['spa_section_form', anchor, hasForm.formType],
+          actualFormUrl: contactUrl,
+          foundKeywords: ['spa_section_form', anchor, 'valid_form'],
           searchMethod: 'spa_anchor_analysis'
         };
       }
@@ -256,15 +280,15 @@ export class UrlPatternStrategy implements SearchStrategy {
     console.log(`Validating contact page: ${contactPageUrl}`);
     
     // 統合フォーム検出を使用
-    const formResult = FormDetector.detectAnyForm(html);
+    const formResult = FormAnalyzer.isValidContactForm(html);
     
-    if (formResult.found) {
-      console.log(`✅ Contact page validated: ${contactPageUrl} (${formResult.formType} form)`);
+    if (formResult) {
+      console.log(`✅ Contact page validated: ${contactPageUrl} (contact form found)`);
       
       return {
         contactUrl: contactPageUrl,
-        actualFormUrl: formResult.formUrl || contactPageUrl,
-        foundKeywords: ['validated_contact_page', formResult.formType, `confidence_${formResult.confidence}`],
+        actualFormUrl: contactPageUrl,
+        foundKeywords: ['validated_contact_page', 'contact_form', 'step1_validation'],
         searchMethod: 'step1_pattern_match'
       };
     }
@@ -278,5 +302,61 @@ export class UrlPatternStrategy implements SearchStrategy {
    */
   static resetSpaCache(): void {
     this.sameHtmlCache = {};
+  }
+
+  /**
+   * 有効URLリストを取得
+   */
+  static getValidUrls(): ValidUrlInfo[] {
+    return [...this.validUrls];
+  }
+
+  /**
+   * HTTPリクエスト実行（タイムアウト管理）
+   */
+  private static fetchWithTimeout(url: string, _timeoutMs: number = 5000) {
+    try {
+      return UrlFetchApp.fetch(url, {
+        muteHttpExceptions: true,
+        followRedirects: true,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+      });
+    } catch (error) {
+      const detailedError = this.getDetailedNetworkError(error);
+      console.error(`Error fetching ${url}: ${detailedError}`);
+      throw error;
+    }
+  }
+
+  /**
+   * 詳細ネットワークエラー取得
+   */
+  private static getDetailedNetworkError(error: any): string {
+    const errorString = error.toString().toLowerCase();
+    
+    // DNS関連エラー
+    if (errorString.includes('dns') || errorString.includes('nxdomain') || errorString.includes('name or service not known')) {
+      return 'DNS解決失敗: ドメインが存在しません';
+    }
+    
+    // タイムアウトエラー
+    if (errorString.includes('timeout') || errorString.includes('timeout')) {
+      return 'タイムアウト: サーバーからの応答が遅すぎます';
+    }
+    
+    // 接続拒否エラー
+    if (errorString.includes('connection refused') || errorString.includes('econnrefused')) {
+      return '接続拒否: サーバーが接続を拒否しました';
+    }
+    
+    // その他のネットワークエラー
+    if (errorString.includes('failed to fetch') || errorString.includes('network error')) {
+      return 'ネットワークエラー: 通信に失敗しました';
+    }
+    
+    // 不明なエラー
+    return `不明なエラー: ${errorString}`;
   }
 }

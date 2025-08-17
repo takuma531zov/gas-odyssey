@@ -114,3 +114,11 @@ export interface PurityResult {
   score: number;
   reasons: string[];
 }
+
+/**
+ * URL検索戦略の詳細結果（validUrls含む）
+ */
+export interface UrlSearchStrategyResult {
+  result: ContactPageResult;
+  validUrls: ValidUrlInfo[];
+}
