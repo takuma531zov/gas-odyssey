@@ -16,6 +16,21 @@ import {
   type InitializationState 
 } from './modules/initialization';  // 初期化・検証機能 (modules/initialization/index.ts)
 
+import {
+  analyzeHtmlContent as moduleAnalyzeHtmlContent,
+  searchInNavigation as moduleSearchInNavigation,
+  analyzeAnchorSection as moduleAnalyzeAnchorSection, 
+  findActualForm as moduleFindActualForm,
+  type Step2AnalysisState
+} from './modules/step2Analysis';  // Step2解析機能 (modules/step2Analysis/index.ts)
+
+import {
+  getFinalFallbackUrl as moduleGetFinalFallbackUrl,
+  evaluateFallbackUrlQuality as moduleEvaluateFallbackUrlQuality,
+  calculateCandidateScore as moduleCalculateCandidateScore,
+  type FallbackState
+} from './modules/fallbackSystem';  // フォールバック機能 (modules/fallbackSystem/index.ts)
+
 /**
  * ContactPageFinder - BtoB営業用問い合わせページ自動検索システム
  *
@@ -171,7 +186,7 @@ class ContactPageFinder {
     console.log(`Final fallback: Using first valid URL ${firstValidUrl.url} (pattern: ${firstValidUrl.pattern})`);
 
     // URLの品質を評価
-    const qualityScore = this.evaluateFallbackUrlQuality(firstValidUrl.url, firstValidUrl.pattern);
+    const qualityScore = moduleEvaluateFallbackUrlQuality(firstValidUrl.url, firstValidUrl.pattern);
 
     return {
       contactUrl: firstValidUrl.url,
@@ -209,12 +224,12 @@ class ContactPageFinder {
       console.log('Executing SPA analysis on detected single-page application');
 
       // Navigation search for anchor links in the current HTML
-      const navResult = this.searchInNavigation(html, baseUrl);
+      const navResult = moduleSearchInNavigation(html, baseUrl);
       if (navResult.url && UrlUtils.isAnchorLink(navResult.url)) {
         console.log(`Anchor link found in SPA navigation: ${navResult.url}`);
 
         // Analyze the corresponding section in the same HTML
-        const anchorSectionResult = this.analyzeAnchorSection(html, navResult.url, baseUrl);
+        const anchorSectionResult = moduleAnalyzeAnchorSection(html, navResult.url, baseUrl);
         if (anchorSectionResult.contactUrl) {
           // Update search method to reflect SPA detection
           anchorSectionResult.searchMethod = 'spa_anchor_analysis';
@@ -450,12 +465,13 @@ class ContactPageFinder {
         }
 
         // Analyze HTML content for contact links
-        const result = this.analyzeHtmlContent(html, baseUrl);
+        const step2State: Step2AnalysisState = { successfulFormUrls: this.successfulFormUrls };
+        const result = moduleAnalyzeHtmlContent(html, baseUrl, step2State, this.fetchWithTimeout);
 
         // If we found a contact page, try to find the actual form within it
         if (result.contactUrl) {
           console.log(`Found contact link on homepage: ${result.contactUrl}`);
-          const formUrl = this.findActualForm(result.contactUrl);
+          const formUrl = moduleFindActualForm(result.contactUrl, this.fetchWithTimeout);
           result.actualFormUrl = formUrl;
           result.searchMethod = 'homepage_link_fallback';
 
@@ -495,7 +511,11 @@ class ContactPageFinder {
 
       // FINAL FALLBACK: Return first valid contact URL from Step1 if available
       console.log('All search methods failed, checking final fallback...');
-      const fallbackResult = this.getFinalFallbackUrl();
+      const fallbackState: FallbackState = { 
+        validUrls: this.validUrls, 
+        candidatePages: this.candidatePages 
+      };
+      const fallbackResult = moduleGetFinalFallbackUrl(fallbackState);
       if (fallbackResult.contactUrl) {
         console.log(`✅ Final fallback successful: ${fallbackResult.contactUrl}`);
         return fallbackResult;
@@ -1035,7 +1055,7 @@ class ContactPageFinder {
     const structuredAnalysis = FormAnalyzer.analyzeStructuredForms(html);
     const formAnalysis = FormAnalyzer.analyzeFormElements(html);
 
-    const score = this.calculateCandidateScore(url, reason, structuredAnalysis, formAnalysis);
+    const score = moduleCalculateCandidateScore(url, reason, structuredAnalysis, formAnalysis);
 
     this.candidatePages.push({
       url,
