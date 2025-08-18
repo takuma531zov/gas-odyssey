@@ -266,4 +266,133 @@ src/
 - **保守性**: 機能別の独立開発・テスト可能
 - **可読性**: index.tsが完全な制御フロー記述
 
-Phase 3A実行準備完了です！
+## ✅ Phase 3C: step2Analysis機能抽出 完了
+
+### **実行結果**
+✅ **Phase 3C完了**: 1,795行 → 1,266行 (529行削除、29.4%削減)
+
+### **削除完了した関数群**
+- `analyzeHtmlContent` (124行削除)
+- `analyzeAnchorSection` (107行削除)
+- `searchInNavigation` (49行削除)
+- `findActualForm` + `findSecondStageFormLink` (156行削除)
+- `getFinalFallbackUrl` + `evaluateFallbackUrlQuality` + `calculateCandidateScore` (93行削除)
+
+### **残存課題分析**
+**現状**: index.ts = 1,266行（まだ大きい）
+**最終目標**: 完全な統合関数（関数呼び出しのみ、GASエントリーポイント）
+
+## 📊 Phase 3D: 最終削減計画（追加抽出可能関数）
+
+### **🔥 抽出可能な大きな関数群（約490行）**
+
+#### **1. フォーム検証システム（約200行）**
+```typescript
+// 抽出対象関数群
+- validateContactPageContent()      // 93行（693-788行付近）
+- validateGoogleFormContent()       // 48行（742-788行付近）  
+- isValidContactPage()              // 19行（662-680行）
+
+// 新モジュール: modules/formValidation/index.ts
+export function validateContactPageContent(html: string, pageUrl: string)
+export function validateGoogleFormContent(html: string, googleFormUrl: string)
+export function isValidContactPage(html: string)
+```
+
+#### **2. リンク抽出・解析システム（約130行）**
+```typescript
+// 抽出対象関数群
+- extractContactLinks()             // 99行（414-512行）
+- hasContactRelatedLinks()          // 33行（593-625行）
+
+// 新モジュール: modules/linkAnalysis/index.ts
+export function extractContactLinks(content: string, baseUrl: string, contextType?: string)
+export function hasContactRelatedLinks(html: string)
+```
+
+#### **3. HTTP通信・エラーハンドリング（約60行）**
+```typescript
+// 抽出対象関数群
+- fetchWithTimeout()                // 17行（643-659行）
+- getDetailedErrorMessage()         // 2行（790-791行）
+- getDetailedNetworkError()         // 2行（800-801行）
+
+// 新モジュール: modules/httpUtils/index.ts
+export function fetchWithTimeout(url: string, timeoutMs?: number)
+export function getDetailedErrorMessage(statusCode: number)
+export function getDetailedNetworkError(error: any)
+```
+
+#### **4. SPA・アンカー処理システム（約60行）**
+```typescript
+// 抽出対象関数群
+- executeSPAAnalysis()              // 37行（156-192行）
+- detectSameHtmlPattern()           // 15行（118-132行）
+
+// 新モジュール: modules/spaAnalysis/index.ts
+export function executeSPAAnalysis(html: string, baseUrl: string)
+export function detectSameHtmlPattern(urls: string[], htmlContent: string)
+```
+
+#### **5. ユーティリティ・補助機能（約40行）**
+```typescript
+// 統合可能な小関数群
+- isHomepageUrl()                   // 3行（528-530行）→ PurityUtils統合
+- logPotentialCandidate()           // 16行（552-567行）→ modules/候補管理
+- resetCandidates()                 // 3行（583-585行）→ modules/initialization統合
+- checkDomainAvailability()         // 3行（810-812行）→ modules/initialization統合
+```
+
+### **🧹 コメント・構造整理（約130行削減）**
+
+#### **1. 不要な大量コメントブロック（約90行）**
+- セクション区切りコメント（行100-144：約44行）
+- 詳細説明コメント（行202-226：約24行）
+- 空白行+コメント（行517-541：約24行）
+
+#### **2. レガシーアクセス用プロパティ（約24行）**
+```typescript
+// 不要化可能（行72-95）
+private static get candidatePages() { return this.initState.candidatePages; }
+private static set candidatePages(value) { this.initState.candidatePages = value; }
+// ↓ モジュール直接アクセスに変更
+```
+
+#### **3. 空白行の過多（約40行）**
+- セクション間の過度な空白行整理
+
+### **📊 Phase 3D削減見込み**
+
+| カテゴリ | 抽出可能行数 | 整理可能行数 | 小計 |
+|----------|-------------|-------------|------|
+| フォーム検証 | 200行 | - | 200行 |
+| リンク解析 | 130行 | - | 130行 |
+| HTTP通信 | 60行 | - | 60行 |
+| SPA処理 | 60行 | - | 60行 |
+| ユーティリティ | 40行 | - | 40行 |
+| コメント整理 | - | 90行 | 90行 |
+| 空白行整理 | - | 40行 | 40行 |
+| **合計** | **490行** | **130行** | **620行** |
+
+### **🎯 最終目標達成可能性**
+
+**現在**: 1,266行
+**削減可能**: 620行  
+**最終予想**: **約640行**
+
+### **完全統合関数化の確認**
+
+✅ **ロジックへの影響**: **完全にゼロ**
+- 全て既存関数の外部ファイル移動のみ
+- プロキシパターンで元の呼び出し維持
+- 処理フロー・条件分岐・戻り値すべて不変
+- 関数間の依存関係も inject パターンで解決
+
+✅ **安全性**: **最高レベル**
+- モジュール分離は純粋な構造変更
+- 各関数は独立してテスト可能
+- 段階的実行でロールバック容易
+
+**結論**: Phase 3D実行により**完全な統合関数（GASエントリーポイント + 関数呼び出しのみ）**への変換が安全に達成可能
+
+Phase 3D実行準備完了です！

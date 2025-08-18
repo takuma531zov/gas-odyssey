@@ -28,8 +28,31 @@ import {
   getFinalFallbackUrl as moduleGetFinalFallbackUrl,
   evaluateFallbackUrlQuality as moduleEvaluateFallbackUrlQuality,
   calculateCandidateScore as moduleCalculateCandidateScore,
+  logPotentialCandidate as moduleLogPotentialCandidate,
   type FallbackState
 } from './modules/fallbackSystem';  // フォールバック機能 (modules/fallbackSystem/index.ts)
+
+import {
+  validateContactPageContent as moduleValidateContactPageContent,
+  validateGoogleFormContent as moduleValidateGoogleFormContent,
+  isValidContactPage as moduleIsValidContactPage
+} from './modules/formValidation';  // フォーム検証機能 (modules/formValidation/index.ts)
+
+import {
+  extractContactLinks as moduleExtractContactLinks,
+  hasContactRelatedLinks as moduleHasContactRelatedLinks
+} from './modules/linkAnalysis';  // リンク解析機能 (modules/linkAnalysis/index.ts)
+
+import {
+  fetchWithTimeout as moduleFetchWithTimeout,
+  getDetailedErrorMessage as moduleGetDetailedErrorMessage,
+  getDetailedNetworkError as moduleGetDetailedNetworkError
+} from './modules/httpUtils';  // HTTP通信機能 (modules/httpUtils/index.ts)
+
+import {
+  executeSPAAnalysis as moduleExecuteSPAAnalysis,
+  detectSameHtmlPattern as moduleDetectSameHtmlPattern
+} from './modules/spaAnalysis';  // SPA解析機能 (modules/spaAnalysis/index.ts)
 
 /**
  * ContactPageFinder - BtoB営業用問い合わせページ自動検索システム

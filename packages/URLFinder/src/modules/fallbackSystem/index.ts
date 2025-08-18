@@ -143,3 +143,41 @@ export function calculateCandidateScore(
 
   return score;
 }
+
+/**
+ * 潜在的候補ページの記録
+ * Step1で発見されたが確定できなかった候補を記録・評価
+ * @param url 候補URL
+ * @param reason 候補理由
+ * @param html ページHTML内容
+ * @param candidatePages 候補ページ配列（参照渡し）
+ * @param FormAnalyzer フォーム解析クラス
+ */
+export function logPotentialCandidate(
+  url: string, 
+  reason: string, 
+  html: string,
+  candidatePages: Array<{
+    url: string;
+    reason: string;
+    score: number;
+    structuredForms: number;
+    legacyScore: number;
+  }>,
+  FormAnalyzer: any
+) {
+  const structuredAnalysis = FormAnalyzer.analyzeStructuredForms(html);
+  const formAnalysis = FormAnalyzer.analyzeFormElements(html);
+
+  const score = calculateCandidateScore(url, reason, structuredAnalysis, formAnalysis);
+
+  candidatePages.push({
+    url,
+    reason,
+    score,
+    structuredForms: structuredAnalysis.formCount,
+    legacyScore: formAnalysis.isValidForm ? 1 : 0
+  });
+
+  console.log(`Candidate logged: ${url} (${reason}, score: ${score})`);
+}
