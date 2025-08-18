@@ -131,97 +131,6 @@ class ContactPageFinder {
   private static get sameHtmlCache() { return this.initState.sameHtmlCache; }
   private static set sameHtmlCache(value) { this.initState.sameHtmlCache = value; }
 
-  /**
-   * 同一HTMLパターンの検出
-   * 複数URLが同じHTMLを返す場合SPAと判定
-   * @param urls 検証対象URL群
-   * @param htmlContent HTML内容
-   * @returns SPAの可能性がある場合true
-   */
-  private static detectSameHtmlPattern(urls: string[], htmlContent: string): boolean {
-    const contentHash = UrlUtils.hashString(htmlContent);
-    let sameCount = 0;
-
-    for (const url of urls) {
-      if (this.sameHtmlCache[url] === contentHash) {
-        sameCount++;
-      } else {
-        this.sameHtmlCache[url] = contentHash;
-      }
-    }
-
-    // 2つ以上のURLが同じHTMLを返す場合SPAと判定
-    return sameCount >= 2;
-  }
-
-  // ==========================================
-  // フォールバック検索システム
-  // ==========================================
-
-  /**
-   * 最終フォールバック処理
-   * Step1の200 OK URLを最終手段として返却
-   * @returns 最終フォールバック結果
-   */
-
-
-  // ==========================================
-  // SPA解析・アンカーリンク処理システム
-  // ==========================================
-
-  /**
-   * SPA解析実行
-   * Single Page Applicationで検出されたアンカーリンクを解析
-   * @param html SPA HTML内容
-   * @param baseUrl ベースURL
-   * @returns SPA解析結果
-   */
-  private static executeSPAAnalysis(html: string, baseUrl: string): ContactPageResult {
-    try {
-      console.log('Executing SPA analysis on detected single-page application');
-
-      // Navigation search for anchor links in the current HTML
-      const navResult = moduleSearchInNavigation(html, baseUrl);
-      if (navResult.url && UrlUtils.isAnchorLink(navResult.url)) {
-        console.log(`Anchor link found in SPA navigation: ${navResult.url}`);
-
-        // Analyze the corresponding section in the same HTML
-        const anchorSectionResult = moduleAnalyzeAnchorSection(html, navResult.url, baseUrl);
-        if (anchorSectionResult.contactUrl) {
-          // Update search method to reflect SPA detection
-          anchorSectionResult.searchMethod = 'spa_anchor_analysis';
-          anchorSectionResult.foundKeywords.push('spa_detected');
-          return anchorSectionResult;
-        }
-      }
-
-      // No anchor contact links found in SPA
-      console.log('SPA analysis completed but no suitable anchor contact found');
-      return {
-        contactUrl: null,
-        actualFormUrl: null,
-        foundKeywords: ['spa_detected', 'anchor_analysis_failed'],
-        searchMethod: 'spa_analysis_failed'
-      };
-    } catch (error) {
-      console.log(`Error in SPA analysis: ${error}`);
-      return {
-        contactUrl: null,
-        actualFormUrl: null,
-        foundKeywords: ['spa_detected', 'spa_analysis_error'],
-        searchMethod: 'spa_analysis_error'
-      };
-    }
-  }
-
-  /**
-   * アンカーセクション解析
-   * HTMLページ内の特定アンカーセクションを解析
-   * @param html 対象HTML
-   * @param anchorUrl アンカーURL（#contact等）
-   * @param baseUrl ベースURL
-   * @returns アンカーセクション解析結果
-   */
 
   // ==========================================
   // メイン検索エントリーポイント
@@ -299,7 +208,7 @@ class ContactPageFinder {
       // STEP 2: Homepage HTML analysis (FALLBACK for special cases like ye-p.co.jp)
       console.log('Step 2: Homepage HTML analysis as fallback for special cases');
       try {
-        const response = this.fetchWithTimeout(baseUrl, 7000); // 7秒タイムアウト
+        const response = moduleFetchWithTimeout(baseUrl, 7000); // 7秒タイムアウト
         const html = HtmlAnalyzer.getContentWithEncoding(response); // 🔥 文字化け解決
 
         // Check for Google Forms URLs first
@@ -316,12 +225,12 @@ class ContactPageFinder {
 
         // Analyze HTML content for contact links
         const step2State: Step2AnalysisState = { successfulFormUrls: this.successfulFormUrls };
-        const result = moduleAnalyzeHtmlContent(html, baseUrl, step2State, this.fetchWithTimeout);
+        const result = moduleAnalyzeHtmlContent(html, baseUrl, step2State, moduleFetchWithTimeout);
 
         // If we found a contact page, try to find the actual form within it
         if (result.contactUrl) {
           console.log(`Found contact link on homepage: ${result.contactUrl}`);
-          const formUrl = moduleFindActualForm(result.contactUrl, this.fetchWithTimeout);
+          const formUrl = moduleFindActualForm(result.contactUrl, moduleFetchWithTimeout);
           result.actualFormUrl = formUrl;
           result.searchMethod = 'homepage_link_fallback';
 
@@ -355,7 +264,7 @@ class ContactPageFinder {
         console.log('HTML analysis fallback found nothing');
 
       } catch (homepageError) {
-        const detailedError = this.getDetailedNetworkError(homepageError);
+        const detailedError = moduleGetDetailedNetworkError(homepageError);
         console.log(`Error in homepage analysis fallback: ${detailedError}`);
       }
 
@@ -379,7 +288,7 @@ class ContactPageFinder {
         searchMethod: 'not_found'
       };
     } catch (error) {
-      const detailedError = this.getDetailedNetworkError(error);
+      const detailedError = moduleGetDetailedNetworkError(error);
       console.error(`Error fetching ${baseUrl}: ${detailedError}`);
       return {
         contactUrl: null,
@@ -434,106 +343,6 @@ class ContactPageFinder {
    * @param contextType コンテキストタイプ（general/navigation等）
    * @returns 抽出されたリンク情報
    */
-  private static extractContactLinks(content: string, baseUrl: string, contextType: string = 'general'): { url: string | null, keywords: string[], score: number, reasons: string[], linkText: string } {
-    const candidates: Array<{ url: string, keywords: string[], score: number, reasons: string[], linkText: string }> = [];
-    const linkRegex = /<a[^>]*href=['"]([^'\"]*?)['"][^>]*>([\s\S]*?)<\/a>/gi;
-    let match;
-    let linksProcessed = 0;
-
-    console.log(`Starting link extraction from HTML content (context: ${contextType})`);
-
-    while ((match = linkRegex.exec(content)) !== null) {
-      const url = match[1];
-      const linkText = match[2];
-      linksProcessed++;
-
-      if (!url || !linkText) continue;
-
-      const cleanLinkText = linkText.replace(/<[^>]*>/g, '').trim();
-      console.log(`Processing link ${linksProcessed}: "${cleanLinkText}" -> ${url}`);
-
-      // Special debug for /contact/ links
-      if (url.includes('/contact') || cleanLinkText.toLowerCase().includes('contact')) {
-        console.log(`🎯 CONTACT LINK DETECTED: "${cleanLinkText}" -> ${url}`);
-      }
-
-      // Skip non-web URLs
-      if (url.startsWith('mailto:') || url.startsWith('javascript:') || url.startsWith('tel:')) {
-        continue;
-      }
-
-      // Calculate contact purity score
-      const purityResult = HtmlAnalyzer.calculateContactPurity(url, cleanLinkText);
-      let totalScore = purityResult.score;
-      let allReasons = [...purityResult.reasons];
-
-      // Context bonus (expanded)
-      if (contextType === 'navigation') {
-        totalScore += 5;
-        allReasons.push('navigation_context_bonus');
-      } else if (contextType === 'footer') {
-        totalScore += 3;
-        allReasons.push('footer_context_bonus');
-      } else if (contextType === 'sidebar') {
-        totalScore += 2;
-        allReasons.push('sidebar_context_bonus');
-      } else if (contextType === 'mobile_menu') {
-        totalScore += 4;
-        allReasons.push('mobile_menu_context_bonus');
-      }
-
-      // Log all candidates for debugging (including negative scores)
-      console.log(`Link candidate: "${cleanLinkText}" -> ${url} (score: ${totalScore}, reasons: ${allReasons.join(',')})`);
-
-      // Only consider candidates with positive scores
-      if (totalScore > 0) {
-        const fullUrl = UrlUtils.resolveUrl(url, baseUrl);
-        candidates.push({
-          url: fullUrl,
-          keywords: purityResult.reasons.map(r => r.split(':')[1] || r),
-          score: totalScore,
-          reasons: allReasons,
-          linkText: cleanLinkText
-        });
-
-        console.log(`✓ Contact link candidate: "${cleanLinkText}" -> ${fullUrl} (score: ${totalScore}, reasons: ${allReasons.join(',')})`);
-
-        // Early termination for high confidence candidates
-        if (totalScore >= Environment.getHighConfidenceThreshold()) {
-          console.log(`✅ HIGH CONFIDENCE contact link found: ${fullUrl} (score: ${totalScore}) - terminating search early`);
-          return {
-            url: fullUrl,
-            keywords: purityResult.reasons.map(r => r.split(':')[1] || r),
-            score: totalScore,
-            reasons: allReasons,
-            linkText: cleanLinkText
-          };
-        }
-      } else {
-        console.log(`✗ Link excluded: "${cleanLinkText}" -> ${url} (score: ${totalScore}, reasons: ${allReasons.join(',')})`);
-      }
-    }
-
-    console.log(`Link extraction completed: processed ${linksProcessed} links, found ${candidates.length} candidates`);
-
-    // Return best candidate if any
-    if (candidates.length > 0) {
-      const sortedCandidates = candidates.sort((a, b) => b.score - a.score);
-      const bestCandidate = sortedCandidates[0];
-      if (bestCandidate) {
-        console.log(`Best candidate selected: ${bestCandidate.url} (score: ${bestCandidate.score})`);
-        return {
-          url: bestCandidate.url,
-          keywords: bestCandidate.keywords,
-          score: bestCandidate.score,
-          reasons: bestCandidate.reasons,
-          linkText: bestCandidate.linkText
-        };
-      }
-    }
-
-    return { url: null, keywords: [], score: 0, reasons: [], linkText: '' };
-  }
 
 
 
@@ -572,22 +381,6 @@ class ContactPageFinder {
    * @param reason 候補理由
    * @param html ページHTML内容
    */
-  private static logPotentialCandidate(url: string, reason: string, html: string) {
-    const structuredAnalysis = FormAnalyzer.analyzeStructuredForms(html);
-    const formAnalysis = FormAnalyzer.analyzeFormElements(html);
-
-    const score = moduleCalculateCandidateScore(url, reason, structuredAnalysis, formAnalysis);
-
-    this.candidatePages.push({
-      url,
-      reason,
-      score,
-      structuredForms: structuredAnalysis.formCount,
-      legacyScore: formAnalysis.isValidForm ? 1 : 0
-    });
-
-    console.log(`Candidate logged: ${url} (${reason}, score: ${score})`);
-  }
 
   /**
    * 候補スコア計算
@@ -613,39 +406,6 @@ class ContactPageFinder {
    * @param html 検索対象HTML
    * @returns リンク存在情報とリンクテキスト配列
    */
-  private static hasContactRelatedLinks(html: string): { hasLinks: boolean, linkTexts: string[] } {
-
-    const linkRegex = /<a[^>]*href=['"]([^'\"]*?)['"][^>]*>([\s\S]*?)<\/a>/gi;
-    let match;
-    const foundLinkTexts: string[] = [];
-
-    while ((match = linkRegex.exec(html)) !== null) {
-      const url = match[1];
-      const linkText = match[2];
-
-      if (!url || !linkText) continue;
-
-      // 無効なURLをスキップ
-      if (url.startsWith('mailto:') || url.startsWith('javascript:') || url.startsWith('tel:')) continue;
-
-      const cleanLinkText = linkText.replace(/<[^>]*>/g, '').trim().toLowerCase();
-      const lowerUrl = url.toLowerCase();
-
-      // URLまたはリンクテキストに問い合わせ関連キーワードが含まれているかチェック
-      for (const keyword of CONTACT_LINK_KEYWORDS) {
-        if (cleanLinkText.includes(keyword.toLowerCase()) || lowerUrl.includes(keyword.toLowerCase())) {
-          foundLinkTexts.push(cleanLinkText || url);
-          console.log(`Contact link found: "${cleanLinkText}" -> ${url}`);
-          break; // 同じリンクで複数キーワードがマッチしても1回だけカウント
-        }
-      }
-    }
-
-    return {
-      hasLinks: foundLinkTexts.length > 0,
-      linkTexts: foundLinkTexts
-    };
-  }
 
 
   // Google FormsのURLのみを検出（埋め込みフォーム検出は除外）
@@ -663,44 +423,8 @@ class ContactPageFinder {
    * @param _timeoutMs タイムアウト時間（ms）※GASでは利用不可
    * @returns HTTPレスポンス
    */
-  private static fetchWithTimeout(url: string, _timeoutMs: number = 5000) {
-    try {
-      // GASのUrlFetchAppはtimeoutオプションをサポートしていないため、
-      // デフォルトのタイムアウト（約20-30秒）が適用される
-      return UrlFetchApp.fetch(url, {
-        muteHttpExceptions: true,
-        followRedirects: true,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        }
-      });
-    } catch (error) {
-      const detailedError = this.getDetailedNetworkError(error);
-      console.error(`Error fetching ${url}: ${detailedError}`);
-      throw error;
-    }
-  }
 
 
-  private static isValidContactPage(html: string): boolean {
-    // 404ページや無効なページを除外（より厳密なパターンに変更）
-
-    const lowerHtml = html.toLowerCase();
-    const hasInvalidContent = VALIDATION_PATTERNS.INVALID_PAGE.some(pattern =>
-      lowerHtml.includes(pattern.toLowerCase())
-    );
-
-    // 最低限のコンテンツ長チェック
-    const hasMinimumContent = html.length > VALIDATION_PATTERNS.MINIMUM_CONTENT_LENGTH;
-
-    console.log(`Validity check - hasInvalidContent: ${hasInvalidContent}, hasMinimumContent: ${hasMinimumContent}, length: ${html.length}`);
-    if (hasInvalidContent) {
-      const matchedPattern = VALIDATION_PATTERNS.INVALID_PAGE.find(pattern => lowerHtml.includes(pattern.toLowerCase()));
-      console.log(`Invalid pattern found: ${matchedPattern}`);
-    }
-
-    return !hasInvalidContent && hasMinimumContent;
-  }
 
   // ==========================================
   // フォーム検証・内容解析システム
@@ -713,47 +437,6 @@ class ContactPageFinder {
    * @param pageUrl ページURL
    * @returns 検証結果（フォームURLとキーワード）
    */
-  private static validateContactPageContent(html: string, pageUrl: string): { actualFormUrl: string | null, keywords: string[] } {
-    // 1. 埋め込みHTMLフォーム検索（最優先）
-    const embeddedForm = FormAnalyzer.findEmbeddedHTMLForm(html);
-    if (embeddedForm) {
-      return { actualFormUrl: pageUrl, keywords: ['embedded_form'] };
-    }
-
-    // 2. 統合検証：フォーム関連コンテンツ + キーワード + 送信要素
-    const formAnalysis = FormAnalyzer.analyzeFormElements(html);
-    if (formAnalysis.isValidForm) {
-      console.log(`Integrated form validation successful: ${formAnalysis.reasons.join(',')}`);
-      return { actualFormUrl: pageUrl, keywords: formAnalysis.keywords };
-    }
-
-    // 4. Google Forms検索（検証付き - 優先度を下げる）
-    const googleFormUrl = FormAnalyzer.findGoogleFormUrlsOnly(html);
-    if (googleFormUrl && googleFormUrl.startsWith('http')) {
-      // Google Formの内容を検証して除外すべきフォームかチェック
-      const isValidContactForm = this.validateGoogleFormContent(html, googleFormUrl);
-      if (isValidContactForm) {
-        console.log(`Valid Google Form found: ${googleFormUrl}`);
-        return { actualFormUrl: googleFormUrl, keywords: ['google_form'] };
-      } else {
-        console.log(`Google Form found but excluded (likely recruitment/other): ${googleFormUrl}`);
-      }
-    }
-
-    // 5. ２段階リンク検出（他ページ探索 - fallback）
-    // Legacy implementation removed - using module version
-    console.log('Second stage form link detection skipped (moved to module)');
-
-    // 6. ページ内リンク存在チェック（中間ページ判定）
-    const hasContactLinks = this.hasContactRelatedLinks(html);
-    if (hasContactLinks.hasLinks) {
-      console.log(`Contact-related links found: ${hasContactLinks.linkTexts.join(',')}`);
-      console.log('Page has contact links but no actual forms - suggesting this is an intermediate page');
-      return { actualFormUrl: null, keywords: ['has_contact_links_but_no_forms'] };
-    }
-
-    return { actualFormUrl: null, keywords: [] };
-  }
 
   /**
    * Google Form内容検証
@@ -762,53 +445,6 @@ class ContactPageFinder {
    * @param googleFormUrl Google FormのURL
    * @returns 有効な問い合わせフォームの場合true
    */
-  private static validateGoogleFormContent(html: string, googleFormUrl: string): boolean {
-    // 除外すべきキーワード（BtoB営業用途に関係ないフォーム）
-
-    // 問い合わせ関連キーワード
-
-    const lowerHtml = html.toLowerCase();
-
-    // Google Formの周辺コンテキストを抽出（フォームURLの前後1000文字）
-    const formUrlIndex = html.indexOf(googleFormUrl);
-    const contextStart = Math.max(0, formUrlIndex - 1000);
-    const contextEnd = Math.min(html.length, formUrlIndex + googleFormUrl.length + 1000);
-    const context = html.substring(contextStart, contextEnd).toLowerCase();
-
-    // 除外キーワードが含まれているかチェック
-    const hasExcludeKeyword = GOOGLE_FORM_EXCLUDE_KEYWORDS.some(keyword =>
-      context.includes(keyword.toLowerCase())
-    );
-
-    if (hasExcludeKeyword) {
-      console.log(`Google Form excluded due to keywords: ${GOOGLE_FORM_EXCLUDE_KEYWORDS.filter(k => context.includes(k.toLowerCase())).join(',')}`);
-      return false;
-    }
-
-    // 問い合わせ関連キーワードの存在確認
-    const hasContactKeyword = GOOGLE_FORM_CONTACT_KEYWORDS.some(keyword =>
-      context.includes(keyword.toLowerCase())
-    );
-
-    if (hasContactKeyword) {
-      console.log(`Google Form validated with contact keywords: ${GOOGLE_FORM_CONTACT_KEYWORDS.filter(k => context.includes(k.toLowerCase())).join(',')}`);
-      return true;
-    }
-
-    // コンテキストが不明な場合は、より広範囲でチェック
-    const hasPageLevelContactKeyword = GOOGLE_FORM_CONTACT_KEYWORDS.some(keyword =>
-      lowerHtml.includes(keyword.toLowerCase())
-    );
-
-    if (hasPageLevelContactKeyword) {
-      console.log(`Google Form validated with page-level contact keywords`);
-      return true;
-    }
-
-    // 明確な問い合わせ関連キーワードがない場合は除外
-    console.log(`Google Form excluded - no clear contact context found`);
-    return false;
-  }
 
   private static getDetailedErrorMessage(statusCode: number): string {
     return PurityUtils.getDetailedErrorMessage(statusCode);
