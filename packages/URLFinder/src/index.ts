@@ -39,14 +39,22 @@ export { ContactPageFinder } from './ContactPageFinder';
 // 型定義のエクスポート
 export type { ContactPageResult } from './types/interfaces';
 
-// GAS統合機能は別ファイルで管理
-// 実際のGAS関数は gas-integration.ts を参照
+// ==========================================
+// 【GAS統合機能の再エクスポート】
+// GASエディタで認識されるよう、gas-integration.tsの関数を再エクスポート
+// ==========================================
 
-// ==========================================
-// 【実行時注意事項】
-// GAS環境での実行時は以下の関数群を利用:
-// - processContactPageFinder(): メイン処理関数
-// - test(): テスト実行関数  
-// - executeUrlFinderWithUI(): UI付き実行関数
-// これらの実装は gas-integration.ts を参照してください
-// ==========================================
+// GAS統合機能のインポート・エクスポート
+export {
+  processContactPageFinder,     // メイン処理関数
+  test,                        // テスト実行関数
+  executeUrlFinderWithUI,      // UI付き実行関数
+  executeSelectedMode,         // モード選択処理
+  executeNormalProcessing,     // 通常処理
+  executeCheckedRowsProcessing, // チェック行処理
+  getUrlFromRow,              // URL取得
+  writeResultToSheet,         // 結果書き込み
+  getCheckedRows,             // チェック行取得
+  getCheckedRowsCount,        // チェック行数取得
+  getMaxCountSetting          // 設定取得
+} from './gas-integration';

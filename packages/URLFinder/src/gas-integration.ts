@@ -16,7 +16,7 @@ import { ContactPageFinder } from './ContactPageFinder';
  * ContactPageFinder メイン処理関数
  * スプレッドシートのL列からURLを取得し、AP列に結果を出力
  */
-function processContactPageFinder() {
+export function processContactPageFinder() {
   try {
     // ==========================================
     // 【設定値取得・検証】
@@ -197,7 +197,7 @@ function processContactPageFinder() {
  * テスト用関数
  * 任意のURLでContactPageFinderの動作をテスト
  */
-function test() {
+export function test() {
   // テスト用URL（任意に変更可能）
   const testUrl = 'https://www.alleyoop.co.jp/';
 
@@ -222,7 +222,7 @@ function test() {
  * スプレッドシートUI付きURLFinder実行関数
  * GAS上のスプレッドシートボタンから実行される
  */
-function executeUrlFinderWithUI(): void {
+export function executeUrlFinderWithUI(): void {
   console.log('=== URLFinder UI 開始 ===');
 
   try {
@@ -254,7 +254,7 @@ function executeUrlFinderWithUI(): void {
  * 選択されたオプションに基づいて処理を実行
  * @param mode 'normal' | 'checked'
  */
-function executeSelectedMode(mode: string): void {
+export function executeSelectedMode(mode: string): void {
   console.log(`選択されたモード: ${mode}`);
 
   if (mode === 'normal') {
@@ -269,7 +269,7 @@ function executeSelectedMode(mode: string): void {
 /**
  * 通常処理（既存ロジックをそのまま使用）
  */
-function executeNormalProcessing(): void {
+export function executeNormalProcessing(): void {
   console.log('=== 通常処理開始 ===');
 
   try {
@@ -292,7 +292,7 @@ function executeNormalProcessing(): void {
 /**
  * チェック行のみ処理（新機能）
  */
-function executeCheckedRowsProcessing(): void {
+export function executeCheckedRowsProcessing(): void {
   console.log('=== チェック行処理開始 ===');
 
   try {
@@ -354,7 +354,7 @@ function executeCheckedRowsProcessing(): void {
 /**
  * 指定行のL列からURLを取得
  */
-function getUrlFromRow(rowNumber: number): string {
+export function getUrlFromRow(rowNumber: number): string {
   const sheet = SpreadsheetApp.getActiveSheet();
   const lColumn = 12; // L列
 
@@ -365,7 +365,7 @@ function getUrlFromRow(rowNumber: number): string {
 /**
  * 結果をAP列に書き込み（既存ロジックと完全に一致）
  */
-function writeResultToSheet(rowNumber: number, result: ContactPageResult): void {
+export function writeResultToSheet(rowNumber: number, result: ContactPageResult): void {
   const sheet = SpreadsheetApp.getActiveSheet();
   const apColumn = 42; // AP列
 
@@ -401,7 +401,7 @@ function writeResultToSheet(rowNumber: number, result: ContactPageResult): void 
 /**
  * AQ列でチェックされた行番号一覧を取得
  */
-function getCheckedRows(): number[] {
+export function getCheckedRows(): number[] {
   try {
     console.log('SpreadsheetApp.getActiveSheet()実行中...');
     const sheet = SpreadsheetApp.getActiveSheet();
@@ -442,7 +442,7 @@ function getCheckedRows(): number[] {
 /**
  * チェックされた行数を取得
  */
-function getCheckedRowsCount(): number {
+export function getCheckedRowsCount(): number {
   try {
     console.log('getCheckedRows()実行中...');
     const rows = getCheckedRows();
@@ -462,7 +462,7 @@ function getCheckedRowsCount(): number {
 /**
  * MAX_COUNT設定値を取得
  */
-function getMaxCountSetting(): number {
+export function getMaxCountSetting(): number {
   try {
     console.log('PropertiesService.getScriptProperties()実行中...');
     const properties = PropertiesService.getScriptProperties();
