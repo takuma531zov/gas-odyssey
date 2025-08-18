@@ -1,9 +1,6 @@
 import { Environment } from './env';
 import type { ContactPageResult } from './types/interfaces';
-import { HIGH_PRIORITY_PATTERNS, EXCLUDED_KEYWORDS, HIGH_PRIORITY_CONTACT_KEYWORDS, MEDIUM_PRIORITY_CONTACT_KEYWORDS, SUBMIT_BUTTON_KEYWORDS, FORM_KEYWORDS } from './constants/ContactConstants';
-import { SEARCH_PATTERNS, CONFIDENCE_LEVELS, NAVIGATION_SELECTORS, VALIDATION_PATTERNS, FORM_LINK_PATTERNS, FORM_TEXT_PATTERNS, NEGATIVE_KEYWORDS, HOMEPAGE_PATTERNS, CONTACT_LINK_KEYWORDS, GOOGLE_FORM_EXCLUDE_KEYWORDS, GOOGLE_FORM_CONTACT_KEYWORDS } from './constants/SearchConstants';
 import { UrlUtils } from './utils/UrlUtils';
-import { PurityUtils } from './utils/PurityUtils';
 import { HtmlAnalyzer } from './analyzers/HtmlAnalyzer';
 import { FormAnalyzer } from './analyzers/FormAnalyzer';
 import { UrlPatternStrategy } from './strategies/UrlPatternStrategy';
@@ -11,48 +8,27 @@ import { UrlPatternStrategy } from './strategies/UrlPatternStrategy';
 // === 機能モジュール群インポート ===
 import { 
   initializeContactSearch as moduleInitializeContactSearch,
-  resetCandidates as moduleResetCandidates, 
-  checkDomainAvailability as moduleCheckDomainAvailability,
   type InitializationState 
 } from './modules/initialization';  // 初期化・検証機能 (modules/initialization/index.ts)
 
 import {
   analyzeHtmlContent as moduleAnalyzeHtmlContent,
-  searchInNavigation as moduleSearchInNavigation,
-  analyzeAnchorSection as moduleAnalyzeAnchorSection, 
   findActualForm as moduleFindActualForm,
   type Step2AnalysisState
 } from './modules/step2Analysis';  // Step2解析機能 (modules/step2Analysis/index.ts)
 
 import {
   getFinalFallbackUrl as moduleGetFinalFallbackUrl,
-  evaluateFallbackUrlQuality as moduleEvaluateFallbackUrlQuality,
-  calculateCandidateScore as moduleCalculateCandidateScore,
-  logPotentialCandidate as moduleLogPotentialCandidate,
   type FallbackState
 } from './modules/fallbackSystem';  // フォールバック機能 (modules/fallbackSystem/index.ts)
 
-import {
-  validateContactPageContent as moduleValidateContactPageContent,
-  validateGoogleFormContent as moduleValidateGoogleFormContent,
-  isValidContactPage as moduleIsValidContactPage
-} from './modules/formValidation';  // フォーム検証機能 (modules/formValidation/index.ts)
 
-import {
-  extractContactLinks as moduleExtractContactLinks,
-  hasContactRelatedLinks as moduleHasContactRelatedLinks
-} from './modules/linkAnalysis';  // リンク解析機能 (modules/linkAnalysis/index.ts)
 
 import {
   fetchWithTimeout as moduleFetchWithTimeout,
-  getDetailedErrorMessage as moduleGetDetailedErrorMessage,
   getDetailedNetworkError as moduleGetDetailedNetworkError
 } from './modules/httpUtils';  // HTTP通信機能 (modules/httpUtils/index.ts)
 
-import {
-  executeSPAAnalysis as moduleExecuteSPAAnalysis,
-  detectSameHtmlPattern as moduleDetectSameHtmlPattern
-} from './modules/spaAnalysis';  // SPA解析機能 (modules/spaAnalysis/index.ts)
 
 /**
  * ContactPageFinder - BtoB営業用問い合わせページ自動検索システム
@@ -76,9 +52,7 @@ import {
  */
 class ContactPageFinder {
 
-  // ==========================================
   // 状態管理・キャッシュシステム（モジュール化統合）
-  // ==========================================
 
   /**
    * 初期化状態管理
@@ -91,50 +65,6 @@ class ContactPageFinder {
     sameHtmlCache: {}
   };
 
-  // ==========================================
-  // 後方互換性のためのプロパティ（レガシーアクセス用）
-  // ==========================================
-
-  /**
-   * 候補ページ記録システム（レガシーアクセス用）
-   * modules/initialization の状態を参照
-   */
-  private static get candidatePages() { return this.initState.candidatePages; }
-  private static set candidatePages(value) { this.initState.candidatePages = value; }
-
-  /**
-   * 200 OK URLリスト（レガシーアクセス用）  
-   * modules/initialization の状態を参照
-   */
-  private static get validUrls() { return this.initState.validUrls; }
-  private static set validUrls(value) { this.initState.validUrls = value; }
-
-  /**
-   * 成功したフォームURLリスト（レガシーアクセス用）
-   * modules/initialization の状態を参照
-   */
-  private static get successfulFormUrls() { return this.initState.successfulFormUrls; }
-  private static set successfulFormUrls(value) { this.initState.successfulFormUrls = value; }
-
-
-
-
-
-  // ==========================================
-  // SPA検出・同一HTML判定システム
-  // ==========================================
-
-  /**
-   * 同一HTMLレスポンス検出キャッシュ（レガシーアクセス用）
-   * modules/initialization の状態を参照
-   */
-  private static get sameHtmlCache() { return this.initState.sameHtmlCache; }
-  private static set sameHtmlCache(value) { this.initState.sameHtmlCache = value; }
-
-
-  // ==========================================
-  // メイン検索エントリーポイント
-  // ==========================================
 
   /**
    * 問い合わせページ検索のメインエントリーポイント
@@ -149,12 +79,6 @@ class ContactPageFinder {
    * 4. Step1: URLパターン推測検索
    * 5. Step2: HTML解析フォールバック検索
    * 6. 最終フォールバック: Step1の200 OKページ使用
-   *
-   * 実装注意事項:
-   * - GAS環境でのタイムアウト管理（デフォルト80秒）
-   * - メモリ効率を考慮したキャッシュ管理
-   * - BtoB営業用途に特化したキーワード重み付け
-   * - SPA（Single Page Application）対応
    */
   static findContactPage(baseUrl: string): ContactPageResult {
     const startTime = Date.now();
@@ -180,7 +104,7 @@ class ContactPageFinder {
       if (strategyResult) {
         const priorityResult = strategyResult.result;
         // 有効URLリストを更新
-        this.validUrls = strategyResult.validUrls;
+        this.initState.validUrls = strategyResult.validUrls;
 
         if (priorityResult.contactUrl) {
           console.log(`✅ Found via URL pattern search: ${priorityResult.contactUrl}`);
@@ -224,7 +148,7 @@ class ContactPageFinder {
         }
 
         // Analyze HTML content for contact links
-        const step2State: Step2AnalysisState = { successfulFormUrls: this.successfulFormUrls };
+        const step2State: Step2AnalysisState = { successfulFormUrls: this.initState.successfulFormUrls };
         const result = moduleAnalyzeHtmlContent(html, baseUrl, step2State, moduleFetchWithTimeout);
 
         // If we found a contact page, try to find the actual form within it
@@ -271,8 +195,8 @@ class ContactPageFinder {
       // FINAL FALLBACK: Return first valid contact URL from Step1 if available
       console.log('All search methods failed, checking final fallback...');
       const fallbackState: FallbackState = { 
-        validUrls: this.validUrls, 
-        candidatePages: this.candidatePages 
+        validUrls: this.initState.validUrls, 
+        candidatePages: this.initState.candidatePages 
       };
       const fallbackResult = moduleGetFinalFallbackUrl(fallbackState);
       if (fallbackResult.contactUrl) {
@@ -308,171 +232,6 @@ class ContactPageFinder {
   private static initializeContactSearch(baseUrl: string): ContactPageResult | null {
     return moduleInitializeContactSearch(baseUrl, this.initState);
   }
-
-  // ==========================================
-  // HTML解析・フォールバック検索システム
-  // ==========================================
-
-  // ==========================================
-  // ナビゲーション解析システム
-  // ==========================================
-
-  /**
-   * ナビゲーション内検索
-   * ページのナビゲーション要素から問い合わせリンクを検索
-   * @param html 検索対象HTML
-   * @param baseUrl ベースURL
-   * @returns ナビゲーション検索結果
-   */
-
-  // ==========================================
-  // リンク抽出・解析システム
-  // ==========================================
-
-
-
-
-
-
-
-  /**
-   * 問い合わせリンク抽出
-   * HTML内容から問い合わせ関連リンクを抽出・解析
-   * @param content 解析対象HTML内容
-   * @param baseUrl ベースURL
-   * @param contextType コンテキストタイプ（general/navigation等）
-   * @returns 抽出されたリンク情報
-   */
-
-
-
-  // ==========================================
-  // ユーティリティ・補助機能システム
-  // ==========================================
-
-  /**
-   * トップページURL判定
-   * ２段階リンク検出での除外用判定
-   * @param url 判定対象URL
-   * @param baseUrl ベースURL
-   * @returns トップページの場合true
-   */
-  private static isHomepageUrl(url: string, baseUrl: string): boolean {
-    return PurityUtils.isHomepageUrl(url, baseUrl);
-  }
-
-
-
-
-
-
-
-
-
-
-  // ==========================================
-  // 候補管理・スコアリングシステム
-  // ==========================================
-
-  /**
-   * 潜在的候補ページの記録
-   * Step1で発見されたが確定できなかった候補を記録・評価
-   * @param url 候補URL
-   * @param reason 候補理由
-   * @param html ページHTML内容
-   */
-
-  /**
-   * 候補スコア計算
-   * 候補ページの品質をURL、フォーム分析結果に基づいて数値化
-   * @param url 候補URL
-   * @param reason 候補理由
-   * @param structuredAnalysis 構造化フォーム解析結果
-   * @param formAnalysis フォーム解析結果
-   * @returns 計算されたスコア
-   */
-
-  /**
-   * 候補リストリセット（プロキシ）
-   * modules/initialization/index.ts の機能を呼び出し
-   */
-  private static resetCandidates() {
-    moduleResetCandidates(this.initState);
-  }
-
-  /**
-   * 問い合わせ関連リンク存在チェック
-   * ページ内に問い合わせ関連のリンクが存在するかチェック（BtoB営業用途特化）
-   * @param html 検索対象HTML
-   * @returns リンク存在情報とリンクテキスト配列
-   */
-
-
-  // Google FormsのURLのみを検出（埋め込みフォーム検出は除外）
-
-
-
-  // ==========================================
-  // HTTP通信・エラーハンドリングシステム
-  // ==========================================
-
-  /**
-   * タイムアウト付きHTTP取得
-   * GAS環境でのHTTPリクエスト実行（タイムアウト管理）
-   * @param url 取得対象URL
-   * @param _timeoutMs タイムアウト時間（ms）※GASでは利用不可
-   * @returns HTTPレスポンス
-   */
-
-
-
-  // ==========================================
-  // フォーム検証・内容解析システム
-  // ==========================================
-
-  /**
-   * 問い合わせページ内容検証
-   * ページHTMLから実際のフォームURLを検出・検証
-   * @param html ページHTML内容
-   * @param pageUrl ページURL
-   * @returns 検証結果（フォームURLとキーワード）
-   */
-
-  /**
-   * Google Form内容検証
-   * Google Formが問い合わせフォームかどうか判定（採用・アンケート等を除外）
-   * @param html ページHTML内容
-   * @param googleFormUrl Google FormのURL
-   * @returns 有効な問い合わせフォームの場合true
-   */
-
-  private static getDetailedErrorMessage(statusCode: number): string {
-    return PurityUtils.getDetailedErrorMessage(statusCode);
-  }
-
-  /**
-   * 詳細ネットワークエラー解析
-   * エラーオブジェクトから詳細なエラー原因を特定
-   * @param error エラーオブジェクト
-   * @returns 詳細エラーメッセージ
-   */
-  private static getDetailedNetworkError(error: any): string {
-    return PurityUtils.getDetailedNetworkError(error);
-  }
-
-  /**
-   * ドメイン生存確認（プロキシ）
-   * modules/initialization/index.ts の機能を呼び出し
-   * @param baseUrl 確認対象URL
-   * @returns 生存状況と詳細エラー
-   */
-  private static checkDomainAvailability(baseUrl: string): { available: boolean, error?: string } {
-    return moduleCheckDomainAvailability(baseUrl);
-  }
-
-
-
-
 }
 
 /**
@@ -661,8 +420,6 @@ function test() {
   console.log(`Search Method: ${result.searchMethod}`);
   console.log('=====================================');
 }
-
-
 /**
  * スプレッドシートUI付きURLFinder実行関数
  * GAS上のスプレッドシートボタンから実行される
@@ -920,4 +677,3 @@ function getMaxCountSetting(): number {
     return 10; // デフォルト値
   }
 }
-
