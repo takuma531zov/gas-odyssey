@@ -369,33 +369,11 @@ class ContactPageFinder {
     const maxTotalTime = Environment.getMaxTotalTime();
 
     try {
-      // 候補リストのリセット（新しい検索開始時）
-      this.resetCandidates();
-
-      // SNSページの検出
-      if (UrlUtils.isSNSPage(baseUrl)) {
-        console.log(`SNS page detected: ${baseUrl}, returning not found`);
-        return {
-          contactUrl: null,
-          actualFormUrl: null,
-          foundKeywords: ['sns_page'],
-          searchMethod: 'sns_not_supported'
-        };
+      // 初期化・検証処理
+      const initResult = this.initializeContactSearch(baseUrl);
+      if (initResult) {
+        return initResult; // 早期return（SNS/ドメイン無効の場合）
       }
-
-      // ドメイン生存確認
-      console.log(`Checking domain availability for: ${baseUrl}`);
-      const domainCheck = this.checkDomainAvailability(baseUrl);
-      if (!domainCheck.available) {
-        console.log(`Domain unavailable: ${domainCheck.error}`);
-        return {
-          contactUrl: null,
-          actualFormUrl: null,
-          foundKeywords: [domainCheck.error || 'サイトが閉鎖されています'],
-          searchMethod: 'site_closed'
-        };
-      }
-      console.log(`Domain is available, proceeding with contact search`);
 
       // Extract domain for subdirectory pattern support
       const domainUrl = UrlUtils.extractDomain(baseUrl);
@@ -522,6 +500,44 @@ class ContactPageFinder {
         searchMethod: 'error'
       };
     }
+  }
+
+  /**
+   * 初期化・検証処理
+   * SNS判定とドメイン生存確認を実行
+   * @param baseUrl 検証対象URL
+   * @returns 早期終了の場合は結果、継続の場合はnull
+   */
+  private static initializeContactSearch(baseUrl: string): ContactPageResult | null {
+    // 候補リストのリセット（新しい検索開始時）
+    this.resetCandidates();
+
+    // SNSページの検出
+    if (UrlUtils.isSNSPage(baseUrl)) {
+      console.log(`SNS page detected: ${baseUrl}, returning not found`);
+      return {
+        contactUrl: null,
+        actualFormUrl: null,
+        foundKeywords: ['sns_page'],
+        searchMethod: 'sns_not_supported'
+      };
+    }
+
+    // ドメイン生存確認
+    console.log(`Checking domain availability for: ${baseUrl}`);
+    const domainCheck = this.checkDomainAvailability(baseUrl);
+    if (!domainCheck.available) {
+      console.log(`Domain unavailable: ${domainCheck.error}`);
+      return {
+        contactUrl: null,
+        actualFormUrl: null,
+        foundKeywords: [domainCheck.error || 'サイトが閉鎖されています'],
+        searchMethod: 'site_closed'
+      };
+    }
+    console.log(`Domain is available, proceeding with contact search`);
+
+    return null; // 継続処理
   }
 
   // ==========================================
