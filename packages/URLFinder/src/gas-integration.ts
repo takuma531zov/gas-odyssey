@@ -6,6 +6,7 @@
 
 import type { ContactPageResult } from './types/interfaces';
 import { ContactPageFinder } from './ContactPageFinder';
+import { Environment } from './env';
 
 // ==========================================
 // 【メイン処理関数】
@@ -20,60 +21,46 @@ export function processContactPageFinder() {
   try {
     // ==========================================
     // 【設定値取得・検証】
-    // スクリプトプロパティから実行設定を取得
+    // Environment クラスから統一された設定を取得
     // ==========================================
-    const properties = PropertiesService.getScriptProperties();
-    const sheetName = properties.getProperty('SHEET');
-    const maxCountStr = properties.getProperty('MAX_COUNT');
-    const headerRowStr = properties.getProperty('HEADER_ROW');
-
-    if (!sheetName) {
-      throw new Error('スクリプトプロパティ「SHEET」が設定されていません');
-    }
+    const sheetName = Environment.getSheetName();
+    const maxCount = Environment.getMaxCount();
+    const headerRow = Environment.getHeaderRow();
+    const targetColumn = Environment.getTargetColumn();
+    const outputColumn = Environment.getOutputColumn();
 
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
     if (!sheet) {
       throw new Error(`シート「${sheetName}」が見つかりません`);
     }
 
-    // MAX_COUNTの処理（未設定の場合は制限なし）
-    const maxCount = maxCountStr ? parseInt(maxCountStr, 10) : null;
-    if (maxCountStr && isNaN(maxCount!)) {
-      throw new Error('スクリプトプロパティ「MAX_COUNT」は数値で設定してください');
-    }
-
-    // HEADER_ROWの処理（未設定の場合は1行目）
-    const headerRow = headerRowStr ? parseInt(headerRowStr, 10) : 1;
-    if (headerRowStr && isNaN(headerRow!)) {
-      throw new Error('スクリプトプロパティ「HEADER_ROW」は数値で設定してください');
-    }
-
-    console.log(`処理上限: ${maxCount ? `${maxCount}行` : '制限なし'}`);
+    console.log(`処理上限: ${maxCount}行`);
     console.log(`ヘッダー行: ${headerRow}行目（処理対象から除外）`);
+    console.log(`対象列: ${targetColumn}列目、出力列: ${outputColumn}列目`);
 
     // ==========================================
     // 【データ範囲決定】
-    // L列（URL）とAP列（結果）の処理範囲を計算
+    // 対象列（URL）と出力列（結果）の処理範囲を計算
     // ==========================================
     
-    // L列の最終行を取得
-    const lastRowL = sheet.getLastRow();
+    // 対象列の最終行を取得
+    const lastRowTarget = sheet.getLastRow();
 
-    // AP列の最終行を取得（データがある行）
-    const apRange = sheet.getRange('AP:AP');
-    const apValues = apRange.getValues();
-    let lastRowAP = 0;
-    for (let i = apValues.length - 1; i >= 0; i--) {
-      const row = apValues[i];
+    // 出力列の最終行を取得（データがある行）
+    const outputRange = sheet.getRange(1, outputColumn, sheet.getMaxRows(), 1);
+    const outputValues = outputRange.getValues();
+    let lastRowOutput = 0;
+    for (let i = outputValues.length - 1; i >= 0; i--) {
+      const row = outputValues[i];
       if (row && row[0] !== '') {
-        lastRowAP = i + 1;
+        lastRowOutput = i + 1;
         break;
       }
     }
 
     // 処理対象行の範囲を決定
-    const startRow = lastRowAP + 1;
-    let endRow = lastRowL;
+    const startRow = lastRowOutput + 1;
+    let endRow = lastRowTarget;
 
     if (startRow > endRow) {
       console.log('処理対象のURLがありません');
@@ -90,11 +77,11 @@ export function processContactPageFinder() {
 
     // ==========================================
     // 【一括URL取得・処理】
-    // L列のURLを一括取得し、各URLを順次処理
+    // 対象列のURLを一括取得し、各URLを順次処理
     // ==========================================
     
-    // L列のURLを一括取得
-    const urlRange = sheet.getRange(startRow, 12, endRow - startRow + 1, 1); // L列は12列目
+    // 対象列のURLを一括取得
+    const urlRange = sheet.getRange(startRow, targetColumn, endRow - startRow + 1, 1);
     const urls = urlRange.getValues();
 
     // 結果配列を準備
@@ -168,18 +155,18 @@ export function processContactPageFinder() {
 
     // ==========================================
     // 【結果出力・完了通知】
-    // AP列に結果を一括書き込み、処理完了ログ出力
+    // 出力列に結果を一括書き込み、処理完了ログ出力
     // ==========================================
     
-    // AP列に結果を一括書き込み
-    const outputRange = sheet.getRange(startRow, 42, results.length, 1); // AP列は42列目
-    outputRange.setValues(results);
+    // 出力列に結果を一括書き込み
+    const resultOutputRange = sheet.getRange(startRow, outputColumn, results.length, 1);
+    resultOutputRange.setValues(results);
 
-    console.log(`処理完了: ${results.length}行の結果をAP列に出力しました`);
+    console.log(`処理完了: ${results.length}行の結果を${outputColumn}列目に出力しました`);
 
     // MAX_COUNT制限で処理が打ち切られた場合の通知
-    if (maxCount && results.length === maxCount && startRow + maxCount - 1 < lastRowL) {
-      console.log(`注意: MAX_COUNT(${maxCount})制限により処理を制限しました。残り${lastRowL - (startRow + maxCount - 1)}行のデータが未処理です。`);
+    if (maxCount && results.length === maxCount && startRow + maxCount - 1 < lastRowTarget) {
+      console.log(`注意: MAX_COUNT(${maxCount})制限により処理を制限しました。残り${lastRowTarget - (startRow + maxCount - 1)}行のデータが未処理です。`);
     }
 
   } catch (error) {
@@ -352,22 +339,22 @@ export function executeCheckedRowsProcessing(): void {
 // ==========================================
 
 /**
- * 指定行のL列からURLを取得
+ * 指定行の対象列からURLを取得
  */
 export function getUrlFromRow(rowNumber: number): string {
   const sheet = SpreadsheetApp.getActiveSheet();
-  const lColumn = 12; // L列
+  const targetColumn = Environment.getTargetColumn();
 
-  const cellValue = sheet.getRange(rowNumber, lColumn).getValue();
+  const cellValue = sheet.getRange(rowNumber, targetColumn).getValue();
   return cellValue ? cellValue.toString().trim() : '';
 }
 
 /**
- * 結果をAP列に書き込み（既存ロジックと完全に一致）
+ * 結果を出力列に書き込み（既存ロジックと完全に一致）
  */
 export function writeResultToSheet(rowNumber: number, result: ContactPageResult): void {
   const sheet = SpreadsheetApp.getActiveSheet();
-  const apColumn = 42; // AP列
+  const outputColumn = Environment.getOutputColumn();
 
   // 既存のprocessContactPageFinderと完全に同じロジック
   let outputValue = '';
@@ -395,11 +382,11 @@ export function writeResultToSheet(rowNumber: number, result: ContactPageResult)
     outputValue = '問い合わせフォームが見つかりませんでした';
   }
 
-  sheet.getRange(rowNumber, apColumn).setValue(outputValue);
+  sheet.getRange(rowNumber, outputColumn).setValue(outputValue);
 }
 
 /**
- * AQ列でチェックされた行番号一覧を取得
+ * チェック列でチェックされた行番号一覧を取得
  */
 export function getCheckedRows(): number[] {
   try {
@@ -415,13 +402,13 @@ export function getCheckedRows(): number[] {
     const maxRowsToCheck = Math.min(lastRow, 1000);
     console.log(`チェック対象行数: ${maxRowsToCheck}`);
 
-    const aqColumn = 43; // AQ列
+    const checkColumn = Environment.getCheckColumn();
     const checkedRows: number[] = [];
 
     console.log('チェックボックス値の確認開始...');
     for (let row = 2; row <= maxRowsToCheck; row++) {
       try {
-        const checkboxValue = sheet.getRange(row, aqColumn).getValue();
+        const checkboxValue = sheet.getRange(row, checkColumn).getValue();
         if (checkboxValue === true) {
           checkedRows.push(row);
         }
@@ -464,29 +451,9 @@ export function getCheckedRowsCount(): number {
  */
 export function getMaxCountSetting(): number {
   try {
-    console.log('PropertiesService.getScriptProperties()実行中...');
-    const properties = PropertiesService.getScriptProperties();
-    console.log('プロパティサービス取得完了');
-
-    console.log('MAX_COUNTプロパティ取得中...');
-    const maxCountStr = properties.getProperty('MAX_COUNT');
-    console.log(`MAX_COUNTプロパティ値: "${maxCountStr}"`);
-
-    if (!maxCountStr) {
-      console.log('MAX_COUNTが未設定、デフォルト値10を使用');
-      return 10;
-    }
-
-    const parsed = parseInt(maxCountStr, 10);
-    if (isNaN(parsed) || parsed <= 0) {
-      console.log(`MAX_COUNTの値が無効: "${maxCountStr}", デフォルト値10を使用`);
-      return 10;
-    }
-
-    console.log(`MAX_COUNT設定値: ${parsed}`);
-    return parsed;
+    return Environment.getMaxCount();
   } catch (error) {
     console.error('getMaxCountSetting()エラー:', error);
-    return 10; // デフォルト値
+    throw error; // Environment エラーをそのまま投げる
   }
 }
