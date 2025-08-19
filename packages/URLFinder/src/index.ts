@@ -1,11 +1,112 @@
 // ==========================================
-// 【URLFinder統合エントリーポイント】
-// GAS環境での問い合わせページ検索システム
-// ContactPageFinderクラスとGAS統合機能の橋渡し
+// 【URLFinder GAS統合エントリーポイント】
+// Google Apps Script環境での問い合わせページ検索システム
+// グローバル関数として公開（import使用、exportは削除）
 // ==========================================
 
 import type { ContactPageResult } from './types/interfaces';
 import { ContactPageFinder } from './ContactPageFinder';
+
+// GAS統合機能のインポート（内部使用のみ）
+import {
+  processContactPageFinder as gasProcessContactPageFinder,
+  test as gasTest,
+  executeUrlFinderWithUI as gasExecuteUrlFinderWithUI,
+  executeSelectedMode as gasExecuteSelectedMode,
+  executeNormalProcessing as gasExecuteNormalProcessing,
+  executeCheckedRowsProcessing as gasExecuteCheckedRowsProcessing,
+  getUrlFromRow as gasGetUrlFromRow,
+  writeResultToSheet as gasWriteResultToSheet,
+  getCheckedRows as gasGetCheckedRows,
+  getCheckedRowsCount as gasGetCheckedRowsCount,
+  getMaxCountSetting as gasGetMaxCountSetting
+} from './gas-integration';
+
+// ==========================================
+// 【GAS公開関数群】
+// import した実装をグローバル関数として再定義
+// ==========================================
+
+/**
+ * ContactPageFinder メイン処理関数
+ * スプレッドシートのL列からURLを取得し、AP列に結果を出力
+ */
+function processContactPageFinder() {
+  return gasProcessContactPageFinder();
+}
+
+/**
+ * テスト用関数
+ * 任意のURLでContactPageFinderの動作をテスト
+ */
+function test() {
+  return gasTest();
+}
+
+/**
+ * スプレッドシートUI付きURLFinder実行関数
+ * GAS上のスプレッドシートボタンから実行される
+ */
+function executeUrlFinderWithUI(): void {
+  return gasExecuteUrlFinderWithUI();
+}
+
+/**
+ * 選択されたオプションに基づいて処理を実行
+ * @param mode 'normal' | 'checked'
+ */
+function executeSelectedMode(mode: string): void {
+  return gasExecuteSelectedMode(mode);
+}
+
+/**
+ * 通常処理（既存ロジックをそのまま使用）
+ */
+function executeNormalProcessing(): void {
+  return gasExecuteNormalProcessing();
+}
+
+/**
+ * チェック行のみ処理（新機能）
+ */
+function executeCheckedRowsProcessing(): void {
+  return gasExecuteCheckedRowsProcessing();
+}
+
+/**
+ * 指定行のL列からURLを取得
+ */
+function getUrlFromRow(rowNumber: number): string {
+  return gasGetUrlFromRow(rowNumber);
+}
+
+/**
+ * 結果をAP列に書き込み
+ */
+function writeResultToSheet(rowNumber: number, result: ContactPageResult): void {
+  return gasWriteResultToSheet(rowNumber, result);
+}
+
+/**
+ * AQ列でチェックされた行番号一覧を取得
+ */
+function getCheckedRows(): number[] {
+  return gasGetCheckedRows();
+}
+
+/**
+ * チェックされた行数を取得
+ */
+function getCheckedRowsCount(): number {
+  return gasGetCheckedRowsCount();
+}
+
+/**
+ * MAX_COUNT設定値を取得
+ */
+function getMaxCountSetting(): number {
+  return gasGetMaxCountSetting();
+}
 
 // ==========================================
 // 【後方互換性ラッパー関数】
@@ -27,34 +128,3 @@ import { ContactPageFinder } from './ContactPageFinder';
 function findContactPage(url: string): ContactPageResult {
   return ContactPageFinder.findContactPage(url);
 }
-
-// ==========================================
-// 【メインエクスポート】
-// ContactPageFinderクラスとGAS統合機能の統合エクスポート
-// ==========================================
-
-// ContactPageFinderクラスのエクスポート
-export { ContactPageFinder } from './ContactPageFinder';
-
-// 型定義のエクスポート
-export type { ContactPageResult } from './types/interfaces';
-
-// ==========================================
-// 【GAS統合機能の再エクスポート】
-// GASエディタで認識されるよう、gas-integration.tsの関数を再エクスポート
-// ==========================================
-
-// GAS統合機能のインポート・エクスポート
-export {
-  processContactPageFinder,     // メイン処理関数
-  test,                        // テスト実行関数
-  executeUrlFinderWithUI,      // UI付き実行関数
-  executeSelectedMode,         // モード選択処理
-  executeNormalProcessing,     // 通常処理
-  executeCheckedRowsProcessing, // チェック行処理
-  getUrlFromRow,              // URL取得
-  writeResultToSheet,         // 結果書き込み
-  getCheckedRows,             // チェック行取得
-  getCheckedRowsCount,        // チェック行数取得
-  getMaxCountSetting          // 設定取得
-} from './gas-integration';

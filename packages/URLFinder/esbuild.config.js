@@ -34,6 +34,28 @@ const config = {
           });
         });
       }
+    },
+    {
+      name: 'remove-commonjs-exports',
+      setup(build) {
+        build.onEnd(() => {
+          // CommonJSのexportsを削除してGAS互換にする
+          const outputFile = path.join(__dirname, 'dist', 'main.js');
+          
+          if (fs.existsSync(outputFile)) {
+            let content = fs.readFileSync(outputFile, 'utf8');
+            
+            // module.exports部分を削除
+            content = content.replace(/\/\/ Annotate the CommonJS export names for ESM import in node:[\s\S]*?module\.exports = \{[\s\S]*?\}\);?/g, '');
+            
+            // 0 && の行も削除
+            content = content.replace(/^0 && \(.*\);?$/gm, '');
+            
+            fs.writeFileSync(outputFile, content);
+            console.log('Removed CommonJS exports from main.js');
+          }
+        });
+      }
     }
   ]
 };
