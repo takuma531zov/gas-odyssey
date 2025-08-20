@@ -324,6 +324,35 @@ URLリスト → 初期化・検証 → SNS判定 → URLパターン検索 → 
 - **機能**: スプレッドシート操作、UI提供
 - **特徴**: 柔軟な列設定、エラーハンドリング
 
+## 関数リファレンス
+
+### 🔧 主要関数
+
+#### `processContactPageFinder()`
+- **用途**: メイン処理関数（スプレッドシート一括処理）
+- **機能**: L列からURL取得、AP列に結果出力
+- **特記事項**: **トリガー設定するならこの関数を使用**
+
+#### `executeUrlFinderWithUI()`
+- **用途**: UI付き実行
+- **機能**: ダイアログ表示、処理オプション選択
+- **主な使用場面**: 手動実行、設定確認
+
+#### `test()`
+- **用途**: 単体テスト
+- **機能**: 指定URLでの動作検証
+- **主な使用場面**: 機能確認、デバッグ
+
+#### `executeCheckedRowsProcessing()`
+- **用途**: チェック行処理
+- **機能**: AQ列でチェックされた行のみ処理
+- **主な使用場面**: 部分実行、再処理
+
+#### `findContactPage(url)`
+- **用途**: 後方互換ラッパー関数
+- **パラメータ**: `url` - 検索対象URL（文字列）
+- **戻り値**: ContactPageResult オブジェクト
+
 ## 開発者向け情報
 
 ### 🛠️ 開発環境セットアップ
@@ -382,10 +411,7 @@ npm run lint
 #### 単体テスト
 ```javascript
 // テスト実行
-function testSingleUrl() {
-  const result = findContactPage('https://example.com');
-  console.log('Test Result:', result);
-}
+test(); // 指定URLでの動作テスト
 ```
 
 #### 統合テスト
