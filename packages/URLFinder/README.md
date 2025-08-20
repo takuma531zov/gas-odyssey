@@ -98,6 +98,7 @@ graph TD
 | **サイトが見つかりません（404）** | 入力されたURLにアクセスした結果、ページが存在しない（404 Not Found）と判断されました。サイト自体が存在しないか、URLが間違っている可能性があります。 |
 | **Forbidden - アクセス拒否（403）** | サイト側のセキュリティポリシー（WAF, IPアドレス制限など）により、プログラムからのアクセスが明確に拒否されました。 |
 | **Not Implemented - Bot対策によりブロック（501）** | Cloudflare等の高度なBot対策システムにより、人間による操作ではないと判断され、アクセスがブロックされた可能性があります。 |
+| **処理タイムアウト：サイトの応答が遅いため処理を中断しました** | MAX_TOTAL_TIMEで設定された制限時間を超過したため、処理が中断されました。サイトが重いか、ネットワークが不安定な可能性があります。 |
 | **GASエラー: アクセスに失敗しました** | Google Apps Scriptの実行上の問題（ネットワークの不安定、Googleインフラの一時的な問題など）で、サイトへのアクセス自体に失敗した場合に発生します。 |
 | **問い合わせフォームが見つかりませんでした** | 上記のエラーには該当せず、全ての検索ステップを実行しましたが、最終的に問い合わせフォームを特定できませんでした。サイトの構造が特殊であるか、フォームが画像になっている可能性があります。 |
 
@@ -148,7 +149,7 @@ npm run build
 
 ```
 SHEET: "リスト"                    # 処理対象のシート名
-MAX_COUNT: "30"                      # 一度に処理する最大件数
+MAX_COUNT: "30"                      # 一度に処理する最大件数（上限数）
 HEADER_ROW: "3"                      # ヘッダー行番号
 TARGET_COLUMN: "12"                  # URL取得列（L列=12）
 OUTPUT_COLUMN: "42"                  # 結果出力列（AP列=42）
@@ -237,10 +238,21 @@ PropertiesService.getScriptProperties().setProperties({
 ### パフォーマンス調整
 
 #### 処理件数の調整
+
+スクリプトプロパティの`MAX_COUNT`値を変更することで処理件数を調整できます：
+
 ```javascript
-// 大量データ処理時は件数を制限
+// 例：30件に変更
 PropertiesService.getScriptProperties().setProperty('MAX_COUNT', '30');
+
+// 例：20件に変更（大量データでパフォーマンス重視）
+PropertiesService.getScriptProperties().setProperty('MAX_COUNT', '20');
+
+// 例：50件に変更（高速環境での大量処理）
+PropertiesService.getScriptProperties().setProperty('MAX_COUNT', '50');
 ```
+
+設定した値は、通常処理とチェック行処理の両方で上限として適用されます。
 
 #### タイムアウト調整
 ```javascript

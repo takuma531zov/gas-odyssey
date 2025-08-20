@@ -163,4 +163,5 @@ export class Environment {
     }
     return parseInt(columnStr);
   }
+
 }

@@ -42,7 +42,7 @@ export function processContactPageFinder() {
     // 【データ範囲決定】
     // 対象列（URL）と出力列（結果）の処理範囲を計算
     // ==========================================
-    
+
     // 対象列の最終行を取得
     const lastRowTarget = sheet.getLastRow();
 
@@ -79,7 +79,7 @@ export function processContactPageFinder() {
     // 【一括URL取得・処理】
     // 対象列のURLを一括取得し、各URLを順次処理
     // ==========================================
-    
+
     // 対象列のURLを一括取得
     const urlRange = sheet.getRange(startRow, targetColumn, endRow - startRow + 1, 1);
     const urls = urlRange.getValues();
@@ -119,8 +119,11 @@ export function processContactPageFinder() {
         let outputValue = '';
 
         // エラーの場合はエラーメッセージを出力
-        if (result.searchMethod === 'error' || result.searchMethod === 'dns_error' || result.searchMethod === 'bot_blocked' || result.searchMethod === 'site_closed') {
-          if (result.foundKeywords && result.foundKeywords.length > 0) {
+        if (result.searchMethod === 'error' || result.searchMethod === 'dns_error' || result.searchMethod === 'bot_blocked' || result.searchMethod === 'site_closed' || result.searchMethod === 'timeout') {
+          if (result.searchMethod === 'timeout') {
+            outputValue = '処理タイムアウト：サイトの応答が遅いため処理を中断しました';
+            console.log(`Using timeout message: ${outputValue}`);
+          } else if (result.foundKeywords && result.foundKeywords.length > 0) {
             outputValue = result.foundKeywords[0] || 'エラーが発生しました'; // 詳細エラーメッセージ
             console.log(`Using error message: ${outputValue}`);
           } else {
@@ -157,7 +160,7 @@ export function processContactPageFinder() {
     // 【結果出力・完了通知】
     // 出力列に結果を一括書き込み、処理完了ログ出力
     // ==========================================
-    
+
     // 出力列に結果を一括書き込み
     const resultOutputRange = sheet.getRange(startRow, outputColumn, results.length, 1);
     resultOutputRange.setValues(results);
@@ -186,7 +189,7 @@ export function processContactPageFinder() {
  */
 export function test() {
   // テスト用URL（任意に変更可能）
-  const testUrl = 'https://www.alleyoop.co.jp/';
+  const testUrl = 'https://example.co.jp/';
 
   console.log(`\n=== URLFinder テスト実行: ${testUrl} ===`);
   const result = ContactPageFinder.findContactPage(testUrl);
@@ -290,11 +293,33 @@ export function executeCheckedRowsProcessing(): void {
       return;
     }
 
+    // 上限制御チェック
+    const maxCount = Environment.getMaxCount();
+    let processRows = checkedRows;
+
+    if (checkedRows.length > maxCount) {
+      const ui = SpreadsheetApp.getUi();
+      const response = ui.alert(
+        '処理件数上限超過',
+        `チェックされた行数（${checkedRows.length}行）が上限（${maxCount}行）を超えています。\n上限まで処理を続行しますか？`,
+        ui.ButtonSet.YES_NO
+      );
+
+      if (response === ui.Button.NO) {
+        console.log('ユーザーによりチェック行処理がキャンセルされました');
+        return;
+      }
+
+      // 上限まで処理（行番号順）
+      processRows = checkedRows.slice(0, maxCount);
+      console.log(`上限制御により${checkedRows.length}行中${maxCount}行のみ処理します`);
+    }
+
     // 各チェック行を順次処理
     let successCount = 0;
     let failureCount = 0;
 
-    for (const rowNumber of checkedRows) {
+    for (const rowNumber of processRows) {
       try {
         // L列からURL取得
         const url = getUrlFromRow(rowNumber!);
@@ -325,7 +350,12 @@ export function executeCheckedRowsProcessing(): void {
     }
 
     // 完了メッセージ
-    SpreadsheetApp.getUi().alert('処理完了', `チェック行処理が完了しました。成功: ${successCount}件、失敗: ${failureCount}件`, SpreadsheetApp.getUi().ButtonSet.OK);
+    const skippedCount = checkedRows.length - processRows.length;
+    let message = `チェック行処理が完了しました。成功: ${successCount}件、失敗: ${failureCount}件`;
+    if (skippedCount > 0) {
+      message += `\n上限制御によりスキップ: ${skippedCount}件`;
+    }
+    SpreadsheetApp.getUi().alert('処理完了', message, SpreadsheetApp.getUi().ButtonSet.OK);
 
   } catch (error) {
     console.error('チェック行処理エラー:', error);
@@ -360,8 +390,10 @@ export function writeResultToSheet(rowNumber: number, result: ContactPageResult)
   let outputValue = '';
 
   // エラーの場合はエラーメッセージを出力
-  if (result.searchMethod === 'error' || result.searchMethod === 'dns_error' || result.searchMethod === 'bot_blocked' || result.searchMethod === 'site_closed') {
-    if (result.foundKeywords && result.foundKeywords.length > 0) {
+  if (result.searchMethod === 'error' || result.searchMethod === 'dns_error' || result.searchMethod === 'bot_blocked' || result.searchMethod === 'site_closed' || result.searchMethod === 'timeout') {
+    if (result.searchMethod === 'timeout') {
+      outputValue = '処理タイムアウト：サイトの応答が遅いため処理を中断しました';
+    } else if (result.foundKeywords && result.foundKeywords.length > 0) {
       outputValue = result.foundKeywords[0] || 'エラーが発生しました'; // 詳細エラーメッセージ
     } else {
       outputValue = 'エラーが発生しました';
