@@ -34,41 +34,53 @@ export class NetworkUtils {
    * @returns 詳細エラーメッセージ
    */
   static getDetailedNetworkError(error: any): string {
-    if (!error) {
-      return 'Unknown error';
+    const errorString = String(error);
+
+    // DNS関連エラー
+    if (errorString.includes('DNS') || errorString.includes('NXDOMAIN') || errorString.includes('Name or service not known')) {
+      return 'DNS解決失敗: ドメインが存在しません';
     }
 
-    // GASのエラーオブジェクトの場合
-    if (error.message) {
-      const message = error.message.toLowerCase();
-      
-      if (message.includes('timeout')) {
-        return 'Network timeout - サーバーの応答が遅すぎます';
-      } else if (message.includes('dns') || message.includes('name resolution')) {
-        return 'DNS resolution failed - ドメイン名が解決できません';
-      } else if (message.includes('connection refused') || message.includes('connect')) {
-        return 'Connection refused - サーバーに接続できません';
-      } else if (message.includes('ssl') || message.includes('certificate')) {
-        return 'SSL certificate error - 証明書エラー';
-      } else if (message.includes('host')) {
-        return 'Host unreachable - ホストに到達できません';
-      } else if (message.includes('forbidden') || message.includes('403')) {
-        return 'Access forbidden (403) - アクセスが拒否されました';
-      } else if (message.includes('not found') || message.includes('404')) {
-        return 'Page not found (404) - ページが見つかりません';
-      } else if (message.includes('500')) {
-        return 'Server error (500) - サーバー内部エラー';
-      }
-      
-      return `Network error: ${error.message}`;
+    // タイムアウトエラー
+    if (errorString.includes('timeout') || errorString.includes('Timeout')) {
+      return 'タイムアウト: サーバーからの応答が遅すぎます';
     }
 
-    // 文字列エラーの場合
-    if (typeof error === 'string') {
-      return error;
+    // 接続拒否エラー
+    if (errorString.includes('Connection refused') || errorString.includes('ECONNREFUSED')) {
+      return '接続拒否: サーバーが接続を拒否しました';
     }
 
-    return `Unknown network error: ${error.toString()}`;
+    // SSL/TLS関連エラー
+    if (errorString.includes('SSL') || errorString.includes('TLS') || errorString.includes('certificate')) {
+      return 'SSL/TLS証明書エラー: セキュア接続に失敗';
+    }
+
+    // ネットワーク到達不可
+    if (errorString.includes('Network is unreachable') || errorString.includes('ENETUNREACH')) {
+      return 'ネットワーク到達不可: サーバーに到達できません';
+    }
+
+    // ホスト到達不可
+    if (errorString.includes('No route to host') || errorString.includes('EHOSTUNREACH')) {
+      return 'ホスト到達不可: 指定されたホストに到達できません';
+    }
+
+    // GAS固有エラー（Address unavailable等）
+    if (errorString.includes('Address unavailable') ||
+        errorString.includes('Exception:') ||
+        errorString.includes('Request failed') ||
+        errorString.includes('Service unavailable')) {
+      return 'GASエラー: アクセスに失敗しました';
+    }
+
+    // その他のネットワークエラー
+    if (errorString.includes('Failed to fetch') || errorString.includes('Network error')) {
+      return 'ネットワークエラー: 通信に失敗しました';
+    }
+
+    // 不明なエラー
+    return `不明なエラー: ${errorString}`;
   }
 
   /**
@@ -242,6 +254,8 @@ export class NetworkUtils {
         return { available: false, error: 'サイトが見つかりません(404)' };
       } else if (statusCode === 403) {
         return { available: false, error: 'アクセスが拒否されました(403)' };
+      } else if (statusCode === 501) {
+        return { available: false, error: 'Not Implemented - Bot対策によりブロック' };
       } else if (statusCode >= 500) {
         return { available: false, error: 'サーバーエラーが発生しています' };
       } else {
