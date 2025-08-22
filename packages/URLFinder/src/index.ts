@@ -156,12 +156,12 @@ class ContactPageFinder {
         }
 
         // Analyze HTML content for contact links
-        const result = HtmlAnalyzer.analyzeHtmlContent(html, baseUrl);
+        const result = this.analyzeHtmlContent(html, baseUrl);
 
         // If we found a contact page, try to find the actual form within it
         if (result.contactUrl) {
           console.log(`Found contact link on homepage: ${result.contactUrl}`);
-          const formUrl = this.findActualForm(result.contactUrl);
+          const formUrl = HtmlAnalyzer.findActualForm(result.contactUrl);
           result.actualFormUrl = formUrl;
           result.searchMethod = 'homepage_link_fallback';
 
@@ -251,7 +251,98 @@ class ContactPageFinder {
    * - コンテキストボーナス（navigation内 +5点）
    * - 早期終了による高信頼度結果優先
    */
-  // analyzeHtmlContentはHtmlAnalyzerに移植済み
+  /**
+   * Step2フロー: ホームページHTML解析によるフォールバック検索
+   * (元の動作を維持するため復元)
+   */
+  private static analyzeHtmlContent(html: string, baseUrl: string): ContactPageResult {
+    console.log('=== Starting navigation-only HTML analysis ===');
+
+    // Navigation search only
+    console.log('Stage 1: Navigation search');
+    const navResult = NavigationSearcher.searchInNavigation(html, baseUrl);
+    if (navResult.url && navResult.score > 0) {
+      console.log(`Navigation search result: ${navResult.url} (score: ${navResult.score}, reasons: ${navResult.reasons.join(',')})`);
+
+      // 重複回避チェック：Step1で成功したフォームURLのみスキップ（失敗したURLは再検証）
+      const isSuccessfulFormDuplicate = CandidateManager.getSuccessfulFormUrls().includes(navResult.url);
+      if (isSuccessfulFormDuplicate) {
+        console.log(`⏭ Skipping duplicate URL (already succeeded in Step1): ${navResult.url}`);
+      } else {
+        // Check if this is an anchor link for special processing
+        if (SPAAnalyzer.isAnchorLink(navResult.url)) {
+          console.log(`🔍 Anchor link detected: ${navResult.url}, analyzing section content`);
+          const anchorSectionResult = SPAAnalyzer.analyzeAnchorSection(html, navResult.url, baseUrl);
+          if (anchorSectionResult.contactUrl) {
+            console.log(`✅ Found contact info in anchor section: ${anchorSectionResult.contactUrl}`);
+            return anchorSectionResult;
+          }
+        }
+
+        // 新規URLの場合：実際にアクセスしてform検証+Google Forms検証
+        console.log(`🔍 New URL found, performing detailed validation: ${navResult.url}`);
+
+        try {
+          const response = NetworkUtils.fetchWithTimeout(navResult.url, 5000);
+          if (response.getResponseCode() === 200) {
+            const candidateHtml = response.getContentText();
+
+            // A. 標準フォーム検証
+            const isValidForm = FormDetector.isValidContactForm(candidateHtml);
+            if (isValidForm) {
+              console.log(`✅ Standard form confirmed at ${navResult.url}`);
+              return {
+                contactUrl: navResult.url,
+                actualFormUrl: navResult.url,
+                foundKeywords: [...navResult.keywords, 'form_validation_success'],
+                searchMethod: 'homepage_navigation_form'
+              };
+            }
+
+            // B. Google Forms検証
+            const googleFormsResult = HtmlAnalyzer.detectGoogleForms(candidateHtml);
+            if (googleFormsResult.found && googleFormsResult.url) {
+              console.log(`✅ Google Forms confirmed at ${navResult.url} -> ${googleFormsResult.url}`);
+              return {
+                contactUrl: navResult.url,
+                actualFormUrl: googleFormsResult.url,
+                foundKeywords: [...navResult.keywords, 'google_forms', googleFormsResult.type],
+                searchMethod: 'homepage_navigation_google_forms'
+              };
+            }
+
+            // C. キーワードベース判定（Step2の高信頼度fallback）
+            console.log(`No forms detected at ${navResult.url}, checking keyword-based validation...`);
+            if (navResult.score >= 15) { // Navigation + contact keyword = 高信頼度
+              console.log(`✅ Keyword-based validation: Navigation detection + contact keywords (score: ${navResult.score})`);
+              return {
+                contactUrl: navResult.url,
+                actualFormUrl: navResult.url,
+                foundKeywords: [...navResult.keywords, 'keyword_based_validation'],
+                searchMethod: 'homepage_navigation_keyword_based'
+              };
+            }
+
+            console.log(`❌ No valid forms or sufficient keywords at ${navResult.url}`);
+          } else {
+            console.log(`❌ Navigation result returned non-200 status: ${response.getResponseCode()}`);
+          }
+        } catch (error) {
+          console.log(`❌ Error accessing navigation result: ${error}`);
+        }
+      }
+    }
+
+    console.log('Navigation search found no candidates');
+
+    console.log('=== HTML content analysis completed - no viable candidates found ===');
+    return {
+      contactUrl: null,
+      actualFormUrl: null,
+      foundKeywords: [],
+      searchMethod: 'not_found'
+    };
+  }
 
 
   // 200 OK URLsの評価（キーワード検出による問い合わせページ判定）
@@ -310,86 +401,10 @@ class ContactPageFinder {
 
 
 
-  // Google Forms検証（2段階リンク検証）
-  private static detectGoogleForms(html: string): { found: boolean; url: string | null; type: string } {
-    console.log('Starting Google Forms detection...');
-
-    // Google Forms URLパターン
-    const googleFormsPatterns = [
-      // 直接リンク
-      /<a[^>]*href=['"]([^'\"]*docs\.google\.com\/forms\/d\/[a-zA-Z0-9-_]+\/?[^"'\s)]*)['"][^>]*>/gi,
-      // iframe埋め込み
-      /<iframe[^>]*src=['"]([^'\"]*docs\.google\.com\/forms\/d\/[a-zA-Z0-9-_]+\/?[^"'\s)]*)['"][^>]*>/gi
-    ];
-
-    for (let i = 0; i < googleFormsPatterns.length; i++) {
-      const pattern = googleFormsPatterns[i];
-      if (!pattern) continue;
-      const matches = html.match(pattern);
-
-      if (matches && matches.length > 0) {
-        for (const match of matches) {
-          const urlMatch = match.match(/(['"])(.*docs\.google\.com\/forms\/d\/[a-zA-Z0-9-_]+\/?[^"'\s)]*?)\1/);
-          if (urlMatch && urlMatch[2]) {
-            const googleFormUrl = urlMatch[2];
-            const detectionType = i === 0 ? 'direct_link' : 'iframe_embed';
-
-            console.log(`✓ Google Forms detected (${detectionType}): ${googleFormUrl}`);
-            return {
-              found: true,
-              url: googleFormUrl,
-              type: detectionType
-            };
-          }
-        }
-      }
-    }
-
-    console.log('No Google Forms detected');
-    return { found: false, url: null, type: 'none' };
-  }
+  // detectGoogleFormsはHtmlAnalyzerに移植済み
 
 
-  // 候補ページの記録
-  private static logPotentialCandidate(url: string, reason: string, html: string) {
-    const formAnalysis = FormDetector.analyzeFormElements(html);
-
-    const score = this.calculateCandidateScore(url, reason, formAnalysis);
-
-    this.candidatePages.push({
-      url,
-      reason,
-      score,
-      structuredForms: 0, // FormDetectorで分析済み
-      legacyScore: formAnalysis.isValidForm ? 1 : 0
-    });
-
-    console.log(`Candidate logged: ${url} (${reason}, score: ${score})`);
-  }
-
-  // 候補スコア計算
-  private static calculateCandidateScore(
-    url: string,
-    reason: string,
-    formAnalysis: { isValidForm: boolean, reasons: string[] }
-  ): number {
-    let score = 0;
-
-    // URL具体性スコア
-    if (url.includes('/contact-form/')) score += 15;
-    else if (url.includes('/inquiry/')) score += 12;
-    else if (url.includes('/contact/')) score += 8;
-    else if (url.includes('/form/')) score += 10;
-
-    // フォーム解析スコア
-    if (formAnalysis.isValidForm) score += 15; // 構造化フォームスコアを統合
-    score += formAnalysis.reasons.length * 2; // 理由の数に基づくスコア
-
-    // 理由による調整
-    if (reason === 'no_structured_form') score -= 10; // ペナルティ
-
-    return score;
-  }
+  // logPotentialCandidateとcalculateCandidateScoreはCandidateManagerに移植済み
 
   // resetCandidatesはCandidateManagerに移植済み
 
@@ -426,54 +441,9 @@ class ContactPageFinder {
    */
   // searchWithPriorityPatternsはPatternSearcherに移植済み
 
-  private static isValidContactPage(html: string): boolean {
-    // 404ページや無効なページを除外（より厳密なパターンに変更）
-    const invalidPatterns = [
-      'page not found', 'ページが見つかりません', '404 not found',
-      'under construction', '工事中', 'site under construction',
-      'coming soon'
-    ];
+  // isValidContactPageはHtmlAnalyzerに移植済み
 
-    const lowerHtml = html.toLowerCase();
-    const hasInvalidContent = invalidPatterns.some(pattern =>
-      lowerHtml.includes(pattern.toLowerCase())
-    );
-
-    // 最低限のコンテンツ長チェック
-    const hasMinimumContent = html.length > 500;
-
-    console.log(`Validity check - hasInvalidContent: ${hasInvalidContent}, hasMinimumContent: ${hasMinimumContent}, length: ${html.length}`);
-    if (hasInvalidContent) {
-      const matchedPattern = invalidPatterns.find(pattern => lowerHtml.includes(pattern.toLowerCase()));
-      console.log(`Invalid pattern found: ${matchedPattern}`);
-    }
-
-    return !hasInvalidContent && hasMinimumContent;
-  }
-
-  private static getDetailedErrorMessage(statusCode: number): string {
-    const errorMessages: { [key: number]: string } = {
-      400: 'Bad Request - 不正なリクエスト',
-      401: 'Unauthorized - 認証が必要',
-      403: 'Forbidden - アクセス拒否（Bot対策またはアクセス制限）',
-      404: 'Not Found - ページが存在しません',
-      405: 'Method Not Allowed - 許可されていないHTTPメソッド',
-      408: 'Request Timeout - リクエストタイムアウト',
-      429: 'Too Many Requests - レート制限（アクセス過多）',
-      500: 'Internal Server Error - サーバー内部エラー',
-      501: 'Not Implemented - Bot対策によりブロック',
-      502: 'Bad Gateway - ゲートウェイエラー',
-      503: 'Service Unavailable - サービス利用不可（メンテナンス中）',
-      504: 'Gateway Timeout - ゲートウェイタイムアウト',
-      520: 'Web Server Error - Webサーバーエラー（Cloudflare）',
-      521: 'Web Server Down - Webサーバーダウン（Cloudflare）',
-      522: 'Connection Timed Out - 接続タイムアウト（Cloudflare）',
-      523: 'Origin Unreachable - オリジンサーバー到達不可（Cloudflare）',
-      524: 'A Timeout Occurred - タイムアウト発生（Cloudflare）'
-    };
-
-    return errorMessages[statusCode] || `HTTP Error ${statusCode} - 不明なエラー`;
-  }
+  // getDetailedErrorMessageはPatternSearcherに移植済み
 }
 
 /**
