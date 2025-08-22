@@ -4,6 +4,7 @@ import { NavigationSearcher } from './core/navigation/NavigationSearcher';
 import { SPAAnalyzer } from './core/spa/SPAAnalyzer';
 import { FormDetector } from './detectors/FormDetector';
 import { NetworkUtils } from './utils/NetworkUtils';
+import { HtmlAnalyzer } from './analyzers/HtmlAnalyzer';
 
 /**
  * ContactPageFinder - BtoB営業用問い合わせページ自動検索システム
@@ -55,14 +56,7 @@ class ContactPageFinder {
 
 
 
-  // URL推測専用パターン（URL推測でテストするパス）
-  private static readonly HIGH_PRIORITY_PATTERNS = [
-
-    '/contact/', '/contact',  '/contact.php', '/inquiry/','/inquiry', '/inquiry.php',  '/form','/form/',  '/form.php','/contact-us/', '/contact-us',
-    '/%E3%81%8A%E5%95%8F%E3%81%84%E5%90%88%E3%82%8F%E3%81%9B/', // お問い合わせ
-    '/%E5%95%8F%E3%81%84%E5%90%88%E3%82%8F%E3%81%9B/', // 問い合わせ
-
-  ];
+  // HIGH_PRIORITY_PATTERNS moved to HtmlAnalyzer
 
 
 
@@ -177,10 +171,7 @@ class ContactPageFinder {
 
 
 
-  private static readonly FORM_KEYWORDS = [
-    'フォーム', 'form', '入力', '送信',
-    'googleフォーム', 'google form', 'submit'
-  ];
+  // FORM_KEYWORDS moved to HtmlAnalyzer
 
 
 
@@ -660,7 +651,7 @@ class ContactPageFinder {
 
     // 優先度順にパターンをテスト
     const allPatterns = [
-      ...this.HIGH_PRIORITY_PATTERNS,
+      ...HtmlAnalyzer.HIGH_PRIORITY_PATTERNS,
     ];
 
     let testedPatterns = 0;
