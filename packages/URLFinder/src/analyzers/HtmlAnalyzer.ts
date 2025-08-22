@@ -5,6 +5,8 @@
 
 import { FormDetector } from '../detectors/FormDetector';
 import { NavigationSearcher } from '../core/navigation/NavigationSearcher';
+import { SPAAnalyzer } from '../core/spa/SPAAnalyzer';
+import { CandidateManager } from '../core/CandidateManager';
 import { NetworkUtils } from '../utils/NetworkUtils';
 import type { ContactPageResult } from '../types/interfaces';
 
@@ -23,90 +25,95 @@ export class HtmlAnalyzer {
   ];
 
   /**
-   * HTML解析によるコンテンツ分析（index.tsから移植・最適版完全移植）
+   * Step2フロー: ホームページHTML解析によるフォールバック検索
+   * (元のindex.tsのanalyzeHtmlContent関数を完全移植)
    */
   static analyzeHtmlContent(html: string, baseUrl: string): ContactPageResult {
-    console.log('=== HTML Content Analysis ===');
-    console.log(`HTML length: ${html.length}`);
-    console.log(`Base URL: ${baseUrl}`);
+    console.log('=== Starting navigation-only HTML analysis ===');
 
-    // **Phase 1: Google Forms 最優先検索**
-    console.log('Phase 1: Google Forms detection');
-    const googleFormUrl = NetworkUtils.findGoogleFormUrlsOnly(html);
-    if (googleFormUrl && googleFormUrl.startsWith('http')) {
-      console.log(`✅ Google Form URL found: ${googleFormUrl}`);
-      return {
-        contactUrl: googleFormUrl,
-        actualFormUrl: googleFormUrl,
-        foundKeywords: ['google_forms', 'html_analysis'],
-        searchMethod: 'html_analysis_google_forms'
-      };
-    }
+    // Navigation search only
+    console.log('Stage 1: Navigation search');
+    const navResult = NavigationSearcher.searchInNavigation(html, baseUrl);
+    if (navResult.url && navResult.score > 0) {
+      console.log(`Navigation search result: ${navResult.url} (score: ${navResult.score}, reasons: ${navResult.reasons.join(',')})`);
 
-    // **Phase 2: Navigation-based URL discovery**
-    console.log('Phase 2: Navigation-based URL discovery');
-    const navSearchResult = NavigationSearcher.searchInNavigation(html, baseUrl);
-    if (navSearchResult.url) {
-      console.log(`✅ Navigation search found URL: ${navSearchResult.url}`);
-      
-      // 🔥 新URL発見時の詳細検証: 実際にアクセスして検証
-      try {
-        console.log(`🔍 New URL found, performing detailed validation: ${navSearchResult.url}`);
+      // 重複回避チェック：Step1で成功したフォームURLのみスキップ（失敗したURLは再検証）
+      const isSuccessfulFormDuplicate = CandidateManager.getSuccessfulFormUrls().includes(navResult.url);
+      if (isSuccessfulFormDuplicate) {
+        console.log(`⏭ Skipping duplicate URL (already succeeded in Step1): ${navResult.url}`);
+      } else {
+        // Check if this is an anchor link for special processing
+        if (SPAAnalyzer.isAnchorLink(navResult.url)) {
+          console.log(`🔍 Anchor link detected: ${navResult.url}, analyzing section content`);
+          const anchorSectionResult = SPAAnalyzer.analyzeAnchorSection(html, navResult.url, baseUrl);
+          if (anchorSectionResult.contactUrl) {
+            console.log(`✅ Found contact info in anchor section: ${anchorSectionResult.contactUrl}`);
+            return anchorSectionResult;
+          }
+        }
 
-        const response = NetworkUtils.fetchWithTimeout(navSearchResult.url, 5000);
-        if (response.getResponseCode() === 200) {
-          const candidateHtml = response.getContentText();
+        // 新規URLの場合：実際にアクセスしてform検証+Google Forms検証
+        console.log(`🔍 New URL found, performing detailed validation: ${navResult.url}`);
 
-          // フォーム検証: FormDetectorで統合検証
-          const formResult = FormDetector.detectAnyForm(candidateHtml);
+        try {
+          const response = NetworkUtils.fetchWithTimeout(navResult.url, 5000);
+          if (response.getResponseCode() === 200) {
+            const candidateHtml = response.getContentText();
 
-          if (formResult.found) {
-            console.log(`✅ Navigation URL validated with forms: ${navSearchResult.url}`);
-
-            // Google Formsが見つかった場合は実際のGoogle FormsのURLを返す
-            if (formResult.formUrl && formResult.formUrl.startsWith('http')) {
+            // A. 標準フォーム検証
+            const isValidForm = FormDetector.isValidContactForm(candidateHtml);
+            if (isValidForm) {
+              console.log(`✅ Standard form confirmed at ${navResult.url}`);
               return {
-                contactUrl: navSearchResult.url,
-                actualFormUrl: formResult.formUrl,
-                foundKeywords: [...navSearchResult.keywords, 'validated_navigation'],
-                searchMethod: 'html_analysis_navigation_validated'
+                contactUrl: navResult.url,
+                actualFormUrl: navResult.url,
+                foundKeywords: [...navResult.keywords, 'form_validation_success'],
+                searchMethod: 'homepage_navigation_form'
               };
             }
 
-            return {
-              contactUrl: navSearchResult.url,
-              actualFormUrl: navSearchResult.url,
-              foundKeywords: [...navSearchResult.keywords, 'validated_navigation'],
-              searchMethod: 'html_analysis_navigation_validated'
-            };
+            // B. Google Forms検証
+            const googleFormsResult = HtmlAnalyzer.detectGoogleForms(candidateHtml);
+            if (googleFormsResult.found && googleFormsResult.url) {
+              console.log(`✅ Google Forms confirmed at ${navResult.url} -> ${googleFormsResult.url}`);
+              return {
+                contactUrl: navResult.url,
+                actualFormUrl: googleFormsResult.url,
+                foundKeywords: [...navResult.keywords, 'google_forms', googleFormsResult.type],
+                searchMethod: 'homepage_navigation_google_forms'
+              };
+            }
+
+            // C. キーワードベース判定（Step2の高信頼度fallback）
+            console.log(`No forms detected at ${navResult.url}, checking keyword-based validation...`);
+            if (navResult.score >= 15) { // Navigation + contact keyword = 高信頼度
+              console.log(`✅ Keyword-based validation: Navigation detection + contact keywords (score: ${navResult.score})`);
+              return {
+                contactUrl: navResult.url,
+                actualFormUrl: navResult.url,
+                foundKeywords: [...navResult.keywords, 'keyword_based_validation'],
+                searchMethod: 'homepage_navigation_keyword_based'
+              };
+            }
+
+            console.log(`❌ No valid forms or sufficient keywords at ${navResult.url}`);
           } else {
-            console.log(`❌ Navigation URL failed form validation: ${navSearchResult.url}`);
+            console.log(`❌ Navigation result returned non-200 status: ${response.getResponseCode()}`);
           }
+        } catch (error) {
+          console.log(`❌ Error accessing navigation result: ${error}`);
         }
-      } catch (validationError) {
-        console.log(`❌ Navigation URL validation failed: ${validationError}`);
       }
     }
 
-    // **Phase 3: Direct embedded form analysis**
-    console.log('Phase 3: Direct embedded form analysis');
-    const embeddedForm = NetworkUtils.findEmbeddedHTMLForm(html);
-    if (embeddedForm) {
-      console.log(`✅ Embedded HTML form found in page`);
-      return {
-        contactUrl: baseUrl,
-        actualFormUrl: baseUrl,
-        foundKeywords: ['embedded_forms', 'html_analysis'],
-        searchMethod: 'html_analysis_embedded_forms'
-      };
-    }
+    console.log('Navigation search found no candidates');
 
-    console.log('❌ HTML analysis found no contact pages');
+    console.log('=== HTML content analysis completed - no viable candidates found ===');
     return {
       contactUrl: null,
       actualFormUrl: null,
       foundKeywords: [],
-      searchMethod: 'html_analysis_failed'
+      searchMethod: 'not_found'
     };
   }
 
