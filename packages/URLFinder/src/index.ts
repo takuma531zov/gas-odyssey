@@ -5,6 +5,8 @@ import { SPAAnalyzer } from './core/spa/SPAAnalyzer';
 import { FormDetector } from './detectors/FormDetector';
 import { NetworkUtils } from './utils/NetworkUtils';
 import { HtmlAnalyzer } from './analyzers/HtmlAnalyzer';
+import { CandidateManager } from './core/CandidateManager';
+import { PatternSearcher } from './core/PatternSearcher';
 
 /**
  * ContactPageFinder - BtoB営業用問い合わせページ自動検索システム
@@ -27,32 +29,7 @@ import { HtmlAnalyzer } from './analyzers/HtmlAnalyzer';
  * - タイムアウト管理による安定性確保
  */
 class ContactPageFinder {
-  /**
-   * 候補ページ記録システム
-   * Step1で発見されたが確定できなかった候補を保存
-   */
-  private static candidatePages: Array<{
-    url: string,           // 候補URL
-    reason: string,        // 候補理由
-    score: number,         // 信頼度スコア
-    structuredForms: number,  // 構造化フォーム数
-    legacyScore: number    // 旧式スコア（互換性用）
-  }> = [];
-
-  /**
-   * 200 OK URLリスト（フォールバック用）
-   * Step1で200応答したがフォーム検証で失敗したURL群
-   */
-  private static validUrls: Array<{
-    url: string,     // 有効URL
-    pattern: string  // マッチしたパターン
-  }> = [];
-
-  /**
-   * 成功したフォームURLリスト（Step2重複回避用）
-   * 既に検証済みのURLを記録し重複処理を防止
-   */
-  private static successfulFormUrls: Array<string> = [];
+  // 候補管理はCandidateManagerモジュールで統一管理
 
 
 
@@ -62,107 +39,9 @@ class ContactPageFinder {
 
 
 
-  // **NEW: Final Fallback** - Step1の最初の200 OK URLを最終手段として返却
-  private static getFinalFallbackUrl(): ContactPageResult {
-    console.log(`Checking final fallback from ${this.validUrls.length} valid URLs`);
+  // getFinalFallbackUrlはCandidateManagerに移植済み
 
-    if (this.validUrls.length === 0) {
-      console.log('No valid URLs available for final fallback');
-      return {
-        contactUrl: null,
-        actualFormUrl: null,
-        foundKeywords: [],
-        searchMethod: 'no_fallback_available'
-      };
-    }
-
-    // 優先度順にcontact関連URLを探す
-    const contactPriorityPatterns = [
-      '/contact/',
-      '/contact',
-      '/inquiry/',
-      '/inquiry',
-      '/form/',
-      '/form'
-    ];
-
-    // 高優先度contact patternを探す
-    for (const priorityPattern of contactPriorityPatterns) {
-      const matchingUrl = this.validUrls.find(urlInfo =>
-        urlInfo.pattern === priorityPattern
-      );
-      if (matchingUrl) {
-        console.log(`Final fallback: Using high-priority contact URL ${matchingUrl.url} (pattern: ${matchingUrl.pattern})`);
-        return {
-          contactUrl: matchingUrl.url,
-          actualFormUrl: matchingUrl.url,
-          foundKeywords: ['final_fallback', 'high_priority_contact_pattern', matchingUrl.pattern.replace(/\//g, '')],
-          searchMethod: 'final_fallback_priority_contact'
-        };
-      }
-    }
-
-    // 高優先度がない場合、最初の200 OK URLを使用
-    const firstValidUrl = this.validUrls[0];
-    if (!firstValidUrl) {
-      console.log('No valid URLs available in array');
-      return {
-        contactUrl: null,
-        actualFormUrl: null,
-        foundKeywords: [],
-        searchMethod: 'no_valid_urls'
-      };
-    }
-
-    console.log(`Final fallback: Using first valid URL ${firstValidUrl.url} (pattern: ${firstValidUrl.pattern})`);
-
-    // URLの品質を評価
-    const qualityScore = this.evaluateFallbackUrlQuality(firstValidUrl.url, firstValidUrl.pattern);
-
-    return {
-      contactUrl: firstValidUrl.url,
-      actualFormUrl: firstValidUrl.url,
-      foundKeywords: ['final_fallback', 'first_valid_url', firstValidUrl.pattern.replace(/\//g, ''), ...qualityScore.keywords],
-      searchMethod: qualityScore.confidence >= 0.7 ? 'final_fallback_high_confidence' : 'final_fallback_low_confidence'
-    };
-  }
-
-  // **NEW: Fallback URL Quality Evaluation** - フォールバックURLの品質評価
-  private static evaluateFallbackUrlQuality(url: string, pattern: string): { confidence: number, keywords: string[] } {
-    let confidence = 0.5; // ベーススコア
-    const keywords: string[] = [];
-
-    // 高信頼度パターン
-    const highConfidencePatterns = ['/contact/', '/contact', '/inquiry/', '/inquiry'];
-    if (highConfidencePatterns.includes(pattern)) {
-      confidence += 0.3;
-      keywords.push('high_confidence_pattern');
-    }
-
-    // 中信頼度パターン
-    const mediumConfidencePatterns = ['/form/', '/form'];
-    if (mediumConfidencePatterns.includes(pattern)) {
-      confidence += 0.1;
-      keywords.push('medium_confidence_pattern');
-    }
-
-    // URL内のcontactキーワードチェック（ドメイン除外）
-    const urlPath = url.replace(/https?:\/\/[^/]+/, ''); // ドメインを除外
-    const contactKeywords = ['contact', 'inquiry', 'form', 'お問い合わせ', '問い合わせ'];
-
-    for (const keyword of contactKeywords) {
-      if (urlPath.toLowerCase().includes(keyword.toLowerCase())) {
-        confidence += 0.1;
-        keywords.push(`path_contains_${keyword}`);
-      }
-    }
-
-    // 信頼度を上限で制限
-    confidence = Math.min(confidence, 1.0);
-
-    console.log(`URL quality evaluation for ${url}: confidence=${confidence.toFixed(2)}, keywords=[${keywords.join(', ')}]`);
-    return { confidence, keywords };
-  }
+  // evaluateFallbackUrlQualityはCandidateManagerに移植済み
 
 
   // 早期終了用の閾値定義とタイムアウト設定は env.ts で管理
@@ -201,7 +80,7 @@ class ContactPageFinder {
 
     try {
       // 候補リストのリセット（新しい検索開始時）
-      this.resetCandidates();
+      CandidateManager.resetCandidates();
 
       // SNSページの検出
       if (NetworkUtils.isSNSPage(baseUrl)) {
@@ -235,7 +114,7 @@ class ContactPageFinder {
 
       // STEP 1: URL pattern guessing with integrated SPA detection (HIGHEST PRIORITY - Fast & Accurate)
       console.log('Step 1: URL pattern guessing with SPA optimization (primary strategy)');
-      const priorityResult = this.searchWithPriorityPatterns(domainUrl, startTime);
+      const priorityResult = PatternSearcher.searchWithPriorityPatterns(domainUrl, startTime);
       if (priorityResult.contactUrl) {
         console.log(`✅ Found via URL pattern search: ${priorityResult.contactUrl}`);
         return priorityResult;
@@ -277,7 +156,7 @@ class ContactPageFinder {
         }
 
         // Analyze HTML content for contact links
-        const result = this.analyzeHtmlContent(html, baseUrl);
+        const result = HtmlAnalyzer.analyzeHtmlContent(html, baseUrl);
 
         // If we found a contact page, try to find the actual form within it
         if (result.contactUrl) {
@@ -322,7 +201,7 @@ class ContactPageFinder {
 
       // FINAL FALLBACK: Return first valid contact URL from Step1 if available
       console.log('All search methods failed, checking final fallback...');
-      const fallbackResult = this.getFinalFallbackUrl();
+      const fallbackResult = CandidateManager.getFinalFallbackUrl();
       if (fallbackResult.contactUrl) {
         console.log(`✅ Final fallback successful: ${fallbackResult.contactUrl}`);
         return fallbackResult;
@@ -372,100 +251,7 @@ class ContactPageFinder {
    * - コンテキストボーナス（navigation内 +5点）
    * - 早期終了による高信頼度結果優先
    */
-  private static analyzeHtmlContent(html: string, baseUrl: string): ContactPageResult {
-    console.log('=== Starting navigation-only HTML analysis ===');
-
-    // Navigation search only
-    console.log('Stage 1: Navigation search');
-    const navResult = NavigationSearcher.searchInNavigation(html, baseUrl);
-    if (navResult.url && navResult.score > 0) {
-      console.log(`Navigation search result: ${navResult.url} (score: ${navResult.score}, reasons: ${navResult.reasons.join(',')})`);
-
-      // 重複回避チェック：Step1で成功したフォームURLのみスキップ（失敗したURLは再検証）
-      const isSuccessfulFormDuplicate = this.successfulFormUrls.includes(navResult.url);
-      if (isSuccessfulFormDuplicate) {
-        console.log(`⏭ Skipping duplicate URL (already succeeded in Step1): ${navResult.url}`);
-      } else {
-        // Check if this is an anchor link for special processing
-        if (SPAAnalyzer.isAnchorLink(navResult.url)) {
-          console.log(`🔍 Anchor link detected: ${navResult.url}, analyzing section content`);
-          const anchorSectionResult = SPAAnalyzer.analyzeAnchorSection(html, navResult.url, baseUrl);
-          if (anchorSectionResult.contactUrl) {
-            console.log(`✅ Found contact info in anchor section: ${anchorSectionResult.contactUrl}`);
-            return anchorSectionResult;
-          }
-        }
-
-        // 新規URLの場合：実際にアクセスしてform検証+Google Forms検証
-        console.log(`🔍 New URL found, performing detailed validation: ${navResult.url}`);
-
-        try {
-          const response = NetworkUtils.fetchWithTimeout(navResult.url, 5000);
-          if (response.getResponseCode() === 200) {
-            const candidateHtml = response.getContentText();
-
-            // A. 標準フォーム検証
-            const isValidForm = FormDetector.isValidContactForm(candidateHtml);
-            if (isValidForm) {
-              console.log(`✅ Standard form confirmed at ${navResult.url}`);
-              return {
-                contactUrl: navResult.url,
-                actualFormUrl: navResult.url,
-                foundKeywords: [...navResult.keywords, 'form_validation_success'],
-                searchMethod: 'homepage_navigation_form'
-              };
-            }
-
-            // B. Google Forms検証
-            const googleFormsResult = this.detectGoogleForms(candidateHtml);
-            if (googleFormsResult.found && googleFormsResult.url) {
-              console.log(`✅ Google Forms confirmed at ${navResult.url} -> ${googleFormsResult.url}`);
-              return {
-                contactUrl: navResult.url,
-                actualFormUrl: googleFormsResult.url,
-                foundKeywords: [...navResult.keywords, 'google_forms', googleFormsResult.type],
-                searchMethod: 'homepage_navigation_google_forms'
-              };
-            }
-
-            // C. キーワードベース判定（Step2の高信頼度fallback）
-            console.log(`No forms detected at ${navResult.url}, checking keyword-based validation...`);
-            if (navResult.score >= 15) { // Navigation + contact keyword = 高信頼度
-              console.log(`✅ Keyword-based validation: Navigation detection + contact keywords (score: ${navResult.score})`);
-              return {
-                contactUrl: navResult.url,
-                actualFormUrl: navResult.url,
-                foundKeywords: [...navResult.keywords, 'keyword_based_validation'],
-                searchMethod: 'homepage_navigation_keyword_based'
-              };
-            }
-
-            console.log(`❌ No valid forms or sufficient keywords at ${navResult.url}`);
-          } else {
-            console.log(`❌ Navigation result returned non-200 status: ${response.getResponseCode()}`);
-          }
-        } catch (error) {
-          console.log(`❌ Error accessing navigation result: ${error}`);
-        }
-      }
-    }
-
-    console.log('Navigation search found no candidates');
-
-
-
-
-
-    // Stage 2 removed: evaluateValidUrls discontinued (Step3 廃止)
-
-    console.log('=== HTML content analysis completed - no viable candidates found ===');
-    return {
-      contactUrl: null,
-      actualFormUrl: null,
-      foundKeywords: [],
-      searchMethod: 'not_found'
-    };
-  }
+  // analyzeHtmlContentはHtmlAnalyzerに移植済み
 
 
   // 200 OK URLsの評価（キーワード検出による問い合わせページ判定）
@@ -605,12 +391,7 @@ class ContactPageFinder {
     return score;
   }
 
-  // 候補リストのリセット（新しい検索開始時）
-  private static resetCandidates() {
-    this.candidatePages = [];
-    this.validUrls = [];
-    this.successfulFormUrls = [];
-  }
+  // resetCandidatesはCandidateManagerに移植済み
 
   // 候補を活用したfallback処理
 
@@ -643,160 +424,7 @@ class ContactPageFinder {
    * - 成功時の早期終了
    * - タイムアウト管理による無限ループ防止
    */
-  private static searchWithPriorityPatterns(domainUrl: string, startTime: number): ContactPageResult {
-    // 200 OK URLリストをリセット
-    this.validUrls = [];
-    const maxTotalTime = Environment.getMaxTotalTime();
-    console.log('Starting priority-based URL pattern search with integrated SPA detection');
-
-    // 優先度順にパターンをテスト
-    const allPatterns = [
-      ...HtmlAnalyzer.HIGH_PRIORITY_PATTERNS,
-    ];
-
-    let testedPatterns = 0;
-    let structuredFormPages = 0;
-    const testedUrls: string[] = []; // For SPA detection
-    const htmlResponses: string[] = []; // Store HTML for SPA analysis
-
-    for (const pattern of allPatterns) {
-      // タイムアウトチェック
-      if (Date.now() - startTime > maxTotalTime) {
-        console.log('Timeout during priority search');
-        break;
-      }
-
-      try {
-        const testUrl = domainUrl.replace(/\/$/, '') + pattern;
-        console.log(`Testing: ${testUrl}`);
-        testedPatterns++;
-
-        const response = NetworkUtils.fetchWithTimeout(testUrl, 5000); // 5秒タイムアウト
-
-        if (response.getResponseCode() === 200) {
-          const html = response.getContentText();
-          console.log(`Got HTML content for ${testUrl}, length: ${html.length}`);
-
-          // **SPA OPTIMIZATION: Detect same HTML pattern and apply anchor analysis**
-          testedUrls.push(testUrl);
-          htmlResponses.push(html);
-
-          // Check for SPA pattern after 2nd URL
-          if (testedUrls.length >= 2 && SPAAnalyzer.detectSameHtmlPattern(testedUrls, html)) {
-            console.log('Single Page Application detected: same HTML returned for multiple URLs');
-            console.log('Executing anchor-based analysis to optimize remaining URL tests');
-
-            // Try anchor analysis on the current HTML (represents the homepage content)
-            const anchorResult = SPAAnalyzer.executeSPAAnalysis(html, domainUrl);
-            if (anchorResult.contactUrl) {
-              console.log(`✅ SPA optimization successful: ${anchorResult.contactUrl}`);
-              console.log(`Skipping remaining ${allPatterns.length - testedPatterns} URL pattern tests`);
-              return anchorResult;
-            }
-
-            console.log('SPA detected but anchor analysis unsuccessful, continuing with remaining URL tests');
-          }
-
-          // ページの有効性を確認
-          if (this.isValidContactPage(html)) {
-            console.log(`${testUrl} passed validity check`);
-
-            // 200 OK URLを記録（フォールバック用）
-            this.validUrls.push({ url: testUrl, pattern: pattern });
-
-            // シンプルな2段階問い合わせフォーム判定
-            const isContactForm = FormDetector.isValidContactForm(html);
-            console.log(`Pattern ${pattern}: 200 OK, contact form: ${isContactForm}`);
-
-            if (isContactForm) {
-              structuredFormPages++;
-              console.log(`✅ Contact form confirmed at ${testUrl} - form elements + contact submit confirmed`);
-
-              // 成功したURLを記録（Step2重複回避用）
-              this.successfulFormUrls.push(testUrl);
-
-              // 問い合わせフォーム確認済み → 即座に成功
-              return {
-                contactUrl: testUrl,
-                actualFormUrl: testUrl, // シンプルに同じURLを返す
-                foundKeywords: [pattern.replace(/\//g, ''), 'contact_form_confirmed'],
-                searchMethod: 'contact_form_priority_search'
-              };
-            } else {
-              // フォーム検証失敗 → Google Forms検証を実行
-              console.log(`No standard form found at ${testUrl}, checking for Google Forms...`);
-
-              const googleFormsResult = this.detectGoogleForms(html);
-              if (googleFormsResult.found && googleFormsResult.url) {
-                console.log(`✅ Google Forms found at ${testUrl} -> ${googleFormsResult.url}`);
-
-                // 成功したURLを記録（Step2重複回避用）
-                this.successfulFormUrls.push(testUrl);
-
-                return {
-                  contactUrl: testUrl,
-                  actualFormUrl: googleFormsResult.url,
-                  foundKeywords: [pattern.replace(/\//g, ''), 'google_forms', googleFormsResult.type],
-                  searchMethod: 'google_forms_priority_search'
-                };
-              }
-
-              // Google Formsも見つからない → 候補として記録して継続
-              console.log(`No contact forms found at ${testUrl}, logging as candidate and continuing`);
-              this.logPotentialCandidate(testUrl, 'no_contact_form', html);
-              continue; // 次のパターンへ
-            }
-          } else {
-            console.log(`${testUrl} failed validity check`);
-          }
-        } else {
-          const statusCode = response.getResponseCode();
-          const detailedError = this.getDetailedErrorMessage(statusCode);
-          console.log(`${testUrl} returned status code: ${statusCode} - ${detailedError}`);
-
-          // Bot対策エラー（403, 501）の場合は即座に処理を中断
-          if (statusCode === 403 || statusCode === 501) {
-            console.log(`Bot blocking detected (${statusCode}), breaking priority pattern search`);
-            return {
-              contactUrl: null,
-              actualFormUrl: null,
-              foundKeywords: [detailedError],
-              searchMethod: 'bot_blocked'
-            };
-          }
-        }
-      } catch (error) {
-        const detailedError = NetworkUtils.getDetailedNetworkError(error);
-        console.log(`Error testing ${pattern}: ${detailedError}`);
-
-        // DNS解決失敗の場合は即座に処理を中断
-        if (detailedError.includes('DNS解決失敗')) {
-          console.log('DNS resolution failed, breaking priority pattern search');
-          return {
-            contactUrl: null,
-            actualFormUrl: null,
-            foundKeywords: [detailedError],
-            searchMethod: 'dns_error'
-          };
-        }
-
-        continue;
-      }
-    }
-
-    // パターン検索完了のサマリー
-    console.log(`=== Pattern Search Summary ===`);
-    console.log(`Tested patterns: ${testedPatterns}`);
-    console.log(`Structured form pages: ${structuredFormPages}`);
-    console.log(`Candidate pages: ${this.candidatePages.length}`);
-
-    return {
-      contactUrl: null,
-      actualFormUrl: null,
-      foundKeywords: ['priority_search_no_structured_forms'],
-      searchMethod: 'priority_search_failed'
-    };
-  }
+  // searchWithPriorityPatternsはPatternSearcherに移植済み
 
   private static isValidContactPage(html: string): boolean {
     // 404ページや無効なページを除外（より厳密なパターンに変更）
