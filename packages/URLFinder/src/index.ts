@@ -27,7 +27,9 @@ import { PatternSearcher } from './core/PatternSearcher';
  * - タイムアウト管理による安定性確保
  */
 class ContactPageFinder {
-  // 候補管理はCandidateManagerモジュールで統一管理
+  // モジュール分離完了: 主要機能は特化モジュールに移植済み
+  // CandidateManager(候補管理), HtmlAnalyzer(解析), PatternSearcher(検索),
+  // NetworkUtils(通信), FormDetector(フォーム検出)に分離
 
 
 
@@ -267,62 +269,8 @@ class ContactPageFinder {
   // 動的サイト用厳格キーワード検証
 
 
-  private static findActualForm(contactPageUrl: string): string | null {
-    try {
-      const response = NetworkUtils.fetchWithTimeout(contactPageUrl, 5000); // 5秒タイムアウト
-      const html = response.getContentText();
-
-      // 1. まず、Google Formsを最優先で検索
-      const googleFormUrl = NetworkUtils.findGoogleFormUrlsOnly(html);
-      if (googleFormUrl && googleFormUrl.startsWith('http')) {
-        console.log(`Found Google Form in contact page: ${googleFormUrl}`);
-        return googleFormUrl;
-      }
-
-      // 2. 埋め込みフォームの検出
-      const embeddedForm = NetworkUtils.findEmbeddedHTMLForm(html);
-      if (embeddedForm) {
-        console.log(`Found embedded form in contact page`);
-        return contactPageUrl; // Fix: Return actual contact page URL instead of placeholder
-      }
-
-      // 3. ２段階リンク検出: より詳細なフォームページへのリンクを探す
-      const secondStageFormUrl = NetworkUtils.findSecondStageFormLink(html, contactPageUrl);
-      if (secondStageFormUrl) {
-        console.log(`Found second-stage form link: ${secondStageFormUrl}`);
-        return secondStageFormUrl;
-      }
-
-      return null;
-    } catch (error) {
-      console.error(`Error fetching contact page ${contactPageUrl}:`, error);
-      return null;
-    }
-  }
-
-
-  // トップページURLかどうかを判定（２段階リンク検出での除外用）
-
-
-
-
-
-
-  // detectGoogleFormsはHtmlAnalyzerに移植済み
-
-
-  // logPotentialCandidateとcalculateCandidateScoreはCandidateManagerに移植済み
-
-  // resetCandidatesはCandidateManagerに移植済み
-
-  // 候補を活用したfallback処理
-
-
-
-
-
-
-
+  // 移植済み関数: findActualForm, detectGoogleForms, logPotentialCandidate, 
+  // calculateCandidateScore, resetCandidatesは各モジュールに移植完了
 
   /**
    * Step1フロー: URLパターン推測による高速検索
@@ -786,3 +734,4 @@ declare const global: any;
 
 global.executeUrlFinderWithUI = executeUrlFinderWithUI;
 
+global.processContactPageFinder = processContactPageFinder;
