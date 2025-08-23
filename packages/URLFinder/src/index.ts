@@ -5,6 +5,7 @@ import { NetworkUtils } from './utils/NetworkUtils';
 import { HtmlAnalyzer } from './analyzers/HtmlAnalyzer';
 import { CandidateManager } from './core/CandidateManager';
 import { PatternSearcher } from './core/PatternSearcher';
+import { SpreadsheetProcessor } from './processors/SpreadsheetProcessor';
 
 /**
  * ContactPageFinder - BtoB営業用問い合わせページ自動検索システム
@@ -327,7 +328,7 @@ function executeUrlFinderWithUI(): void {
   try {
     // チェック行数を取得
     const checkedCount = getCheckedRowsCount();
-    const maxCount = getMaxCountSetting();
+    const maxCount = SpreadsheetProcessor.getMaxCountSetting();
 
     // 実行オプション選択ダイアログを表示
     const htmlTemplate = HtmlService.createTemplateFromFile('simple-options');
@@ -698,37 +699,6 @@ function getCheckedRowsCount(): number {
   }
 }
 
-/**
- * MAX_COUNT設定値を取得
- */
-function getMaxCountSetting(): number {
-  try {
-    console.log('PropertiesService.getScriptProperties()実行中...');
-    const properties = PropertiesService.getScriptProperties();
-    console.log('プロパティサービス取得完了');
-
-    console.log('MAX_COUNTプロパティ取得中...');
-    const maxCountStr = properties.getProperty('MAX_COUNT');
-    console.log(`MAX_COUNTプロパティ値: "${maxCountStr}"`);
-
-    if (!maxCountStr) {
-      console.log('MAX_COUNTが未設定、デフォルト値10を使用');
-      return 10;
-    }
-
-    const parsed = parseInt(maxCountStr, 10);
-    if (isNaN(parsed) || parsed <= 0) {
-      console.log(`MAX_COUNTの値が無効: "${maxCountStr}", デフォルト値10を使用`);
-      return 10;
-    }
-
-    console.log(`MAX_COUNT設定値: ${parsed}`);
-    return parsed;
-  } catch (error) {
-    console.error('getMaxCountSetting()エラー:', error);
-    return 10; // デフォルト値
-  }
-}
 
 declare const global: any;
 
