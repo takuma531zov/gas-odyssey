@@ -523,7 +523,7 @@ private static readonly CONTACT_KEYWORDS = [
       this.resetCandidates();
 
       // SNSページの検出
-      if (this.isSNSPage(baseUrl)) {
+      if (NetworkUtils.isSNSPage(baseUrl)) {
         console.log(`SNS page detected: ${baseUrl}, returning not found`);
         return {
           contactUrl: null,
@@ -548,7 +548,7 @@ private static readonly CONTACT_KEYWORDS = [
       console.log(`Domain is available, proceeding with contact search`);
 
       // Extract domain for subdirectory pattern support
-      const domainUrl = this.extractDomain(baseUrl);
+      const domainUrl = NetworkUtils.extractDomain(baseUrl);
 
       console.log(`Starting contact page search for: ${baseUrl}`);
 
@@ -966,7 +966,7 @@ private static readonly CONTACT_KEYWORDS = [
       const totalScore = purityResult.score + 5; // navigation context bonus
 
       if (totalScore > 0) {
-        const fullUrl = this.resolveUrl(url, baseUrl);
+        const fullUrl = NetworkUtils.resolveUrl(url, baseUrl);
         candidates.push({
           url: fullUrl,
           keywords: purityResult.reasons.map(r => r.split(':')[1] || r),
@@ -1043,7 +1043,7 @@ private static readonly CONTACT_KEYWORDS = [
 
       // Only consider candidates with positive scores
       if (totalScore > 0) {
-        const fullUrl = this.resolveUrl(url, baseUrl);
+        const fullUrl = NetworkUtils.resolveUrl(url, baseUrl);
         candidates.push({
           url: fullUrl,
           keywords: purityResult.reasons.map(r => r.split(':')[1] || r),
@@ -1091,33 +1091,6 @@ private static readonly CONTACT_KEYWORDS = [
     return { url: null, keywords: [], score: 0, reasons: [], linkText: '' };
   }
 
-  private static resolveUrl(url: string, baseUrl: string): string {
-    // Skip invalid or non-web URLs
-    if (url.startsWith('mailto:') || url.startsWith('javascript:') || url.startsWith('tel:')) {
-      return url; // Return as-is but these should be filtered out in calling code
-    }
-
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-      return url;
-    }
-
-    // Extract protocol and host from baseUrl manually
-    const protocolMatch = baseUrl.match(/^https?:/);
-    const hostMatch = baseUrl.match(/^https?:\/\/([^\/]+)/);
-
-    if (!protocolMatch || !hostMatch) {
-      return url;
-    }
-
-    const protocol = protocolMatch[0];
-    const host = hostMatch[1];
-
-    if (url.startsWith('/')) {
-      return `${protocol}//${host}${url}`;
-    }
-
-    return `${protocol}//${host}/${url}`;
-  }
 
   private static findActualForm(contactPageUrl: string): string | null {
     try {
@@ -1201,7 +1174,7 @@ private static readonly CONTACT_KEYWORDS = [
       }
 
       // トップページ除外チェック（２段階リンク検出の精度向上）
-      if (this.isHomepageUrl(url, contactPageUrl)) {
+      if (NetworkUtils.isHomepageUrl(url, contactPageUrl)) {
         console.log(`Skipping homepage URL: ${url}`);
         continue; // トップページリンクをスキップ
       }
@@ -1232,7 +1205,7 @@ private static readonly CONTACT_KEYWORDS = [
 
       // スコアが1以上の場合候補として追加
       if (score > 0) {
-        const fullUrl = this.resolveUrl(url, contactPageUrl);
+        const fullUrl = NetworkUtils.resolveUrl(url, contactPageUrl);
         candidateLinks.push({
           url: fullUrl,
           score: score,
@@ -1289,36 +1262,6 @@ private static readonly CONTACT_KEYWORDS = [
     return null;
   }
 
-  // トップページURLかどうかを判定（２段階リンク検出での除外用）
-  private static isHomepageUrl(url: string, baseUrl: string): boolean {
-    // 相対URLを絶対URLに変換
-    const fullUrl = this.resolveUrl(url, baseUrl);
-
-    // ベースドメインを抽出
-    const baseDomain = this.extractDomain(baseUrl);
-
-    // トップページパターン
-    const homepagePatterns = [
-      baseDomain,                     // https://example.com/
-      baseDomain.replace(/\/$/, ''),  // https://example.com
-      baseDomain + 'index.html',
-      baseDomain + 'index.htm',
-      baseDomain + 'index.php',
-      baseDomain + 'home/',
-      baseDomain + 'home'
-    ];
-
-    // 完全一致チェック
-    const isHomepage = homepagePatterns.some(pattern =>
-      fullUrl.toLowerCase() === pattern.toLowerCase()
-    );
-
-    if (isHomepage) {
-      console.log(`Detected homepage URL: ${fullUrl} matches pattern in ${homepagePatterns.join(',')}`);
-    }
-
-    return isHomepage;
-  }
 
   // 統合フォーム解析：フォーム要素 + キーワード + 送信要素の3要素統合
   private static analyzeFormElements(html: string): { isValidForm: boolean, reasons: string[], keywords: string[] } {
@@ -2437,39 +2380,7 @@ private static readonly CONTACT_KEYWORDS = [
     }
   }
 
-  private static isSNSPage(url: string): boolean {
-    const snsPatterns = [
-      'facebook.com',
-      'twitter.com',
-      'x.com',
-      'instagram.com',
-      'linkedin.com',
-      'youtube.com',
-      'tiktok.com',
-      'line.me',
-      'ameba.jp',
-      'note.com',
-      'qiita.com'
-    ];
 
-    const lowerUrl = url.toLowerCase();
-    return snsPatterns.some(pattern => lowerUrl.includes(pattern));
-  }
-
-  private static extractDomain(url: string): string {
-    // Extract protocol and host from URL
-    const protocolMatch = url.match(/^https?:/);
-    const hostMatch = url.match(/^https?:\/\/([^\/]+)/);
-
-    if (!protocolMatch || !hostMatch) {
-      return url;
-    }
-
-    const protocol = protocolMatch[0];
-    const host = hostMatch[1];
-
-    return `${protocol}//${host}/`;
-  }
 
 
 }

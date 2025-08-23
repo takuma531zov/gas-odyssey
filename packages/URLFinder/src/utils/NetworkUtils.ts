@@ -136,4 +136,114 @@ export class NetworkUtils {
 
     return errorMessages[statusCode] || `HTTP Error ${statusCode} - 不明なエラー`;
   }
+
+  /**
+   * SNSページ判定
+   * @param url 判定対象URL
+   * @returns SNSページかどうか
+   */
+  static isSNSPage(url: string): boolean {
+    const snsPatterns = [
+      'facebook.com',
+      'twitter.com',
+      'x.com',
+      'instagram.com',
+      'linkedin.com',
+      'youtube.com',
+      'tiktok.com',
+      'line.me',
+      'ameba.jp',
+      'note.com',
+      'qiita.com'
+    ];
+
+    const lowerUrl = url.toLowerCase();
+    return snsPatterns.some(pattern => lowerUrl.includes(pattern));
+  }
+
+  /**
+   * URLからドメイン部分を抽出
+   * @param url 対象URL
+   * @returns ドメイン部分（protocol://host/形式）
+   */
+  static extractDomain(url: string): string {
+    // Extract protocol and host from URL
+    const protocolMatch = url.match(/^https?:/);
+    const hostMatch = url.match(/^https?:\/\/([^\/]+)/);
+
+    if (!protocolMatch || !hostMatch) {
+      return url;
+    }
+
+    const protocol = protocolMatch[0];
+    const host = hostMatch[1];
+
+    return `${protocol}//${host}/`;
+  }
+
+  /**
+   * 相対URLを絶対URLに変換
+   * @param url 変換対象URL
+   * @param baseUrl ベースURL
+   * @returns 絶対URL
+   */
+  static resolveUrl(url: string, baseUrl: string): string {
+    // Skip invalid or non-web URLs
+    if (url.startsWith('mailto:') || url.startsWith('javascript:') || url.startsWith('tel:')) {
+      return url; // Return as-is but these should be filtered out in calling code
+    }
+
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+
+    // Extract protocol and host from baseUrl manually
+    const protocolMatch = baseUrl.match(/^https?:/);
+    const hostMatch = baseUrl.match(/^https?:\/\/([^\/]+)/);
+
+    if (!protocolMatch || !hostMatch) {
+      return url;
+    }
+
+    const protocol = protocolMatch[0];
+    const host = hostMatch[1];
+
+    if (url.startsWith('/')) {
+      return `${protocol}//${host}${url}`;
+    }
+
+    return `${protocol}//${host}/${url}`;
+  }
+
+  /**
+   * トップページURLかどうかを判定
+   * @param url 判定対象URL
+   * @param baseUrl ベースURL
+   * @returns トップページかどうか
+   */
+  static isHomepageUrl(url: string, baseUrl: string): boolean {
+    // 相対URLを絶対URLに変換
+    const fullUrl = this.resolveUrl(url, baseUrl);
+
+    // ベースドメインを抽出
+    const baseDomain = this.extractDomain(baseUrl);
+
+    // トップページパターン
+    const homepagePatterns = [
+      baseDomain,                     // https://example.com/
+      baseDomain.replace(/\/$/, ''),  // https://example.com
+      baseDomain + 'index.html',
+      baseDomain + 'index.htm',
+      baseDomain + 'index.php',
+      baseDomain + 'home/',
+      baseDomain + 'home'
+    ];
+
+    // 完全一致チェック
+    const isHomepage = homepagePatterns.some(pattern =>
+      fullUrl.toLowerCase() === pattern.toLowerCase()
+    );
+
+    return isHomepage;
+  }
 }
