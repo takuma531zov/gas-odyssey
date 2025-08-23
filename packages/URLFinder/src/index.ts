@@ -1,5 +1,8 @@
 import { Environment } from './env';
 import type { ContactPageResult } from './types/interfaces';
+import { StringUtils } from './utils/StringUtils';
+import { FormUtils } from './utils/FormUtils';
+import { NetworkUtils } from './utils/NetworkUtils';
 
 /**
  * ContactPageFinder - BtoB営業用問い合わせページ自動検索システム
@@ -97,7 +100,7 @@ private static readonly CONTACT_KEYWORDS = [
   private static sameHtmlCache: { [url: string]: string } = {};
   
   private static detectSameHtmlPattern(urls: string[], htmlContent: string): boolean {
-    const contentHash = this.hashString(htmlContent);
+    const contentHash = StringUtils.hashString(htmlContent);
     let sameCount = 0;
     
     for (const url of urls) {
@@ -112,15 +115,6 @@ private static readonly CONTACT_KEYWORDS = [
     return sameCount >= 2;
   }
 
-  private static hashString(str: string): string {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // Convert to 32-bit integer
-    }
-    return hash.toString(16);
-  }
 
   // **NEW: Final Fallback** - Step1の最初の200 OK URLを最終手段として返却
   private static getFinalFallbackUrl(): ContactPageResult {
@@ -319,7 +313,7 @@ private static readonly CONTACT_KEYWORDS = [
       
       // Navigation search for anchor links in the current HTML
       const navResult = this.searchInNavigation(html, baseUrl);
-      if (navResult.url && this.isAnchorLink(navResult.url)) {
+      if (navResult.url && StringUtils.isAnchorLink(navResult.url)) {
         console.log(`Anchor link found in SPA navigation: ${navResult.url}`);
         
         // Analyze the corresponding section in the same HTML
@@ -351,10 +345,6 @@ private static readonly CONTACT_KEYWORDS = [
     }
   }
 
-  // **NEW: Check if URL is an anchor link**
-  private static isAnchorLink(url: string): boolean {
-    return url.includes('#');
-  }
 
   // **NEW: Analyze anchor section content**
   private static analyzeAnchorSection(html: string, anchorUrl: string, baseUrl: string): ContactPageResult {
@@ -502,15 +492,6 @@ private static readonly CONTACT_KEYWORDS = [
     'googleフォーム', 'google form', 'submit'
   ];
 
-  // 送信系ボタンキーワード（BtoB問い合わせ特化）
-  private static readonly SUBMIT_BUTTON_KEYWORDS = [
-    // 基本送信キーワード
-    '送信', '送る', 'submit', 'send',
-
-    // 問い合わせ関連のみ（営業系削除）
-    'お問い合わせ', '問い合わせ', 'お問合せ', '問合せ',
-    'ご相談', '相談', 'contact', 'inquiry'
-  ];
 
 
   /**
@@ -725,7 +706,7 @@ private static readonly CONTACT_KEYWORDS = [
         console.log(`⏭ Skipping duplicate URL (already succeeded in Step1): ${navResult.url}`);
       } else {
         // Check if this is an anchor link for special processing
-        if (this.isAnchorLink(navResult.url)) {
+        if (StringUtils.isAnchorLink(navResult.url)) {
           console.log(`🔍 Anchor link detected: ${navResult.url}, analyzing section content`);
           const anchorSectionResult = this.analyzeAnchorSection(html, navResult.url, baseUrl);
           if (anchorSectionResult.contactUrl) {
@@ -875,16 +856,6 @@ private static readonly CONTACT_KEYWORDS = [
 
 
 
-  // 文字化けデバッグ用ヘルパー
-  private static toHexString(str: string): string {
-    try {
-      return Array.from(str).map(char =>
-        char.charCodeAt(0).toString(16).padStart(2, '0')
-      ).join(' ');
-    } catch (e) {
-      return `[hex conversion error: ${e}]`;
-    }
-  }
 
   // 🔥 文字化け解決: 複数エンコーディング試行
   private static getContentWithEncoding(response: any): string {
@@ -896,7 +867,7 @@ private static readonly CONTACT_KEYWORDS = [
       try {
         const content = response.getContentText(encoding);
         // 簡易文字化け検証
-        if (this.isValidEncoding(content)) {
+        if (StringUtils.isValidEncoding(content)) {
           console.log(`✅ Successfully decoded with ${encoding}`);
           return content;
         } else {
@@ -912,14 +883,6 @@ private static readonly CONTACT_KEYWORDS = [
     return response.getContentText(); // 最終フォールバック
   }
 
-  // エンコーディング有効性検証
-  private static isValidEncoding(content: string): boolean {
-    // 置換文字の割合が5%未満なら有効
-    const replacementChars = (content.match(/�/g) || []).length;
-    const isValid = (replacementChars / content.length) < 0.05;
-    console.log(`Encoding validation: ${replacementChars} replacement chars out of ${content.length} (${(replacementChars/content.length*100).toFixed(2)}%) - ${isValid ? 'VALID' : 'INVALID'}`);
-    return isValid;
-  }
 
   // キーワード含有リンクを全て拽出（新フロー用）
   private static extractAllContactLinks(content: string, baseUrl: string): Array<{ url: string, keywords: string[], score: number, reasons: string[] }> {
@@ -945,7 +908,7 @@ private static readonly CONTACT_KEYWORDS = [
       console.log(`--- Link ${totalLinksFound} RAW DATA ---`);
       console.log(`Raw URL: "${url}"`);
       console.log(`Raw linkText: "${linkText}"`);
-      console.log(`Raw linkText hex: ${linkText ? this.toHexString(linkText) : 'undefined'}`);
+      console.log(`Raw linkText hex: ${linkText ? StringUtils.toHexString(linkText) : 'undefined'}`);
 
       if (!url || !linkText) {
         console.log(`Skipped: empty url or linkText`);
@@ -954,7 +917,7 @@ private static readonly CONTACT_KEYWORDS = [
 
       const cleanLinkText = linkText.replace(/<[^>]*>/g, '').trim();
       console.log(`Clean linkText: "${cleanLinkText}"`);
-      console.log(`Clean linkText hex: ${this.toHexString(cleanLinkText)}`);
+      console.log(`Clean linkText hex: ${StringUtils.toHexString(cleanLinkText)}`);
 
       // 非ウェブURLをスキップ
       if (url.startsWith('mailto:') || url.startsWith('javascript:') || url.startsWith('tel:')) {
@@ -1633,7 +1596,7 @@ private static readonly CONTACT_KEYWORDS = [
       if (matches) {
         // 送信系キーワードをチェック
         for (const match of matches) {
-          if (this.containsSubmitKeyword(match)) {
+          if (FormUtils.containsSubmitKeyword(match)) {
             console.log(`Submit button found: ${match.substring(0, 100)}...`);
             return true;
           }
@@ -1644,19 +1607,6 @@ private static readonly CONTACT_KEYWORDS = [
     return false;
   }
 
-  // 送信系キーワードの存在確認
-  private static containsSubmitKeyword(buttonHTML: string): boolean {
-    const lowerHTML = buttonHTML.toLowerCase();
-
-    for (const keyword of this.SUBMIT_BUTTON_KEYWORDS) {
-      if (lowerHTML.includes(keyword.toLowerCase())) {
-        console.log(`Submit keyword found: ${keyword}`);
-        return true;
-      }
-    }
-
-    return false;
-  }
 
   // Google Forms検証（2段階リンク検証）
   private static detectGoogleForms(html: string): { found: boolean; url: string | null; type: string } {
@@ -2223,7 +2173,7 @@ private static readonly CONTACT_KEYWORDS = [
           }
         } else {
           const statusCode = response.getResponseCode();
-          const detailedError = this.getDetailedErrorMessage(statusCode);
+          const detailedError = NetworkUtils.getDetailedErrorMessage(statusCode);
           console.log(`${testUrl} returned status code: ${statusCode} - ${detailedError}`);
 
           // Bot対策エラー（403, 501）の場合は即座に処理を中断
@@ -2401,29 +2351,6 @@ private static readonly CONTACT_KEYWORDS = [
     return false;
   }
 
-  private static getDetailedErrorMessage(statusCode: number): string {
-    const errorMessages: { [key: number]: string } = {
-      400: 'Bad Request - 不正なリクエスト',
-      401: 'Unauthorized - 認証が必要',
-      403: 'Forbidden - アクセス拒否（Bot対策またはアクセス制限）',
-      404: 'Not Found - ページが存在しません',
-      405: 'Method Not Allowed - 許可されていないHTTPメソッド',
-      408: 'Request Timeout - リクエストタイムアウト',
-      429: 'Too Many Requests - レート制限（アクセス過多）',
-      500: 'Internal Server Error - サーバー内部エラー',
-      501: 'Not Implemented - Bot対策によりブロック',
-      502: 'Bad Gateway - ゲートウェイエラー',
-      503: 'Service Unavailable - サービス利用不可（メンテナンス中）',
-      504: 'Gateway Timeout - ゲートウェイタイムアウト',
-      520: 'Web Server Error - Webサーバーエラー（Cloudflare）',
-      521: 'Web Server Down - Webサーバーダウン（Cloudflare）',
-      522: 'Connection Timed Out - 接続タイムアウト（Cloudflare）',
-      523: 'Origin Unreachable - オリジンサーバー到達不可（Cloudflare）',
-      524: 'A Timeout Occurred - タイムアウト発生（Cloudflare）'
-    };
-
-    return errorMessages[statusCode] || `HTTP Error ${statusCode} - 不明なエラー`;
-  }
 
   private static getDetailedNetworkError(error: any): string {
     const errorString = String(error);
