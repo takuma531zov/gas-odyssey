@@ -246,4 +246,46 @@ export class NetworkUtils {
 
     return isHomepage;
   }
+
+  /**
+   * フォールバックURLの品質評価
+   * @param url 評価対象URL
+   * @param pattern マッチしたURLパターン
+   * @returns 信頼度スコアとキーワード
+   */
+  static evaluateFallbackUrlQuality(url: string, pattern: string): { confidence: number, keywords: string[] } {
+    let confidence = 0.5; // ベーススコア
+    const keywords: string[] = [];
+
+    // 高信頼度パターン
+    const highConfidencePatterns = ['/contact/', '/contact', '/inquiry/', '/inquiry'];
+    if (highConfidencePatterns.includes(pattern)) {
+      confidence += 0.3;
+      keywords.push('high_confidence_pattern');
+    }
+
+    // 中信頼度パターン
+    const mediumConfidencePatterns = ['/form/', '/form'];
+    if (mediumConfidencePatterns.includes(pattern)) {
+      confidence += 0.1;
+      keywords.push('medium_confidence_pattern');
+    }
+
+    // URL内のcontactキーワードチェック（ドメイン除外）
+    const urlPath = url.replace(/https?:\/\/[^/]+/, ''); // ドメインを除外
+    const contactKeywords = ['contact', 'inquiry', 'form', 'お問い合わせ', '問い合わせ'];
+    
+    for (const keyword of contactKeywords) {
+      if (urlPath.toLowerCase().includes(keyword.toLowerCase())) {
+        confidence += 0.1;
+        keywords.push(`path_contains_${keyword}`);
+      }
+    }
+
+    // 信頼度を上限で制限
+    confidence = Math.min(confidence, 1.0);
+
+    console.log(`URL quality evaluation for ${url}: confidence=${confidence.toFixed(2)}, keywords=[${keywords.join(', ')}]`);
+    return { confidence, keywords };
+  }
 }

@@ -3,6 +3,7 @@ import type { ContactPageResult } from './types/interfaces';
 import { StringUtils } from './utils/StringUtils';
 import { FormUtils } from './utils/FormUtils';
 import { NetworkUtils } from './utils/NetworkUtils';
+import { SearchState } from './core/SearchState';
 
 /**
  * ContactPageFinder - BtoB営業用問い合わせページ自動検索システム
@@ -26,31 +27,10 @@ import { NetworkUtils } from './utils/NetworkUtils';
  */
 class ContactPageFinder {
   /**
-   * 候補ページ記録システム
-   * Step1で発見されたが確定できなかった候補を保存
+   * 検索状態管理インスタンス
+   * 全フローで共有される状態を一元管理
    */
-  private static candidatePages: Array<{
-    url: string,           // 候補URL
-    reason: string,        // 候補理由
-    score: number,         // 信頼度スコア
-    structuredForms: number,  // 構造化フォーム数
-    legacyScore: number    // 旧式スコア（互換性用）
-  }> = [];
-
-  /**
-   * 200 OK URLリスト（フォールバック用）
-   * Step1で200応答したがフォーム検証で失敗したURL群
-   */
-  private static validUrls: Array<{ 
-    url: string,     // 有効URL
-    pattern: string  // マッチしたパターン
-  }> = [];
-
-  /**
-   * 成功したフォームURLリスト（Step2重複回避用）
-   * 既に検証済みのURLを記録し重複処理を防止
-   */
-  private static successfulFormUrls: Array<string> = [];
+  private static searchState = new SearchState();
 
 // BtoB問い合わせ特化：純粋な問い合わせキーワードのみ
 private static readonly HIGH_PRIORITY_CONTACT_KEYWORDS = [
@@ -97,17 +77,16 @@ private static readonly CONTACT_KEYWORDS = [
 
 
   // **OPTIMIZED: Same HTML response detection for SPA efficiency**
-  private static sameHtmlCache: { [url: string]: string } = {};
-  
   private static detectSameHtmlPattern(urls: string[], htmlContent: string): boolean {
     const contentHash = StringUtils.hashString(htmlContent);
     let sameCount = 0;
     
     for (const url of urls) {
-      if (this.sameHtmlCache[url] === contentHash) {
+      const cachedHash = this.searchState.getHtmlCache(url);
+      if (cachedHash === contentHash) {
         sameCount++;
       } else {
-        this.sameHtmlCache[url] = contentHash;
+        this.searchState.setHtmlCache(url, contentHash);
       }
     }
     
@@ -171,7 +150,7 @@ private static readonly CONTACT_KEYWORDS = [
     console.log(`Final fallback: Using first valid URL ${firstValidUrl.url} (pattern: ${firstValidUrl.pattern})`);
     
     // URLの品質を評価
-    const qualityScore = this.evaluateFallbackUrlQuality(firstValidUrl.url, firstValidUrl.pattern);
+    const qualityScore = NetworkUtils.evaluateFallbackUrlQuality(firstValidUrl.url, firstValidUrl.pattern);
     
     return {
       contactUrl: firstValidUrl.url,
@@ -181,42 +160,6 @@ private static readonly CONTACT_KEYWORDS = [
     };
   }
 
-  // **NEW: Fallback URL Quality Evaluation** - フォールバックURLの品質評価
-  private static evaluateFallbackUrlQuality(url: string, pattern: string): { confidence: number, keywords: string[] } {
-    let confidence = 0.5; // ベーススコア
-    const keywords: string[] = [];
-
-    // 高信頼度パターン
-    const highConfidencePatterns = ['/contact/', '/contact', '/inquiry/', '/inquiry'];
-    if (highConfidencePatterns.includes(pattern)) {
-      confidence += 0.3;
-      keywords.push('high_confidence_pattern');
-    }
-
-    // 中信頼度パターン
-    const mediumConfidencePatterns = ['/form/', '/form'];
-    if (mediumConfidencePatterns.includes(pattern)) {
-      confidence += 0.1;
-      keywords.push('medium_confidence_pattern');
-    }
-
-    // URL内のcontactキーワードチェック（ドメイン除外）
-    const urlPath = url.replace(/https?:\/\/[^/]+/, ''); // ドメインを除外
-    const contactKeywords = ['contact', 'inquiry', 'form', 'お問い合わせ', '問い合わせ'];
-    
-    for (const keyword of contactKeywords) {
-      if (urlPath.toLowerCase().includes(keyword.toLowerCase())) {
-        confidence += 0.1;
-        keywords.push(`path_contains_${keyword}`);
-      }
-    }
-
-    // 信頼度を上限で制限
-    confidence = Math.min(confidence, 1.0);
-
-    console.log(`URL quality evaluation for ${url}: confidence=${confidence.toFixed(2)}, keywords=[${keywords.join(', ')}]`);
-    return { confidence, keywords };
-  }
 
   // 問い合わせ純度スコア計算（BtoB営業特化・重複防止版）
   private static calculateContactPurity(url: string, linkText: string, context: string = ''): { score: number, reasons: string[] } {
@@ -520,7 +463,7 @@ private static readonly CONTACT_KEYWORDS = [
 
     try {
       // 候補リストのリセット（新しい検索開始時）
-      this.resetCandidates();
+      this.searchState.resetState();
 
       // SNSページの検出
       if (NetworkUtils.isSNSPage(baseUrl)) {
@@ -1466,7 +1409,7 @@ private static readonly CONTACT_KEYWORDS = [
     
     // JavaScript フォーム検出: <script> + reCAPTCHA の組み合わせ
     console.log('Checking for JavaScript forms with reCAPTCHA...');
-    if (this.hasScriptAndRecaptcha(html)) {
+    if (FormUtils.hasScriptAndRecaptcha(html)) {
       console.log('✅ JavaScript form with reCAPTCHA detected');
       return true;
     }
@@ -1475,54 +1418,6 @@ private static readonly CONTACT_KEYWORDS = [
     return false;
   }
 
-  // JavaScript フォーム検出: <script>タグ + reCAPTCHA存在
-  private static hasScriptAndRecaptcha(html: string): boolean {
-    // <script>タグの存在チェック
-    const hasScript = /<script[^>]*>[\s\S]*?<\/script>/gi.test(html) || /<script[^>]*src=[^>]*>/gi.test(html);
-    
-    if (!hasScript) {
-      console.log('No script tags found');
-      return false;
-    }
-
-    console.log('Script tags found, checking for reCAPTCHA...');
-
-    // reCAPTCHA検出パターン
-    const recaptchaPatterns = [
-      // Google reCAPTCHA スクリプトURL
-      /https:\/\/www\.google\.com\/recaptcha\/api\.js/gi,
-      /recaptcha\/api\.js/gi,
-      
-      // reCAPTCHA HTML要素
-      /<div[^>]*class=["|'][^"|']*g-recaptcha[^"|']*["|']/gi,
-      /<div[^>]*id=["|'][^"|']*recaptcha[^"|']*["|']/gi,
-      
-      // reCAPTCHA データ属性
-      /data-sitekey=["|'][^"|']*["|']/gi,
-      
-      // reCAPTCHA テキスト（日本語・英語）
-      /私はロボットではありません/gi,
-      /I'm not a robot/gi,
-      /reCAPTCHA/gi
-    ];
-
-    console.log('Checking reCAPTCHA patterns...');
-    
-    for (let i = 0; i < recaptchaPatterns.length; i++) {
-      const pattern = recaptchaPatterns[i];
-      if (!pattern) continue;
-      
-      const matches = html.match(pattern);
-      
-      if (matches && matches.length > 0) {
-        console.log(`✅ reCAPTCHA pattern ${i + 1} matched: ${matches[0].substring(0, 100)}`);
-        return true;
-      }
-    }
-
-    console.log('No reCAPTCHA patterns found');
-    return false;
-  }
 
   // form内の送信系ボタン検出
   private static hasSubmitButtonInForm(formHTML: string): boolean {
@@ -1592,59 +1487,8 @@ private static readonly CONTACT_KEYWORDS = [
 
 
   // 候補ページの記録
-  private static logPotentialCandidate(url: string, reason: string, html: string) {
-    const structuredAnalysis = this.analyzeStructuredForms(html);
-    const formAnalysis = this.analyzeFormElements(html);
+  // logPotentialCandidate と calculateCandidateScore は SearchState.addCandidate() に統合済み
 
-    const score = this.calculateCandidateScore(url, reason, structuredAnalysis, formAnalysis);
-
-    this.candidatePages.push({
-      url,
-      reason,
-      score,
-      structuredForms: structuredAnalysis.formCount,
-      legacyScore: formAnalysis.isValidForm ? 1 : 0
-    });
-
-    console.log(`Candidate logged: ${url} (${reason}, score: ${score})`);
-  }
-
-  // 候補スコア計算
-  private static calculateCandidateScore(
-    url: string,
-    reason: string,
-    structuredAnalysis: { formCount: number, totalFields: number, hasContactFields: boolean },
-    formAnalysis: { isValidForm: boolean, reasons: string[] }
-  ): number {
-    let score = 0;
-
-    // URL具体性スコア
-    if (url.includes('/contact-form/')) score += 15;
-    else if (url.includes('/inquiry/')) score += 12;
-    else if (url.includes('/contact/')) score += 8;
-    else if (url.includes('/form/')) score += 10;
-
-    // 構造化フォームスコア
-    score += structuredAnalysis.formCount * 5;
-    score += structuredAnalysis.totalFields * 2;
-    if (structuredAnalysis.hasContactFields) score += 10;
-
-    // 従来フォーム解析スコア
-    if (formAnalysis.isValidForm) score += 5;
-
-    // 理由による調整
-    if (reason === 'no_structured_form') score -= 10; // ペナルティ
-
-    return score;
-  }
-
-  // 候補リストのリセット（新しい検索開始時）
-  private static resetCandidates() {
-    this.candidatePages = [];
-    this.validUrls = [];
-    this.successfulFormUrls = [];
-    this.sameHtmlCache = {}; // Reset SPA detection cache
-  }
 
   // 候補を活用したfallback処理
 
@@ -2009,8 +1853,7 @@ private static readonly CONTACT_KEYWORDS = [
    * - タイムアウト管理による無限ループ防止
    */
   private static searchWithPriorityPatterns(domainUrl: string, startTime: number): ContactPageResult {
-    // 200 OK URLリストをリセット
-    this.validUrls = [];
+    // 200 OK URLリストをリセット（SearchStateで管理）
     const maxTotalTime = Environment.getMaxTotalTime();
     console.log('Starting priority-based URL pattern search with integrated SPA detection');
 
@@ -2067,7 +1910,7 @@ private static readonly CONTACT_KEYWORDS = [
             console.log(`${testUrl} passed validity check`);
 
             // 200 OK URLを記録（フォールバック用）
-            this.validUrls.push({ url: testUrl, pattern: pattern });
+            this.searchState.addValidUrl(testUrl, pattern);
 
             // シンプルな2段階問い合わせフォーム判定
             const isContactForm = this.isValidContactForm(html);
@@ -2078,7 +1921,7 @@ private static readonly CONTACT_KEYWORDS = [
               console.log(`✅ Contact form confirmed at ${testUrl} - form elements + contact submit confirmed`);
 
               // 成功したURLを記録（Step2重複回避用）
-              this.successfulFormUrls.push(testUrl);
+              this.searchState.addSuccessfulFormUrl(testUrl);
 
               // 問い合わせフォーム確認済み → 即座に成功
               return {
@@ -2096,7 +1939,7 @@ private static readonly CONTACT_KEYWORDS = [
                 console.log(`✅ Google Forms found at ${testUrl} -> ${googleFormsResult.url}`);
                 
                 // 成功したURLを記録（Step2重複回避用）
-                this.successfulFormUrls.push(testUrl);
+                this.searchState.addSuccessfulFormUrl(testUrl);
                 
                 return {
                   contactUrl: testUrl,
@@ -2108,7 +1951,7 @@ private static readonly CONTACT_KEYWORDS = [
 
               // Google Formsも見つからない → 候補として記録して継続
               console.log(`No contact forms found at ${testUrl}, logging as candidate and continuing`);
-              this.logPotentialCandidate(testUrl, 'no_contact_form', html);
+              this.searchState.addCandidate(testUrl, 'no_contact_form', html);
               continue; // 次のパターンへ
             }
           } else {
@@ -2153,7 +1996,7 @@ private static readonly CONTACT_KEYWORDS = [
     console.log(`=== Pattern Search Summary ===`);
     console.log(`Tested patterns: ${testedPatterns}`);
     console.log(`Structured form pages: ${structuredFormPages}`);
-    console.log(`Candidate pages: ${this.candidatePages.length}`);
+    console.log(`Candidate pages: ${this.searchState.getCandidateCount()}`);
 
     return {
       contactUrl: null,

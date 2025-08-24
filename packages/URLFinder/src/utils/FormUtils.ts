@@ -31,4 +31,57 @@ export class FormUtils {
 
     return false;
   }
+
+  /**
+   * JavaScript フォーム検出: <script>タグ + reCAPTCHA存在
+   * @param html HTML文字列
+   * @returns JavaScriptフォーム（reCAPTCHA）が存在するか
+   */
+  static hasScriptAndRecaptcha(html: string): boolean {
+    // <script>タグの存在チェック
+    const hasScript = /<script[^>]*>[\s\S]*?<\/script>/gi.test(html) || /<script[^>]*src=[^>]*>/gi.test(html);
+    
+    if (!hasScript) {
+      console.log('No script tags found');
+      return false;
+    }
+
+    console.log('Script tags found, checking for reCAPTCHA...');
+
+    // reCAPTCHA検出パターン
+    const recaptchaPatterns = [
+      // Google reCAPTCHA スクリプトURL
+      /https:\/\/www\.google\.com\/recaptcha\/api\.js/gi,
+      /recaptcha\/api\.js/gi,
+      
+      // reCAPTCHA HTML要素
+      /<div[^>]*class=["|'][^"|']*g-recaptcha[^"|']*["|']/gi,
+      /<div[^>]*id=["|'][^"|']*recaptcha[^"|']*["|']/gi,
+      
+      // reCAPTCHA データ属性
+      /data-sitekey=["|'][^"|']*["|']/gi,
+      
+      // reCAPTCHA テキスト（日本語・英語）
+      /私はロボットではありません/gi,
+      /I'm not a robot/gi,
+      /reCAPTCHA/gi
+    ];
+
+    console.log('Checking reCAPTCHA patterns...');
+    
+    for (let i = 0; i < recaptchaPatterns.length; i++) {
+      const pattern = recaptchaPatterns[i];
+      if (!pattern) continue;
+      
+      const matches = html.match(pattern);
+      
+      if (matches && matches.length > 0) {
+        console.log(`✅ reCAPTCHA pattern ${i + 1} matched: ${matches[0].substring(0, 100)}`);
+        return true;
+      }
+    }
+
+    console.log('No reCAPTCHA patterns found');
+    return false;
+  }
 }
