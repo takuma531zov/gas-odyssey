@@ -703,6 +703,27 @@ private static readonly CONTACT_KEYWORDS = [
         const candidates = this.extractAllContactLinks(match, baseUrl);
         allCandidates.push(...candidates);
         console.log(`Navigation match ${j+1} added ${candidates.length} candidates`);
+
+        // 高スコア候補の早期検出と即座にreturn（効率化）
+        const contactCandidates = candidates.filter(candidate =>
+          this.HIGH_PRIORITY_CONTACT_KEYWORDS.some(keyword =>
+            candidate.url.toLowerCase().includes(keyword.toLowerCase()) ||
+            candidate.keywords.some(k => k.toLowerCase().includes(keyword.toLowerCase()))
+          )
+        );
+
+        if (contactCandidates.length > 0) {
+          const bestCandidate = contactCandidates.reduce((max, current) => current.score > max.score ? current : max);
+          
+          // 高スコア候補（score >= 40）発見時は即座にreturn
+          if (bestCandidate.score >= 40) {
+            const remainingSelectors = navigationSelectors.length - i - 1;
+            const remainingMatches = matches.length - j - 1;
+            console.log(`🚀 High-score candidate found (score: ${bestCandidate.score}), skipping ${remainingSelectors} remaining selectors and ${remainingMatches} remaining matches`);
+            console.log(`Navigation search best result: ${bestCandidate.url} (score: ${bestCandidate.score})`);
+            return bestCandidate;
+          }
+        }
       }
     }
 
