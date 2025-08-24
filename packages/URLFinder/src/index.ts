@@ -7,17 +7,17 @@ import { SearchState } from './core/SearchState';
 
 /**
  * ContactPageFinder - BtoB営業用問い合わせページ自動検索システム
- * 
+ *
  * 目的:
  * - 企業サイトから問い合わせページを自動発見
  * - Google Apps Script環境での安定動作
  * - BtoB営業活動の効率化支援
- * 
+ *
  * 検索戦略:
  * Step1: URLパターン推測（高速・高精度）
  * Step2: HTML解析によるフォールバック検索
  * Final: 最終フォールバック（Step1の200 OKページ使用）
- * 
+ *
  * 特徴:
  * - SPA（Single Page Application）対応
  * - Google Forms検出
@@ -80,7 +80,7 @@ private static readonly CONTACT_KEYWORDS = [
   private static detectSameHtmlPattern(urls: string[], htmlContent: string): boolean {
     const contentHash = StringUtils.hashString(htmlContent);
     let sameCount = 0;
-    
+
     for (const url of urls) {
       const cachedHash = this.searchState.getHtmlCache(url);
       if (cachedHash === contentHash) {
@@ -89,7 +89,7 @@ private static readonly CONTACT_KEYWORDS = [
         this.searchState.setHtmlCache(url, contentHash);
       }
     }
-    
+
     // If 2 or more URLs return the same HTML, likely SPA
     return sameCount >= 2;
   }
@@ -98,7 +98,7 @@ private static readonly CONTACT_KEYWORDS = [
   // **NEW: Final Fallback** - Step1の最初の200 OK URLを最終手段として返却
   private static getFinalFallbackUrl(): ContactPageResult {
     console.log(`Checking final fallback from ${this.validUrls.length} valid URLs`);
-    
+
     if (this.validUrls.length === 0) {
       console.log('No valid URLs available for final fallback');
       return {
@@ -112,7 +112,7 @@ private static readonly CONTACT_KEYWORDS = [
     // 優先度順にcontact関連URLを探す
     const contactPriorityPatterns = [
       '/contact/',
-      '/contact', 
+      '/contact',
       '/inquiry/',
       '/inquiry',
       '/form/',
@@ -121,7 +121,7 @@ private static readonly CONTACT_KEYWORDS = [
 
     // 高優先度contact patternを探す
     for (const priorityPattern of contactPriorityPatterns) {
-      const matchingUrl = this.validUrls.find(urlInfo => 
+      const matchingUrl = this.validUrls.find(urlInfo =>
         urlInfo.pattern === priorityPattern
       );
       if (matchingUrl) {
@@ -148,10 +148,10 @@ private static readonly CONTACT_KEYWORDS = [
     }
 
     console.log(`Final fallback: Using first valid URL ${firstValidUrl.url} (pattern: ${firstValidUrl.pattern})`);
-    
+
     // URLの品質を評価
     const qualityScore = NetworkUtils.evaluateFallbackUrlQuality(firstValidUrl.url, firstValidUrl.pattern);
-    
+
     return {
       contactUrl: firstValidUrl.url,
       actualFormUrl: firstValidUrl.url,
@@ -253,12 +253,12 @@ private static readonly CONTACT_KEYWORDS = [
   private static executeSPAAnalysis(html: string, baseUrl: string): ContactPageResult {
     try {
       console.log('Executing SPA analysis on detected single-page application');
-      
+
       // Navigation search for anchor links in the current HTML
       const navResult = this.searchInNavigation(html, baseUrl);
       if (navResult.url && StringUtils.isAnchorLink(navResult.url)) {
         console.log(`Anchor link found in SPA navigation: ${navResult.url}`);
-        
+
         // Analyze the corresponding section in the same HTML
         const anchorSectionResult = this.analyzeAnchorSection(html, navResult.url, baseUrl);
         if (anchorSectionResult.contactUrl) {
@@ -439,10 +439,10 @@ private static readonly CONTACT_KEYWORDS = [
 
   /**
    * 問い合わせページ検索のメインエントリーポイント
-   * 
+   *
    * @param baseUrl 検索対象のベースURL（企業サイトのトップページ等）
    * @returns ContactPageResult 検索結果（URL、フォーム情報、検索手法等）
-   * 
+   *
    * 処理フロー:
    * 1. 初期化処理（候補リセット、タイマー開始）
    * 2. SNSページ判定（Facebook、Twitter等は除外）
@@ -450,7 +450,7 @@ private static readonly CONTACT_KEYWORDS = [
    * 4. Step1: URLパターン推測検索
    * 5. Step2: HTML解析フォールバック検索
    * 6. 最終フォールバック: Step1の200 OKページ使用
-   * 
+   *
    * 実装注意事項:
    * - GAS環境でのタイムアウト管理（デフォルト80秒）
    * - メモリ効率を考慮したキャッシュ管理
@@ -584,7 +584,7 @@ private static readonly CONTACT_KEYWORDS = [
 
       // FINAL FALLBACK: Return first valid contact URL from Step1 if available
       console.log('All search methods failed, checking final fallback...');
-      const fallbackResult = this.getFinalFallbackUrl();
+      const fallbackResult = this.searchState.getFinalResult();
       if (fallbackResult.contactUrl) {
         console.log(`✅ Final fallback successful: ${fallbackResult.contactUrl}`);
         return fallbackResult;
@@ -611,24 +611,24 @@ private static readonly CONTACT_KEYWORDS = [
 
   /**
    * Step2フロー: ホームページHTML解析によるフォールバック検索
-   * 
+   *
    * 処理手順:
    * 1. Google Forms最優先検索（HTML内のdocs.google.com URL検出）
    * 2. 埋め込みフォーム検証（外部サービス: Form.run, HubSpot等）
    * 3. ナビゲーション内リンク解析（<nav>要素、メニュー系クラス解析）
    * 4. リンク先フォーム検証（発見したリンクの実際の内容確認）
    * 5. 重複回避処理（Step1成功URLとの重複チェック）
-   * 
+   *
    * 検索範囲:
    * - Navigation（<nav>、.menu、.navigation等）
    * - Header内のリスト構造（<header><ul>構造）
    * - グローバルナビゲーション（.global-nav、.site-nav等）
-   * 
+   *
    * 特別処理:
    * - アンカーリンク特別処理（#contact等の内部リンク）
    * - JavaScript無効環境でのフォーム検出
    * - 動的コンテンツの静的解析
-   * 
+   *
    * 品質保証:
    * - キーワードマッチング重み付けスコア
    * - コンテキストボーナス（navigation内 +5点）
@@ -644,7 +644,7 @@ private static readonly CONTACT_KEYWORDS = [
       console.log(`Navigation search result: ${navResult.url} (score: ${navResult.score}, reasons: ${navResult.reasons.join(',')})`);
 
       // 重複回避チェック：Step1で成功したフォームURLのみスキップ（失敗したURLは再検証）
-      const isSuccessfulFormDuplicate = this.successfulFormUrls.includes(navResult.url);
+      const isSuccessfulFormDuplicate = this.searchState.isSuccessfulFormUrl(navResult.url);
       if (isSuccessfulFormDuplicate) {
         console.log(`⏭ Skipping duplicate URL (already succeeded in Step1): ${navResult.url}`);
       } else {
@@ -1406,7 +1406,7 @@ private static readonly CONTACT_KEYWORDS = [
     }
 
     console.log('No forms with submit buttons found');
-    
+
     // JavaScript フォーム検出: <script> + reCAPTCHA の組み合わせ
     console.log('Checking for JavaScript forms with reCAPTCHA...');
     if (FormUtils.hasScriptAndRecaptcha(html)) {
@@ -1832,7 +1832,7 @@ private static readonly CONTACT_KEYWORDS = [
 
   /**
    * Step1フロー: URLパターン推測による高速検索
-   * 
+   *
    * 処理手順:
    * 1. 優先URLパターンテスト (/contact/ → /contact → /inquiry/ → ...)
    * 2. 各URLでHTTP通信実行（200 OK確認）
@@ -1841,12 +1841,12 @@ private static readonly CONTACT_KEYWORDS = [
    * 5. Google Forms検証（docs.google.com URLパターン）
    * 6. アンカー分析（SPA対応: #contact等の内部リンク解析）
    * 7. 成功時即座に結果返却、失敗時は200 OK URLを記録
-   * 
+   *
    * SPA対応機能:
    * - 同一HTMLハッシュ検出による動的ページ判定
    * - アンカーリンク（#hash）の内容分析
    * - セクション内フォーム検証
-   * 
+   *
    * パフォーマンス最適化:
    * - 高信頼度パターンから優先実行
    * - 成功時の早期終了
@@ -1884,16 +1884,16 @@ private static readonly CONTACT_KEYWORDS = [
         if (response.getResponseCode() === 200) {
           const html = response.getContentText();
           console.log(`Got HTML content for ${testUrl}, length: ${html.length}`);
-          
+
           // **SPA OPTIMIZATION: Detect same HTML pattern and apply anchor analysis**
           testedUrls.push(testUrl);
           htmlResponses.push(html);
-          
+
           // Check for SPA pattern after 2nd URL
           if (testedUrls.length >= 2 && this.detectSameHtmlPattern(testedUrls, html)) {
             console.log('Single Page Application detected: same HTML returned for multiple URLs');
             console.log('Executing anchor-based analysis to optimize remaining URL tests');
-            
+
             // Try anchor analysis on the current HTML (represents the homepage content)
             const anchorResult = this.executeSPAAnalysis(html, domainUrl);
             if (anchorResult.contactUrl) {
@@ -1901,7 +1901,7 @@ private static readonly CONTACT_KEYWORDS = [
               console.log(`Skipping remaining ${allPatterns.length - testedPatterns} URL pattern tests`);
               return anchorResult;
             }
-            
+
             console.log('SPA detected but anchor analysis unsuccessful, continuing with remaining URL tests');
           }
 
@@ -1937,10 +1937,10 @@ private static readonly CONTACT_KEYWORDS = [
               const googleFormsResult = this.detectGoogleForms(html);
               if (googleFormsResult.found && googleFormsResult.url) {
                 console.log(`✅ Google Forms found at ${testUrl} -> ${googleFormsResult.url}`);
-                
+
                 // 成功したURLを記録（Step2重複回避用）
                 this.searchState.addSuccessfulFormUrl(testUrl);
-                
+
                 return {
                   contactUrl: testUrl,
                   actualFormUrl: googleFormsResult.url,
@@ -2231,10 +2231,10 @@ private static readonly CONTACT_KEYWORDS = [
 /**
  * 後方互換性維持のためのラッパー関数
  * 既存の呼び出し元コードを変更せずに新しいアーキテクチャを使用可能
- * 
+ *
  * @param url 検索対象URL
  * @returns ContactPageResult 検索結果
- * 
+ *
  * 使用例:
  * const result = findContactPage('https://example.com');
  * console.log(result.contactUrl); // 問い合わせページURL
@@ -2422,25 +2422,25 @@ function test() {
  */
 function executeUrlFinderWithUI(): void {
   console.log('=== URLFinder UI 開始 ===');
-  
+
   try {
     // チェック行数を取得
     const checkedCount = getCheckedRowsCount();
     const maxCount = getMaxCountSetting();
-    
+
     // 実行オプション選択ダイアログを表示
     const htmlTemplate = HtmlService.createTemplateFromFile('simple-options');
     htmlTemplate.checkedCount = checkedCount;
     htmlTemplate.maxCount = maxCount;
-    
+
     const htmlOutput = htmlTemplate.evaluate()
       .setWidth(450)
       .setHeight(320)
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-    
+
     SpreadsheetApp.getUi()
       .showModalDialog(htmlOutput, 'URLFinder - 実行オプション');
-    
+
   } catch (error) {
     console.error('UI実行エラー:', error);
     const err = error as Error;
@@ -2454,7 +2454,7 @@ function executeUrlFinderWithUI(): void {
  */
 function executeSelectedMode(mode: string): void {
   console.log(`選択されたモード: ${mode}`);
-  
+
   if (mode === 'normal') {
     executeNormalProcessing();
   } else if (mode === 'checked') {
@@ -2469,13 +2469,13 @@ function executeSelectedMode(mode: string): void {
  */
 function executeNormalProcessing(): void {
   console.log('=== 通常処理開始 ===');
-  
+
   try {
     // 既存のprocessContactPageFinder関数をそのまま呼び出し
     processContactPageFinder();
-    
+
     console.log('通常処理が完了しました');
-    
+
   } catch (error) {
     console.error('通常処理エラー:', error);
     SpreadsheetApp.getUi().alert('エラー', `通常処理中にエラーが発生しました: ${error}`, SpreadsheetApp.getUi().ButtonSet.OK);
@@ -2487,52 +2487,52 @@ function executeNormalProcessing(): void {
  */
 function executeCheckedRowsProcessing(): void {
   console.log('=== チェック行処理開始 ===');
-  
+
   try {
     const checkedRows = getCheckedRows();
-    
+
     if (checkedRows.length === 0) {
       SpreadsheetApp.getUi().alert('チェックされた行がありません。');
       return;
     }
-    
+
     // 各チェック行を順次処理
     let successCount = 0;
     let failureCount = 0;
-    
+
     for (const rowNumber of checkedRows) {
       try {
         // L列からURL取得
         const url = getUrlFromRow(rowNumber!);
-        
+
         if (!url || typeof url !== 'string' || url.trim() === '') {
           console.log(`${rowNumber}行目: URLが空です`);
           continue;
         }
-        
+
         console.log(`${rowNumber}行目を処理中: ${url}`);
-        
+
         // 既存のfindContactPage関数を使用
         const result: ContactPageResult = findContactPage(url);
-        
+
         // AP列に結果を書き込み
         writeResultToSheet(rowNumber!, result);
-        
+
         if (result.contactUrl) {
           successCount++;
         } else {
           failureCount++;
         }
-        
+
       } catch (error) {
         console.error(`${rowNumber}行目の処理でエラー:`, error);
         failureCount++;
       }
     }
-    
+
     // 完了メッセージ
     SpreadsheetApp.getUi().alert('処理完了', `チェック行処理が完了しました。成功: ${successCount}件、失敗: ${failureCount}件`, SpreadsheetApp.getUi().ButtonSet.OK);
-    
+
   } catch (error) {
     console.error('チェック行処理エラー:', error);
     SpreadsheetApp.getUi().alert('エラー', `チェック行処理中にエラーが発生しました: ${error}`, SpreadsheetApp.getUi().ButtonSet.OK);
@@ -2545,7 +2545,7 @@ function executeCheckedRowsProcessing(): void {
 function getUrlFromRow(rowNumber: number): string {
   const sheet = SpreadsheetApp.getActiveSheet();
   const lColumn = 12; // L列
-  
+
   const cellValue = sheet.getRange(rowNumber, lColumn).getValue();
   return cellValue ? cellValue.toString().trim() : '';
 }
@@ -2556,7 +2556,7 @@ function getUrlFromRow(rowNumber: number): string {
 function writeResultToSheet(rowNumber: number, result: ContactPageResult): void {
   const sheet = SpreadsheetApp.getActiveSheet();
   const apColumn = 42; // AP列
-  
+
   // 既存のprocessContactPageFinderと完全に同じロジック
   let outputValue = '';
 
@@ -2582,7 +2582,7 @@ function writeResultToSheet(rowNumber: number, result: ContactPageResult): void 
     // SNSページや見つからない場合
     outputValue = '問い合わせフォームが見つかりませんでした';
   }
-  
+
   sheet.getRange(rowNumber, apColumn).setValue(outputValue);
 }
 
@@ -2594,18 +2594,18 @@ function getCheckedRows(): number[] {
     console.log('SpreadsheetApp.getActiveSheet()実行中...');
     const sheet = SpreadsheetApp.getActiveSheet();
     console.log('アクティブシート取得完了');
-    
+
     console.log('sheet.getLastRow()実行中...');
     const lastRow = sheet.getLastRow();
     console.log(`最終行: ${lastRow}`);
-    
+
     // 処理行数を制限（パフォーマンス対策）
     const maxRowsToCheck = Math.min(lastRow, 1000);
     console.log(`チェック対象行数: ${maxRowsToCheck}`);
-    
+
     const aqColumn = 43; // AQ列
     const checkedRows: number[] = [];
-    
+
     console.log('チェックボックス値の確認開始...');
     for (let row = 2; row <= maxRowsToCheck; row++) {
       try {
@@ -2618,7 +2618,7 @@ function getCheckedRows(): number[] {
         // 個別行のエラーは無視して続行
       }
     }
-    
+
     console.log(`チェック済み行: ${checkedRows.length}行`, checkedRows);
     return checkedRows.filter((row): row is number => typeof row === 'number');
   } catch (error) {
@@ -2650,22 +2650,22 @@ function getMaxCountSetting(): number {
     console.log('PropertiesService.getScriptProperties()実行中...');
     const properties = PropertiesService.getScriptProperties();
     console.log('プロパティサービス取得完了');
-    
+
     console.log('MAX_COUNTプロパティ取得中...');
     const maxCountStr = properties.getProperty('MAX_COUNT');
     console.log(`MAX_COUNTプロパティ値: "${maxCountStr}"`);
-    
+
     if (!maxCountStr) {
       console.log('MAX_COUNTが未設定、デフォルト値10を使用');
       return 10;
     }
-    
+
     const parsed = parseInt(maxCountStr, 10);
     if (isNaN(parsed) || parsed <= 0) {
       console.log(`MAX_COUNTの値が無効: "${maxCountStr}", デフォルト値10を使用`);
       return 10;
     }
-    
+
     console.log(`MAX_COUNT設定値: ${parsed}`);
     return parsed;
   } catch (error) {

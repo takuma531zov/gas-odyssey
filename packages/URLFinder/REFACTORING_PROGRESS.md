@@ -103,11 +103,12 @@ src/
 ## 現状分析（2025-08-23更新）
 
 ### 進捗サマリー
-- **元ファイル**: 2995行 → **現在**: 2676行（319行削減）
+- **元ファイル**: 2995行 → **現在**: 2510行（485行削減）
 - **Phase 1 + 2完了**: **11関数**を安全抽出
 - **Phase 3-A完了**: **SearchStateシステム**実装完了
-- **残り関数**: **25個のprivate staticメソッド**
-- **残り定数**: **6個のreadonly配列** (HIGH_PRIORITY_CONTACT_KEYWORDS等)
+- **Phase 3-B完了**: **Step1Searcher**分離完了
+- **残り関数**: **20個のprivate staticメソッド**以下
+- **残り定数**: **5個のreadonly配列** (HIGH_PRIORITY_CONTACT_KEYWORDS等)
 
 ### 🚨 複雑な依存関係と残存リスク分析
 
@@ -348,13 +349,13 @@ export function executeUrlFinderWithUI() {...}
 - 複雑フォーム検証
 - キーワード配列定義
 
-**推定最終サイズ**: 2749行 → **700-1000行**（63-75%削減目標）
+**推定最終サイズ**: 2995行 → **600-900行**（70-80%削減目標）
 
 ---
 **最終更新**: 2025-08-23  
 **最終コミット**: urlFinder-44ac0de branch  
-**現在**: Phase 3-A完了（SearchStateシステム実装済み）  
-**次回作業**: Phase 3-B - Step1Searcher.ts作成開始
+**現在**: Phase 3-B完了（Step1Searcher分離成功）  
+**次回作業**: Phase 3-C - Step2Analyzer.ts + SPAHandler.ts作成開始
 
 ## 🎉 Phase 3-A 完了報告（2025-08-23）
 
@@ -375,10 +376,29 @@ export function executeUrlFinderWithUI() {...}
 - 🟢 **インターフェース清浄化**: 状態操作が明確なSingle Responsibilityに
 - 🟢 **テスタビリティ向上**: 状態を模擬できる構造に
 
-### 次のPhase 3-B準備
-- **対象関数**: searchWithPriorityPatterns() (150行の巨大メソッド)
-- **作成ファイル**: core/Step1Searcher.ts
-- **依存性**: SearchState注入で第1ステップ処理を分離
+## 🎉 Phase 3-B 完了報告（2025-08-23）
+
+### 実装成果
+- **Step1Searcher.ts作成**: URLパターン検索を完全分離（153行）
+- **巨大関数分離**: searchWithPriorityPatterns()を専門クラスに移動
+- **依存性注入**: SearchState + ContactPageFinder参照で循環依存回避
+- **ビルドテスト**: エラーなしで成功
+
+### 数値的成果
+- **行数削減**: 2676行 → 2510衎（166行削減）
+- **総削減率**: 485行削減（元の16.2%削減）
+- **分離成功**: 巨大メソッドを単一責務クラスに変換
+
+### 技術的成果
+- 🟢 **メソッド分離**: 150行の巨大関数をStep1Searcherに集約
+- 🟢 **インターフェース清浄化**: Step1検索処理がSingle Responsibilityに
+- 🟢 **テスタビリティ向上**: Step1処理を独立してテスト可能
+- 🟢 **保守性向上**: URLパターンロジックが明確に分離
+
+### 次のPhase 3-C準備
+- **対象関数**: analyzeHtmlContent() + Step2関連関数群
+- **作成ファイル**: core/Step2Analyzer.ts + core/SPAHandler.ts
+- **目標**: HTML解析とSPA処理の完全分離
 
 ## 🎯 新戦略採用決定
 **従来**: 関数単位分離（限界60-75%削減）
