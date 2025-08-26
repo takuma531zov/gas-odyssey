@@ -40,7 +40,20 @@ export class HtmlAnalysisStrategy implements SearchStrategy {
         return { contactUrl: baseUrl, actualFormUrl: baseUrl, foundKeywords: ['homepage_embedded_form'], searchMethod: 'homepage_embedded_fallback' };
       }
     } catch (homepageError) {
-      console.log(`Error in homepage analysis fallback: ${NetworkUtils.getDetailedNetworkError(homepageError)}`);
+      const detailedError = NetworkUtils.getDetailedNetworkError(homepageError);
+      console.log(`Error in homepage analysis fallback: ${detailedError}`);
+
+      let searchMethod: string;
+      if (detailedError.includes('DNS解決失敗')) {
+        searchMethod = 'dns_error';
+      } else if (detailedError.includes('timeout')) {
+        searchMethod = 'timeout_error';
+      } else if (detailedError.includes('403') || detailedError.includes('501') || detailedError.includes('Access forbidden')) {
+        searchMethod = 'bot_blocked';
+      } else {
+        searchMethod = 'error'; // Generic error for other network issues
+      }
+      return { contactUrl: null, actualFormUrl: null, foundKeywords: [detailedError], searchMethod: searchMethod };
     }
     return null;
   }
@@ -75,7 +88,21 @@ export class HtmlAnalysisStrategy implements SearchStrategy {
           }
         }
       } catch (error) {
-        console.log(`❌ Error accessing navigation result: ${error}`);
+        const detailedError = NetworkUtils.getDetailedNetworkError(error);
+        console.log(`❌ Error accessing navigation result: ${detailedError}`);
+
+        let searchMethod: string;
+        if (detailedError.includes('DNS解決失敗')) {
+          searchMethod = 'dns_error';
+        } else if (detailedError.includes('timeout')) {
+          searchMethod = 'timeout_error';
+        } else if (detailedError.includes('403') || detailedError.includes('501') || detailedError.includes('Access forbidden')) {
+          searchMethod = 'bot_blocked';
+        } else {
+          searchMethod = 'error'; // Generic error for other network issues
+        }
+        // Return the error result here, as this is a sub-fetch within a strategy
+        return { contactUrl: null, actualFormUrl: null, foundKeywords: [detailedError], searchMethod: searchMethod };
       }
     }
     return null;

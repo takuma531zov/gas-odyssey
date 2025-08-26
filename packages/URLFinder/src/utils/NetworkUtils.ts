@@ -59,8 +59,8 @@ export class NetworkUtils {
       } else if (message.includes('500')) {
         return 'Server error (500) - サーバー内部エラー';
       }
+      return `GASエラー: アクセスに失敗しました`;
 
-      return `Network error: ${error.message}`;
     }
 
     // 文字列エラーの場合
@@ -301,7 +301,7 @@ export class NetworkUtils {
         return { available: true };
       }
       // 404を含む、200-399以外のすべてのステータスコードをエラーとして扱う
-      return { available: false, error: `サイトにアクセスできません (コード: ${statusCode})` };
+      return { available: false, error: this.getDetailedErrorMessage(statusCode) };
     } catch (error) {
       const detailedError = this.getDetailedNetworkError(error);
       console.log(`Domain check error: ${detailedError}`);

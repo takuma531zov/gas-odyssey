@@ -106,7 +106,7 @@ export function processContactPageFinder() {
         let outputValue = '';
 
         // エラーの場合はエラーメッセージを出力
-        if (result.searchMethod === 'error' || result.searchMethod === 'dns_error' || result.searchMethod === 'bot_blocked' || result.searchMethod === 'site_closed') {
+        if (result.searchMethod === 'error' || result.searchMethod === 'dns_error' || result.searchMethod === 'bot_blocked' || result.searchMethod === 'site_closed' || result.searchMethod === 'timeout_error') {
           if (result.foundKeywords && result.foundKeywords.length > 0) {
             outputValue = result.foundKeywords[0] || 'エラーが発生しました'; // 詳細エラーメッセージ
             console.log(`Using error message: ${outputValue}`);

@@ -22,7 +22,20 @@ export class ContactPageFinder {
     const domainCheck = NetworkUtils.checkDomainAvailability(baseUrl);
     if (!domainCheck.available) {
       const errorMessage = domainCheck.error || 'サイトが閉鎖されています';
-      const searchMethod = errorMessage.includes('DNS') ? 'dns_error' : 'site_closed';
+      // エラーメッセージを直接searchMethodに反映
+      let searchMethod = 'site_closed'; // デフォルト
+      if (errorMessage.includes('DNS')) {
+        searchMethod = 'dns_error';
+      } else if (errorMessage.includes('bot') || errorMessage.includes('Bot') || errorMessage.includes('403') || errorMessage.includes('501')) {
+        searchMethod = 'bot_blocked';
+      } else if (errorMessage.includes('timeout') || errorMessage.includes('タイムアウト')) {
+        searchMethod = 'timeout_error';
+      } else if (errorMessage === 'サイトが閉鎖されています') {
+        searchMethod = 'site_closed';
+      } else {
+        // 詳細エラーメッセージがある場合はerrorとして扱う
+        searchMethod = 'error';
+      }
       return { contactUrl: null, actualFormUrl: null, foundKeywords: [errorMessage], searchMethod };
     }
 

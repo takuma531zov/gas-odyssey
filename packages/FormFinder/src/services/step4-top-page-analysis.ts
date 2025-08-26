@@ -23,9 +23,9 @@ export class Step4TopPageAnalysisService {
    */
   async execute(homeUrl: string): Promise<{ success: boolean; html?: string; errorDetail?: string }> {
     Logger.debug(`Step4開始: トップページHTML取得・解析 - ${homeUrl}`);
-    
+
     const normalizedUrl = UrlUtils.normalizeUrl(homeUrl);
-    
+
     if (!UrlUtils.isValidUrl(normalizedUrl)) {
       Logger.error(`無効なURL: ${homeUrl}`);
       return { success: false, errorDetail: "無効なURL形式です" };
@@ -43,11 +43,11 @@ export class Step4TopPageAnalysisService {
       });
 
       const statusCode = response.getResponseCode();
-      
+
       if (statusCode === 200) {
         const html = response.getContentText();
         Logger.info(`Step4成功: トップページHTML取得 - ${normalizedUrl} (${html.length}文字)`);
-        
+
         return { success: true, html };
       } else {
         const errorDetail = this.getHttpErrorMessage(statusCode);
@@ -100,7 +100,7 @@ export class Step4TopPageAnalysisService {
    */
   private getNetworkErrorMessage(error: any): string {
     const errorStr = error.toString().toLowerCase();
-    
+
     if (errorStr.includes('timeout') || errorStr.includes('timed out')) {
       return "接続タイムアウト: サーバー応答なし";
     } else if (errorStr.includes('ssl') || errorStr.includes('certificate')) {
