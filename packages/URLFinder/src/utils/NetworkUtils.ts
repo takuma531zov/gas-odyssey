@@ -71,42 +71,7 @@ export class NetworkUtils {
     return `Unknown network error: ${error.toString()}`;
   }
 
-  /**
-   * URL生存確認
-   * @param url 確認対象URL
-   * @param timeoutMs タイムアウト時間
-   * @returns 生存しているかどうか
-   */
-  static isUrlAlive(url: string, timeoutMs: number = 5000): boolean {
-    try {
-      const response = this.fetchWithTimeout(url, timeoutMs);
-      const statusCode = response.getResponseCode();
-
-      // 200-299, 300-399 (redirects) are considered alive
-      return statusCode >= 200 && statusCode < 400;
-    } catch (error) {
-      console.log(`URL alive check failed for ${url}: ${this.getDetailedNetworkError(error)}`);
-      return false;
-    }
-  }
-
-  /**
-   * レスポンスコードの分類
-   * @param statusCode HTTPステータスコード
-   * @returns ステータス分類
-   */
-  static categorizeStatusCode(statusCode: number): 'success' | 'redirect' | 'client_error' | 'server_error' | 'unknown' {
-    if (statusCode >= 200 && statusCode < 300) {
-      return 'success';
-    } else if (statusCode >= 300 && statusCode < 400) {
-      return 'redirect';
-    } else if (statusCode >= 400 && statusCode < 500) {
-      return 'client_error';
-    } else if (statusCode >= 500 && statusCode < 600) {
-      return 'server_error';
-    }
-    return 'unknown';
-  }
+  
 
   /**
    * 詳細エラーメッセージ取得

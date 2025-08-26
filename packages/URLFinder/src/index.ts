@@ -9,5 +9,4 @@ declare const global: any;
 
 global.processContactPageFinder = processContactPageFinder;
 global.executeUrlFinderWithUI = executeUrlFinderWithUI;
-global.executeSelectedMode = executeSelectedMode;
 global.test = test;
