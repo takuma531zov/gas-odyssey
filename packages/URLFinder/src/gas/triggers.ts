@@ -1,0 +1,158 @@
+
+import type { ContactPageResult } from '../types/interfaces';
+import { ContactPageFinder } from '../ContactPageFinder';
+
+function findContactPage(url: string): ContactPageResult {
+  return ContactPageFinder.findContactPage(url);
+}
+
+export function processContactPageFinder() {
+  try {
+    // スクリプトプロパティから設定値を取得
+    const properties = PropertiesService.getScriptProperties();
+    const sheetName = properties.getProperty('SHEET');
+    const maxCountStr = properties.getProperty('MAX_COUNT');
+    const headerRowStr = properties.getProperty('HEADER_ROW');
+
+    if (!sheetName) {
+      throw new Error('スクリプトプロパティ「SHEET」が設定されていません');
+    }
+
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+    if (!sheet) {
+      throw new Error(`シート「${sheetName}」が見つかりません`);
+    }
+
+    // MAX_COUNTの処理（未設定の場合は制限なし）
+    const maxCount = maxCountStr ? parseInt(maxCountStr, 10) : null;
+    if (maxCountStr && isNaN(maxCount!)) {
+      throw new Error('スクリプトプロパティ「MAX_COUNT」は数値で設定してください');
+    }
+
+    // HEADER_ROWの処理（未設定の場合は1行目）
+    const headerRow = headerRowStr ? parseInt(headerRowStr, 10) : 1;
+    if (headerRowStr && isNaN(headerRow!)) {
+      throw new Error('スクリプトプロパティ「HEADER_ROW」は数値で設定してください');
+    }
+
+    console.log(`処理上限: ${maxCount ? `${maxCount}行` : '制限なし'}`);
+    console.log(`ヘッダー行: ${headerRow}行目（処理対象から除外）`);
+
+    // L列の最終行を取得
+    const lastRowL = sheet.getLastRow();
+
+    // AP列の最終行を取得（データがある行）
+    const apRange = sheet.getRange('AP:AP');
+    const apValues = apRange.getValues();
+    let lastRowAP = 0;
+    for (let i = apValues.length - 1; i >= 0; i--) {
+      const row = apValues[i];
+      if (row && row[0] !== '') {
+        lastRowAP = i + 1;
+        break;
+      }
+    }
+
+    // 処理対象行の範囲を決定
+    const startRow = lastRowAP + 1;
+    let endRow = lastRowL;
+
+    if (startRow > endRow) {
+      console.log('処理対象のURLがありません');
+      return;
+    }
+
+    // MAX_COUNTによる上限制御
+    if (maxCount && (endRow - startRow + 1) > maxCount) {
+      endRow = startRow + maxCount - 1;
+      console.log(`MAX_COUNT制限により処理行数を${maxCount}行に制限します`);
+    }
+
+    console.log(`処理対象行: ${startRow}行目から${endRow}行目まで（${endRow - startRow + 1}行）`);
+
+    // L列のURLを一括取得
+    const urlRange = sheet.getRange(startRow, 12, endRow - startRow + 1, 1); // L列は12列目
+    const urls = urlRange.getValues();
+
+    // 結果配列を準備
+    const results = [];
+
+    // 各URLを処理
+    for (let i = 0; i < urls.length; i++) {
+      const urlRow = urls[i];
+      const url = urlRow && urlRow[0];
+      const currentRow = startRow + i;
+
+      if (!url || url.toString().trim() === '') {
+        results.push(['']);
+        continue;
+      }
+
+      // ヘッダー行の場合はスキップ
+      if (currentRow === headerRow) {
+        console.log(`${currentRow}行目: ヘッダー行のためスキップ`);
+        results.push(['']);
+        continue;
+      }
+
+      console.log(`${currentRow}行目: ${url} を処理中...`);
+
+      try {
+        const result = findContactPage(url.toString().trim());
+
+        console.log(`Result for ${currentRow}行目: searchMethod=${result.searchMethod}, foundKeywords=${result.foundKeywords ? result.foundKeywords.join(',') : 'none'}`);
+
+        // actualFormURLをチェックして出力値を決定
+        let outputValue = '';
+
+        // エラーの場合はエラーメッセージを出力
+        if (result.searchMethod === 'error' || result.searchMethod === 'dns_error' || result.searchMethod === 'bot_blocked' || result.searchMethod === 'site_closed') {
+          if (result.foundKeywords && result.foundKeywords.length > 0) {
+            outputValue = result.foundKeywords[0] || 'エラーが発生しました'; // 詳細エラーメッセージ
+            console.log(`Using error message: ${outputValue}`);
+          } else {
+            outputValue = 'エラーが発生しました';
+            console.log(`Using default error message: ${outputValue}`);
+          }
+        } else if (result.actualFormUrl) {
+          // 実際のURLの場合はそのURL、識別子の場合はフォームが存在するページのURLを出力
+          if (result.actualFormUrl.startsWith('http')) {
+            outputValue = result.actualFormUrl;
+          } else {
+            // 識別子の場合、フォームが存在するページのURLを出力
+            outputValue = result.contactUrl || url.toString().trim();
+          }
+        } else if (result.contactUrl) {
+          // actualFormUrlはないが、contactUrlがある場合
+          outputValue = result.contactUrl;
+        } else {
+          // SNSページや見つからない場合
+          outputValue = '問い合わせフォームが見つかりませんでした';
+        }
+
+        results.push([outputValue]);
+        console.log(`${currentRow}行目: 完了 - ${outputValue}`);
+
+      } catch (error) {
+        const errorMessage = `エラー: ${error instanceof Error ? error.message : String(error)}`;
+        results.push([errorMessage]);
+        console.error(`${currentRow}行目: ${errorMessage}`);
+      }
+    }
+
+    // AP列に結果を一括書き込み
+    const outputRange = sheet.getRange(startRow, 42, results.length, 1); // AP列は42列目
+    outputRange.setValues(results);
+
+    console.log(`処理完了: ${results.length}行の結果をAP列に出力しました`);
+
+    // MAX_COUNT制限で処理が打ち切られた場合の通知
+    if (maxCount && results.length === maxCount && startRow + maxCount - 1 < lastRowL) {
+      console.log(`注意: MAX_COUNT(${maxCount})制限により処理を制限しました。残り${lastRowL - (startRow + maxCount - 1)}行のデータが未処理です。`);
+    }
+
+  } catch (error) {
+    console.error('処理中にエラーが発生しました:', error);
+    throw error;
+  }
+}
