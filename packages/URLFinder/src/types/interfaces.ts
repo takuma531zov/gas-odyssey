@@ -19,9 +19,10 @@ export interface SearchStrategy {
   /**
    * 検索実行
    * @param baseUrl 対象URL
+   * @param searchState 検索状態
    * @returns 検索結果（null=失敗、結果=成功）
    */
-  search(baseUrl: string): ContactPageResult | null;
+  search(baseUrl: string, searchState: any): ContactPageResult | null;
   
   /**
    * 戦略名（デバッグ用）

@@ -1,197 +1,338 @@
-/**
- * HTML処理ユーティリティ
- * HTML解析とテキスト処理を管理
- */
+import type { ContactPageResult, PurityResult, HtmlSearchResult } from '../types/interfaces';
+import { StringUtils } from './StringUtils';
+import { NetworkUtils } from './NetworkUtils';
+import { FormUtils } from './FormUtils';
+import { SearchState } from '../core/SearchState';
 
 export class HtmlUtils {
-  
-  /**
-   * 文字列をHEX形式で表示（文字化けデバッグ用）
-   * @param str 対象文字列
-   * @returns HEX形式文字列
-   */
-  static toHexString(str: string): string {
+  private static readonly HIGH_PRIORITY_CONTACT_KEYWORDS = [
+    'contact', 'contact us', 'contact form', 'inquiry', 'enquiry',
+    'get in touch', 'reach out', 'send message', 'message us',
+    'お問い合わせ', '問い合わせ', 'お問合せ', '問合せ',
+    'ご相談', '相談', 'お客様窓口', 'お問い合わせフォーム',
+    'お問い合わせはこちら', '問い合わせフォーム',
+    'form', 'フォーム',
+    '%E3%81%8A%E5%95%8F%E3%81%84%E5%90%88%E3%82%8F%E3%81%9B', 
+    '%E5%95%8F%E3%81%84%E5%90%88%E3%82%8F%E3%81%9B', 
+    '%E3%81%8A%E5%95%8F%E5%90%88%E3%81%9B', 
+    '%E5%95%8F%E5%90%88%E3%81%9B'
+  ];
+
+  private static readonly MEDIUM_PRIORITY_CONTACT_KEYWORDS = [
+    'form', 'フォーム', 'submit', 'send', 'mail form',
+    'feedback'
+  ];
+
+  private static readonly EXCLUDED_KEYWORDS = [
+    'download', 'recruit', 'career'
+  ];
+
+  static detectSameHtmlPattern(urls: string[], htmlContent: string, searchState: SearchState): boolean {
+    const contentHash = StringUtils.hashString(htmlContent);
+    let sameCount = 0;
+
+    for (const url of urls) {
+      const cachedHash = searchState.getHtmlCache(url);
+      if (cachedHash === contentHash) {
+        sameCount++;
+      } else {
+        searchState.setHtmlCache(url, contentHash);
+      }
+    }
+    return sameCount >= 2;
+  }
+
+  static executeSPAAnalysis(html: string, baseUrl: string): ContactPageResult {
     try {
-      return Array.from(str).map(char => 
-        char.charCodeAt(0).toString(16).padStart(2, '0')
-      ).join(' ');
+      const navResult = this.searchInNavigation(html, baseUrl);
+      if (navResult.url && StringUtils.isAnchorLink(navResult.url)) {
+        const anchorSectionResult = this.analyzeAnchorSection(html, navResult.url, baseUrl);
+        if (anchorSectionResult.contactUrl) {
+          anchorSectionResult.searchMethod = 'spa_anchor_analysis';
+          anchorSectionResult.foundKeywords.push('spa_detected');
+          return anchorSectionResult;
+        }
+      }
+      return { contactUrl: null, actualFormUrl: null, foundKeywords: ['spa_detected', 'anchor_analysis_failed'], searchMethod: 'spa_analysis_failed' };
     } catch (error) {
-      return `[HEX conversion error: ${error}]`;
+      return { contactUrl: null, actualFormUrl: null, foundKeywords: ['spa_detected', 'spa_analysis_error'], searchMethod: 'spa_analysis_error' };
     }
   }
 
-  /**
-   * HTMLからテキストコンテンツを抽出（タグ除去）
-   * @param html HTML文字列
-   * @returns プレーンテキスト
-   */
-  static stripHtmlTags(html: string): string {
-    if (!html) return '';
-    
-    // Remove script and style tags completely
-    let cleaned = html.replace(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, '');
-    
-    // Remove HTML tags
-    cleaned = cleaned.replace(/<[^>]*>/g, ' ');
-    
-    // Normalize whitespace
-    cleaned = cleaned.replace(/\s+/g, ' ').trim();
-    
-    return cleaned;
-  }
+  static calculateContactPurity(url: string, linkText: string): PurityResult {
+    let score = 0;
+    const reasons: string[] = [];
+    const foundKeywords = new Set<string>();
 
-  /**
-   * HTMLからリンクを抽出
-   * @param html HTML文字列
-   * @returns リンク配列（{href, text}形式）
-   */
-  static extractLinks(html: string): Array<{href: string, text: string}> {
-    const links: Array<{href: string, text: string}> = [];
-    const linkRegex = /<a[^>]*href=['"]([^'\"]*?)['"][^>]*>([\s\S]*?)<\/a>/gi;
-    let match;
+    const lowerUrl = url.toLowerCase();
+    const lowerLinkText = linkText.toLowerCase();
 
-    while ((match = linkRegex.exec(html)) !== null) {
-      const href = match[1];
-      const text = this.stripHtmlTags(match[2] || '').trim();
-      
-      if (href && text) {
-        links.push({ href, text });
+    for (const excludedKeyword of this.EXCLUDED_KEYWORDS) {
+      if (lowerUrl.includes(excludedKeyword.toLowerCase()) ||
+          lowerLinkText.includes(excludedKeyword.toLowerCase())) {
+        score -= 15;
+        reasons.push(`excluded:${excludedKeyword}`);
+        break;
       }
     }
 
-    return links;
-  }
-
-  /**
-   * HTMLから指定セレクタのコンテンツを抽出
-   * @param html HTML文字列
-   * @param selectors セレクタ配列（正規表現）
-   * @returns マッチしたコンテンツ配列
-   */
-  static extractBySelectors(html: string, selectors: RegExp[]): string[] {
-    const matches: string[] = [];
-    
-    for (const selector of selectors) {
-      const found = html.match(selector) || [];
-      matches.push(...found);
-    }
-    
-    return matches;
-  }
-
-  /**
-   * HTMLの文字エンコーディングを検出
-   * @param html HTML文字列
-   * @returns 検出されたエンコーディング（見つからない場合はUTF-8）
-   */
-  static detectEncoding(html: string): string {
-    // Check meta charset
-    const charsetMatch = html.match(/<meta[^>]*charset=['"]?([^'"\s>]+)/i);
-    if (charsetMatch?.[1]) {
-      return charsetMatch[1].toLowerCase();
-    }
-
-    // Check HTTP-equiv content-type
-    const contentTypeMatch = html.match(/<meta[^>]*http-equiv=['"]?content-type['"]?[^>]*content=['"]?[^'"]*charset=([^'"\s;]+)/i);
-    if (contentTypeMatch?.[1]) {
-      return contentTypeMatch[1].toLowerCase();
-    }
-
-    return 'utf-8'; // Default
-  }
-
-  /**
-   * HTMLからフォーム要素を抽出
-   * @param html HTML文字列
-   * @returns フォーム要素の情報
-   */
-  static extractForms(html: string): Array<{
-    action?: string,
-    method?: string,
-    inputs: Array<{type: string, name?: string, value?: string}>
-  }> {
-    const forms: Array<{
-      action?: string,
-      method?: string,
-      inputs: Array<{type: string, name?: string, value?: string}>
-    }> = [];
-
-    // Extract form tags
-    const formRegex = /<form[^>]*>([\s\S]*?)<\/form>/gi;
-    let formMatch;
-
-    while ((formMatch = formRegex.exec(html)) !== null) {
-      const formTag = formMatch[0];
-      const formContent = formMatch[1] || '';
-
-      // Extract form attributes
-      const actionMatch = formTag.match(/action=['"]?([^'"\s>]+)/i);
-      const methodMatch = formTag.match(/method=['"]?([^'"\s>]+)/i);
-
-      // Extract input elements
-      const inputs: Array<{type: string, name?: string, value?: string}> = [];
-      const inputRegex = /<input[^>]*>/gi;
-      let inputMatch;
-
-      while ((inputMatch = inputRegex.exec(formContent)) !== null) {
-        const inputTag = inputMatch[0];
-        const typeMatch = inputTag.match(/type=['"]?([^'"\s>]+)/i);
-        const nameMatch = inputTag.match(/name=['"]?([^'"\s>]+)/i);
-        const valueMatch = inputTag.match(/value=['"]?([^'"]*)/i);
-
-        const input: {type: string, name?: string, value?: string} = {
-          type: typeMatch?.[1] || 'text'
-        };
-        
-        if (nameMatch?.[1]) {
-          input.name = nameMatch[1];
-        }
-        
-        if (valueMatch?.[1]) {
-          input.value = valueMatch[1];
-        }
-        
-        inputs.push(input);
+    for (const keyword of this.HIGH_PRIORITY_CONTACT_KEYWORDS) {
+      const normalizedKeyword = keyword.toLowerCase();
+      if (lowerLinkText.includes(normalizedKeyword) && !foundKeywords.has(normalizedKeyword)) {
+        score += 10;
+        reasons.push(`high_priority_text:${keyword}`);
+        foundKeywords.add(normalizedKeyword);
+      } else if (lowerUrl.includes(normalizedKeyword) && !foundKeywords.has(normalizedKeyword)) {
+        score += 8;
+        reasons.push(`high_priority_url:${keyword}`);
+        foundKeywords.add(normalizedKeyword);
       }
-
-      const form: {action?: string, method?: string, inputs: Array<{type: string, name?: string, value?: string}>} = {
-        method: methodMatch?.[1] || 'get',
-        inputs
-      };
-      
-      if (actionMatch?.[1]) {
-        form.action = actionMatch[1];
-      }
-      
-      forms.push(form);
     }
 
-    return forms;
-  }
+    for (const keyword of this.MEDIUM_PRIORITY_CONTACT_KEYWORDS) {
+      const normalizedKeyword = keyword.toLowerCase();
+      if (lowerLinkText.includes(normalizedKeyword) && !foundKeywords.has(normalizedKeyword)) {
+        score += 3;
+        reasons.push(`medium_priority_text:${keyword}`);
+        foundKeywords.add(normalizedKeyword);
+      } else if (lowerUrl.includes(normalizedKeyword) && !foundKeywords.has(normalizedKeyword)) {
+        score += 2;
+        reasons.push(`medium_priority_url:${keyword}`);
+        foundKeywords.add(normalizedKeyword);
+      }
+    }
 
-  /**
-   * HTML文字列の基本的なサニタイゼーション
-   * @param html HTML文字列
-   * @returns サニタイズされたHTML
-   */
-  static sanitizeHtml(html: string): string {
-    if (!html) return '';
-    
-    // Remove dangerous elements
-    const dangerous = [
-      /<script[^>]*>[\s\S]*?<\/script>/gi,
-      /<style[^>]*>[\s\S]*?<\/style>/gi,
-      /<iframe[^>]*>[\s\S]*?<\/iframe>/gi,
-      /<object[^>]*>[\s\S]*?<\/object>/gi,
-      /<embed[^>]*>/gi,
-      /<link[^>]*>/gi
+    const contactUrlPatterns = [
+      '/contact/', '/inquiry/', '/sales-contact/', '/business-contact/',
+      '/contact-us/', '/get-in-touch/', '/reach-out/', '/問い合わせ/', '/お問い合わせ/'
     ];
 
-    let sanitized = html;
-    for (const regex of dangerous) {
-      sanitized = sanitized.replace(regex, '');
+    for (const pattern of contactUrlPatterns) {
+      if (lowerUrl.includes(pattern)) {
+        score += 15;
+        reasons.push(`strong_contact_url_structure:${pattern}`);
+        break;
+      }
     }
 
-    return sanitized;
+    if (lowerUrl.includes('/service/')) {
+      score -= 10;
+      reasons.push('service_url_penalty');
+    } else if (lowerUrl.includes('/about/') || lowerUrl.includes('/company/') || lowerUrl.includes('/info/')) {
+      score -= 5;
+      reasons.push('impure_url_structure');
+    }
+
+    return { score, reasons };
+  }
+
+  static searchInNavigation(html: string, baseUrl: string): HtmlSearchResult {
+    const navigationSelectors = [
+      /<nav[\s\S]*?<\/nav>/gi,
+      /<[^>]*id=['"]menu['"][^>]*>[\s\S]*?<\/[^>]+>/gi,
+      /<footer[\s\S]*?<\/footer>/gi,
+      /<ul[^>]*id=['"]naviArea['"][^>]*>[\s\S]*<\/ul>/gi,
+      /<[^>]*id=['"]navigation['"][^>]*>[\s\S]*?<\/[^>]+>/gi,
+      /<[^>]*id=['"]nav['"][^>]*>[\s\S]*?<\/[^>]+>/gi,
+      /<div[^>]*class=['"][^'"\\]*\bnav\b[^'"\\]*['"][^>]*>[\s\S]*<\/div>/gi,
+      /<nav[^>]*class=['"][^'"\\]*\bnavigation\b[^'"\\]*['"][^>]*>[\s\S]*<\/nav>/gi,
+      /<ul[^>]*class=['"][^'"\\]*\bmenu\b[^'"\\]*['"][^>]*>[\s\S]*<\/ul>/gi
+    ];
+
+    let allCandidates: HtmlSearchResult[] = [];
+
+    for (const regex of navigationSelectors) {
+      const matches = html.match(regex) || [];
+      for (const match of matches) {
+        const candidates = this.extractAllContactLinks(match, baseUrl, 'navigation');
+        allCandidates.push(...candidates);
+      }
+    }
+
+    const contactLinks = allCandidates.filter(candidate =>
+      this.HIGH_PRIORITY_CONTACT_KEYWORDS.some(keyword =>
+        candidate.url?.toLowerCase().includes(keyword.toLowerCase()) ||
+        candidate.keywords.some(k => k.toLowerCase().includes(keyword.toLowerCase()))
+      )
+    );
+
+    if (contactLinks.length > 0) {
+      return contactLinks.reduce((max, current) => current.score > max.score ? current : max);
+    }
+
+    return { url: null, keywords: [], score: 0, reasons: [], linkText: '', context: 'general' };
+  }
+
+  static extractAllContactLinks(content: string, baseUrl: string, context: HtmlSearchResult['context']): HtmlSearchResult[] {
+    const candidates: HtmlSearchResult[] = [];
+    const linkRegex = /<a[^>]*href=['"]([^'"\\]*?)['"][^>]*>([\s\S]*?)<\/a>/gi;
+    let match;
+
+    while ((match = linkRegex.exec(content)) !== null) {
+      const url = match[1];
+      const linkText = match[2];
+
+      if (!url || !linkText) continue;
+
+      const cleanLinkText = linkText.replace(/<[^>]*>/g, '').trim();
+      if (url.startsWith('mailto:') || url.startsWith('javascript:') || url.startsWith('tel:')) continue;
+
+      const hasContactKeywords = this.HIGH_PRIORITY_CONTACT_KEYWORDS.some(keyword =>
+        url.toLowerCase().includes(keyword.toLowerCase()) ||
+        cleanLinkText.toLowerCase().includes(keyword.toLowerCase())
+      );
+
+      if (!hasContactKeywords) continue;
+
+      const hasExcludedKeywords = this.EXCLUDED_KEYWORDS.some(keyword =>
+        url.toLowerCase().includes(keyword.toLowerCase()) ||
+        cleanLinkText.toLowerCase().includes(keyword.toLowerCase())
+      );
+
+      if (hasExcludedKeywords) continue;
+
+      const purityResult = this.calculateContactPurity(url, cleanLinkText);
+      const totalScore = purityResult.score + 5; // navigation context bonus
+
+      if (totalScore > 0) {
+        const fullUrl = NetworkUtils.resolveUrl(url, baseUrl);
+        candidates.push({
+          url: fullUrl,
+          keywords: purityResult.reasons.map(r => r.split(':')[1] || r),
+          score: totalScore,
+          reasons: [...purityResult.reasons, 'navigation_context_bonus'],
+          linkText: cleanLinkText,
+          context
+        });
+      }
+    }
+    return candidates.sort((a, b) => b.score - a.score);
+  }
+
+  static isValidContactPage(html: string): boolean {
+    const invalidPatterns = [
+      'page not found', 'ページが見つかりません', '404 not found',
+      'under construction', '工事中', 'site under construction',
+      'coming soon'
+    ];
+    const lowerHtml = html.toLowerCase();
+    const hasInvalidContent = invalidPatterns.some(pattern => lowerHtml.includes(pattern.toLowerCase()));
+    return !hasInvalidContent && html.length > 500;
+  }
+
+  static getContentWithEncoding(response: GoogleAppsScript.URL_Fetch.HTTPResponse): string {
+    const encodings = ['utf-8', 'shift_jis', 'euc-jp'];
+    for (const encoding of encodings) {
+      try {
+        const content = response.getContentText(encoding);
+        if (StringUtils.isValidEncoding(content)) {
+          return content;
+        }
+      } catch (e) {
+        continue;
+      }
+    }
+    return response.getContentText();
+  }
+
+  static analyzeAnchorSection(html: string, anchorUrl: string, baseUrl: string): ContactPageResult {
+    try {
+      const anchorMatch = anchorUrl.match(/#(.+)$/);
+      if (!anchorMatch) {
+        return { contactUrl: null, actualFormUrl: null, foundKeywords: [], searchMethod: 'anchor_parse_failed' };
+      }
+      const anchorId = anchorMatch[1];
+      const sectionPatterns = [
+        new RegExp(`<[^>]+id=[\"']${anchorId}[\"'][^>]*>[\s\S]*?(?=<[^>]+id=[\"']|$)`, 'i'),
+        new RegExp(`<[^>]+name=[\"']${anchorId}[\"'][^>]*>[\s\S]*?(?=<[^>]+name=[\"']|$)`, 'i'),
+        new RegExp(`<section[^>]*>[\s\S]*?${anchorId}[\s\S]*?<\/section>`, 'i'),
+        new RegExp(`<div[^>]*contact[^>]*>[\s\S]*?<\/div>`, 'i')
+      ];
+      let sectionContent = '';
+      for (const pattern of sectionPatterns) {
+        const match = html.match(pattern);
+        if (match) {
+          sectionContent = match[0];
+          break;
+        }
+      }
+      if (!sectionContent) {
+        const contactKeywords = ['contact', 'お問い合わせ', '問い合わせ'];
+        for (const keyword of contactKeywords) {
+          const keywordIndex = html.toLowerCase().indexOf(keyword);
+          if (keywordIndex !== -1) {
+            const start = Math.max(0, keywordIndex - 1000);
+            const end = Math.min(html.length, keywordIndex + 1000);
+            sectionContent = html.substring(start, end);
+            break;
+          }
+        }
+      }
+      if (sectionContent) {
+        const hasForm = FormUtils.isValidContactForm(sectionContent);
+        const googleForms = FormUtils.detectGoogleForms(sectionContent);
+        if (hasForm || googleForms.found) {
+          return {
+            contactUrl: baseUrl,
+            actualFormUrl: googleForms.found ? googleForms.url : baseUrl,
+            foundKeywords: ['anchor_section_detected', hasForm ? 'html_form_found' : 'google_forms_found'],
+            searchMethod: 'anchor_section_analysis'
+          };
+        }
+      }
+      return { contactUrl: null, actualFormUrl: null, foundKeywords: [], searchMethod: 'anchor_section_insufficient' };
+    } catch (error) {
+      return { contactUrl: null, actualFormUrl: null, foundKeywords: [], searchMethod: 'anchor_section_error' };
+    }
+  }
+
+  static findSecondStageFormLink(html: string, contactPageUrl: string): string | null {
+    const formLinkPatterns = ['form', 'フォーム', 'submit', '送信', 'formzu', 'fc2', 'google.com/forms', 'forms.gle'];
+    const formTextPatterns = ['フォームはこちら', 'フォームへ', '問い合わせフォーム', '入力フォーム', '送信フォーム', 'form here', 'click here', 'go to form'];
+    const linkRegex = /<a[^>]*href=['"]([^'"\\]*?)['"][^>]*>([\s\S]*?)<\/a>/gi;
+    let match;
+    const candidateLinks: Array<{url: string, score: number}> = [];
+
+    while ((match = linkRegex.exec(html)) !== null) {
+      const url = match[1];
+      const linkText = match[2];
+      if (!url || !linkText) continue;
+      if (url.startsWith('mailto:') || url.startsWith('javascript:') || url.startsWith('tel:')) continue;
+
+      const cleanLinkText = linkText.replace(/<[^>]*>/g, '').trim().toLowerCase();
+      const lowerUrl = url.toLowerCase();
+      let score = 0;
+
+      const negativeKeywords = ['recruit', 'career', 'job', 'hire', 'employment', '採用', '求人', 'request', 'download', 'material', '資料', '資料請求', 'brochure'];
+      if (negativeKeywords.some(keyword => lowerUrl.includes(keyword) || cleanLinkText.includes(keyword))) continue;
+      if (NetworkUtils.isHomepageUrl(url, contactPageUrl)) continue;
+
+      if (formLinkPatterns.some(pattern => lowerUrl.includes(pattern))) score += 3;
+      if (formTextPatterns.some(pattern => cleanLinkText.includes(pattern))) score += 2;
+
+      if (score > 0) {
+        candidateLinks.push({ url: NetworkUtils.resolveUrl(url, contactPageUrl), score });
+      }
+    }
+
+    if (candidateLinks.length === 0) return null;
+
+    candidateLinks.sort((a, b) => b.score - a.score);
+
+    for (const candidate of candidateLinks.slice(0, 3)) {
+      try {
+        const response = NetworkUtils.fetchWithTimeout(candidate.url, 3000);
+        if (response.getResponseCode() === 200) {
+          const candidateHtml = response.getContentText();
+          const hasGoogleForm = FormUtils.findGoogleFormUrlsOnly(candidateHtml);
+          if (hasGoogleForm) return hasGoogleForm;
+          if (FormUtils.findEmbeddedHTMLForm(candidateHtml)) return candidate.url;
+          if (FormUtils.hasSignificantFormContent(candidateHtml)) return candidate.url;
+        }
+      } catch (error) {
+        continue;
+      }
+    }
+    return null;
   }
 }

@@ -1,3 +1,4 @@
+
 /**
  * ネットワーク処理ユーティリティ
  * HTTP通信とエラーハンドリングを管理
@@ -287,5 +288,40 @@ export class NetworkUtils {
 
     console.log(`URL quality evaluation for ${url}: confidence=${confidence.toFixed(2)}, keywords=[${keywords.join(', ')}]`);
     return { confidence, keywords };
+  }
+
+  static checkDomainAvailability(baseUrl: string): { available: boolean, error?: string } {
+    try {
+      console.log(`Testing domain availability: ${baseUrl}`);
+      const response = this.fetchWithTimeout(baseUrl, 3000); // 3秒タイムアウト
+      const statusCode = response.getResponseCode();
+
+      console.log(`Domain check status: ${statusCode}`);
+
+      // 200-399は正常、404は閉鎖
+      if (statusCode >= 200 && statusCode < 400) {
+        return { available: true };
+      } else if (statusCode === 404) {
+        return { available: false, error: 'サイトが見つかりません（404）' };
+      } else {
+        // その他のステータスコードは生存とみなす（後続処理で詳細エラー判定）
+        return { available: true };
+      }
+    } catch (error) {
+      const detailedError = this.getDetailedNetworkError(error);
+      console.log(`Domain check error: ${detailedError}`);
+
+      // 明確に閉鎖を示すエラーの場合は閉鎖とみなす
+      if (detailedError.includes('DNS解決失敗') ||
+          detailedError.includes('接続拒否') ||
+          detailedError.includes('SSL/TLS証明書エラー') ||
+          detailedError.includes('ホスト到達不可') ||
+          detailedError.includes('GASエラー')) {
+        return { available: false, error: detailedError };
+      }
+
+      // その他のエラー（タイムアウト等）は一時的な問題として処理続行
+      return { available: true };
+    }
   }
 }
