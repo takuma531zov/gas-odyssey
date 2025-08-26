@@ -21,7 +21,9 @@ export class ContactPageFinder {
 
     const domainCheck = NetworkUtils.checkDomainAvailability(baseUrl);
     if (!domainCheck.available) {
-      return { contactUrl: null, actualFormUrl: null, foundKeywords: [domainCheck.error || 'サイトが閉鎖されています'], searchMethod: 'site_closed' };
+      const errorMessage = domainCheck.error || 'サイトが閉鎖されています';
+      const searchMethod = errorMessage.includes('DNS') ? 'dns_error' : 'site_closed';
+      return { contactUrl: null, actualFormUrl: null, foundKeywords: [errorMessage], searchMethod };
     }
 
     const domainUrl = NetworkUtils.extractDomain(baseUrl);
@@ -29,8 +31,12 @@ export class ContactPageFinder {
     for (const strategy of strategies) {
       try {
         const result = strategy.search(domainUrl, searchState);
-        if (result && result.contactUrl) {
-          console.log(`✅ Found via ${strategy.getStrategyName()}: ${result.contactUrl}`);
+        if (result) {
+          if (result.contactUrl) {
+            console.log(`✅ Found via ${strategy.getStrategyName()}: ${result.contactUrl}`);
+          } else {
+            console.log(`Strategy ${strategy.getStrategyName()} returned a terminal result: ${result.searchMethod}`);
+          }
           return result;
         }
       } catch (error) {

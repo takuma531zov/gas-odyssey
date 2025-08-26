@@ -1,11 +1,10 @@
-
 /**
  * ネットワーク処理ユーティリティ
  * HTTP通信とエラーハンドリングを管理
  */
 
 export class NetworkUtils {
-  
+
   /**
    * タイムアウト付きHTTP通信
    * @param url 通信先URL
@@ -20,7 +19,7 @@ export class NetworkUtils {
         muteHttpExceptions: true,
         followRedirects: true
       });
-      
+
       return response;
     } catch (error) {
       const detailedError = this.getDetailedNetworkError(error);
@@ -42,11 +41,11 @@ export class NetworkUtils {
     // GASのエラーオブジェクトの場合
     if (error.message) {
       const message = error.message.toLowerCase();
-      
+
       if (message.includes('timeout')) {
         return 'Network timeout - サーバーの応答が遅すぎます';
       } else if (message.includes('dns') || message.includes('name resolution')) {
-        return 'DNS resolution failed - ドメイン名が解決できません';
+        return 'DNS解決失敗: ドメインが存在しません';
       } else if (message.includes('connection refused') || message.includes('connect')) {
         return 'Connection refused - サーバーに接続できません';
       } else if (message.includes('ssl') || message.includes('certificate')) {
@@ -60,7 +59,7 @@ export class NetworkUtils {
       } else if (message.includes('500')) {
         return 'Server error (500) - サーバー内部エラー';
       }
-      
+
       return `Network error: ${error.message}`;
     }
 
@@ -82,7 +81,7 @@ export class NetworkUtils {
     try {
       const response = this.fetchWithTimeout(url, timeoutMs);
       const statusCode = response.getResponseCode();
-      
+
       // 200-299, 300-399 (redirects) are considered alive
       return statusCode >= 200 && statusCode < 400;
     } catch (error) {
@@ -275,7 +274,7 @@ export class NetworkUtils {
     // URL内のcontactキーワードチェック（ドメイン除外）
     const urlPath = url.replace(/https?:\/\/[^/]+/, ''); // ドメインを除外
     const contactKeywords = ['contact', 'inquiry', 'form', 'お問い合わせ', '問い合わせ'];
-    
+
     for (const keyword of contactKeywords) {
       if (urlPath.toLowerCase().includes(keyword.toLowerCase())) {
         confidence += 0.1;
@@ -298,30 +297,16 @@ export class NetworkUtils {
 
       console.log(`Domain check status: ${statusCode}`);
 
-      // 200-399は正常、404は閉鎖
       if (statusCode >= 200 && statusCode < 400) {
         return { available: true };
-      } else if (statusCode === 404) {
-        return { available: false, error: 'サイトが見つかりません（404）' };
-      } else {
-        // その他のステータスコードは生存とみなす（後続処理で詳細エラー判定）
-        return { available: true };
       }
+      // 404を含む、200-399以外のすべてのステータスコードをエラーとして扱う
+      return { available: false, error: `サイトにアクセスできません (コード: ${statusCode})` };
     } catch (error) {
       const detailedError = this.getDetailedNetworkError(error);
       console.log(`Domain check error: ${detailedError}`);
-
-      // 明確に閉鎖を示すエラーの場合は閉鎖とみなす
-      if (detailedError.includes('DNS解決失敗') ||
-          detailedError.includes('接続拒否') ||
-          detailedError.includes('SSL/TLS証明書エラー') ||
-          detailedError.includes('ホスト到達不可') ||
-          detailedError.includes('GASエラー')) {
-        return { available: false, error: detailedError };
-      }
-
-      // その他のエラー（タイムアウト等）は一時的な問題として処理続行
-      return { available: true };
+      // catchしたエラーはすべて利用不可とする
+      return { available: false, error: detailedError };
     }
   }
 }
