@@ -6,7 +6,7 @@
 import { PurityResult, KeywordDetectionResult, ContactInfoResult } from '../types/interfaces';
 
 export class KeywordMatcher {
-  
+
   // 高優先度問い合わせキーワード
   private static readonly HIGH_PRIORITY_CONTACT_KEYWORDS = [
     'お問い合わせ', '問い合わせ', 'お問合せ', '問合せ', 'contact', 'inquiry', 'Contact', 'Inquiry',
@@ -60,7 +60,7 @@ export class KeywordMatcher {
       }
     }
 
-    // リンクテキスト内の高優先度キーワードチェック  
+    // リンクテキスト内の高優先度キーワードチェック
     for (const keyword of this.HIGH_PRIORITY_CONTACT_KEYWORDS) {
       const lowerKeyword = keyword.toLowerCase();
       if (lowerText.includes(lowerKeyword)) {
@@ -71,7 +71,7 @@ export class KeywordMatcher {
       }
     }
 
-    // コンテキストボーナス
+    //コンテキストボーナス
     if (lowerContext) {
       if (lowerContext.includes('nav')) {
         score += 3;
@@ -117,7 +117,7 @@ export class KeywordMatcher {
    */
   private static getKeywordWeight(keyword: string, location: 'url' | 'text'): number {
     const baseWeight = location === 'url' ? 4 : 3;
-    
+
     // 特別な重み付け
     if (keyword.includes('お問い合わせ') || keyword === 'contact') {
       return baseWeight + 2;
@@ -125,7 +125,7 @@ export class KeywordMatcher {
     if (keyword.includes('フォーム') || keyword === 'form') {
       return baseWeight + 1;
     }
-    
+
     return baseWeight;
   }
 
@@ -163,7 +163,7 @@ export class KeywordMatcher {
    */
   static extractContactInfo(content: string): ContactInfoResult {
     const lowerContent = content.toLowerCase();
-    
+
     // 電話番号パターン
     const phonePatterns = [
       /\d{2,4}[-‐]\d{2,4}[-‐]\d{3,4}/g,      // 03-1234-5678
@@ -171,27 +171,27 @@ export class KeywordMatcher {
       /\(\d{3}\)\s?\d{3}[-‐]\d{4}/g,         // (123) 456-7890
       /tel[:\s]*[\d\-\(\)\s+]{10,}/gi        // tel: 形式
     ];
-    
+
     const hasPhone = phonePatterns.some(pattern => pattern.test(content));
-    
+
     // メールアドレスパターン
     const emailPattern = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
     const hasEmail = emailPattern.test(content);
-    
+
     // フォーム言及パターン
     const formMentionPatterns = [
       'フォーム', 'form', 'お問い合わせ', 'contact', '送信', 'submit'
     ];
-    const hasFormMention = formMentionPatterns.some(pattern => 
+    const hasFormMention = formMentionPatterns.some(pattern =>
       lowerContent.includes(pattern.toLowerCase())
     );
-    
+
     // スコア計算
     let score = 0;
     if (hasPhone) score += 3;
     if (hasEmail) score += 2;
     if (hasFormMention) score += 1;
-    
+
     return {
       hasPhone,
       hasEmail,
