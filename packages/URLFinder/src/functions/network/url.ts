@@ -3,7 +3,7 @@
  * 純粋関数として実装し、副作用を排除
  */
 
-import { UrlResolutionResult } from '../types/interfaces';
+import { UrlResolutionResult } from '../../data/types/interfaces';
 
 export class UrlUtils {
   

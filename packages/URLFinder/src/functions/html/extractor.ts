@@ -2,7 +2,7 @@ import { FormUtils as CustomFormUtils } from './FormUtils';
 import { HtmlUtils } from './HtmlUtils';
 import { NetworkUtils } from './NetworkUtils';
 import { StringUtils } from './StringUtils';
-import type { ContactPageResult } from '../types/interfaces';
+import type { ContactPageResult } from '../../data/types/interfaces';
 import { SearchState } from '../core/SearchState';
 import { Environment } from '../env';
 import {
@@ -18,7 +18,7 @@ import {
   FORM_CONTEXT_CONTACT_KEYWORDS,
   GOOGLE_FORM_EXCLUDE_KEYWORDS,
   GOOGLE_FORM_CONTACT_KEYWORDS
-} from '../constants/form_constants';
+} from '../../data/constants/form_constants';
 
 export class FormUtils {
 

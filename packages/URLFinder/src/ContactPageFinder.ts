@@ -1,10 +1,10 @@
 import { Environment } from './env';
-import type { ContactPageResult } from './types/interfaces';
-import { SearchState } from './core/SearchState';
-import { NetworkUtils } from './utils/NetworkUtils';
-import { UrlPatternStrategy } from './strategies/UrlPatternStrategy';
-import { HtmlAnalysisStrategy } from './strategies/HtmlAnalysisStrategy';
-import { FallbackStrategy } from './strategies/FallbackStrategy';
+import type { ContactPageResult } from './data/types/interfaces';
+import { SearchState } from './pipelines/state';
+import { NetworkUtils } from './functions/network/fetch';
+import { UrlPatternStrategy } from './pipelines/UrlPatternStrategy';
+import { HtmlAnalysisStrategy } from './pipelines/HtmlAnalysisStrategy';
+import { FallbackStrategy } from './pipelines/FallbackStrategy';
 
 export class ContactPageFinder {
   static findContactPage(baseUrl: string): ContactPageResult {

@@ -1,6 +1,6 @@
 
 
-import type { ContactPageResult } from '../types/interfaces';
+import type { ContactPageResult } from '../../data/types/interfaces';
 import { processContactPageFinder } from './triggers';
 import { ContactPageFinder } from '../ContactPageFinder';
 

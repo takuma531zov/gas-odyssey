@@ -3,7 +3,7 @@
  * Step1とStep2のフォーム検証ロジックを統一
  */
 
-import { FormDetectionResult, FormAnalysisResult } from '../types/interfaces';
+import { FormDetectionResult, FormAnalysisResult } from '../../data/types/interfaces';
 
 export class FormDetector {
   

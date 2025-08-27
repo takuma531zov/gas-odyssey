@@ -3,9 +3,9 @@
  * URL、リンクテキスト、HTML内容のキーワードマッチングを管理
  */
 
-import { PurityResult, KeywordDetectionResult, ContactInfoResult } from '../types/interfaces';
-import { HIGH_PRIORITY_CONTACT_KEYWORDS, CONTACT_KEYWORDS } from '../constants/keywords';
-import { PHONE_PATTERNS, EMAIL_PATTERN, NEGATIVE_PATTERNS, FORM_MENTION_PATTERNS, DYNAMIC_CONTACT_KEYWORDS, DYNAMIC_INDUCTION_PHRASES, DYNAMIC_FORM_HINTS } from '../constants/contact_patterns';
+import { PurityResult, KeywordDetectionResult, ContactInfoResult } from '../../data/types/interfaces';
+import { HIGH_PRIORITY_CONTACT_KEYWORDS, CONTACT_KEYWORDS } from '../../data/constants/keywords';
+import { PHONE_PATTERNS, EMAIL_PATTERN, NEGATIVE_PATTERNS, FORM_MENTION_PATTERNS, DYNAMIC_CONTACT_KEYWORDS, DYNAMIC_INDUCTION_PHRASES, DYNAMIC_FORM_HINTS } from '../../data/constants/contact_patterns';
 
 export class KeywordMatcher {
 

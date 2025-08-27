@@ -1,4 +1,4 @@
-import type { ContactPageResult, PurityResult, HtmlSearchResult } from '../types/interfaces';
+import type { ContactPageResult, PurityResult, HtmlSearchResult } from '../../data/types/interfaces';
 import { StringUtils } from './StringUtils';
 import { NetworkUtils } from './NetworkUtils';
 import { FormUtils } from './FormUtils';
@@ -6,14 +6,14 @@ import { SearchState } from '../core/SearchState';
 import {
   FORM_LINK_PATTERNS,
   FORM_TEXT_PATTERNS
-} from '../constants/html_patterns';
+} from '../../data/constants/html_patterns';
 import {
   ANCHOR_SECTION_CONTACT_KEYWORDS,
   HTML_HIGH_PRIORITY_CONTACT_KEYWORDS,
   HTML_MEDIUM_PRIORITY_CONTACT_KEYWORDS,
   HTML_EXCLUDED_KEYWORDS,
   FORM_LINK_NEGATIVE_KEYWORDS
-} from '../constants/html_keywords';
+} from '../../data/constants/html_keywords';
 
 export class HtmlUtils {
 

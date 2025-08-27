@@ -2,7 +2,7 @@
  * 検索戦略の基本インターフェース
  */
 
-import type { ContactPageResult } from '../types/interfaces';
+import type { ContactPageResult } from '../../data/types/interfaces';
 
 export interface SearchStrategy {
   /**

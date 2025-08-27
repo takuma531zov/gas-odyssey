@@ -3,9 +3,9 @@
  * HTTP通信とエラーハンドリングを管理
  */
 
-import { FORM_CONTEXT_CONTACT_KEYWORDS } from '../constants/form_constants';
-import { HTTP_ERROR_MESSAGES, SNS_PATTERNS } from '../constants/network';
-import { HIGH_CONFIDENCE_PATTERNS, MEDIUM_CONFIDENCE_PATTERNS, HOMEPAGE_FILE_PATTERNS } from '../constants/patterns';
+import { FORM_CONTEXT_CONTACT_KEYWORDS } from '../../data/constants/form_constants';
+import { HTTP_ERROR_MESSAGES, SNS_PATTERNS } from '../../data/constants/network';
+import { HIGH_CONFIDENCE_PATTERNS, MEDIUM_CONFIDENCE_PATTERNS, HOMEPAGE_FILE_PATTERNS } from '../../data/constants/patterns';
 
 export class NetworkUtils {
 

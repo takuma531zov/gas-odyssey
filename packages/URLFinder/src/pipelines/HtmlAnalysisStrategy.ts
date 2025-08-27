@@ -1,4 +1,4 @@
-import type { ContactPageResult, SearchStrategy } from '../types/interfaces';
+import type { ContactPageResult, SearchStrategy } from '../../data/types/interfaces';
 import { SearchState } from '../core/SearchState';
 import { NetworkUtils } from '../utils/NetworkUtils';
 import { FormUtils } from '../utils/FormUtils';

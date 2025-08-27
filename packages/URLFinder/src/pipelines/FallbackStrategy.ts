@@ -1,5 +1,5 @@
 
-import type { ContactPageResult, SearchStrategy } from '../types/interfaces';
+import type { ContactPageResult, SearchStrategy } from '../../data/types/interfaces';
 import { SearchState } from '../core/SearchState';
 
 export class FallbackStrategy implements SearchStrategy {
