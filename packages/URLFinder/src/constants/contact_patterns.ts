@@ -1,0 +1,15 @@
+// 電話番号の正規表現パターン
+export const PHONE_PATTERNS = [
+  /\d{2,4}[-‐]\d{2,4}[-‐]\d{3,4}/g,      // 03-1234-5678
+  /\d{3}\.\d{3}\.\d{4}/g,                 // 123.456.7890
+  /\(\d{3}\)\s?\d{3}[-‐]\d{4}/g,         // (123) 456-7890
+  /tel[:\s]*[\d\-\(\)\s+]{10,}/gi        // tel: 形式
+];
+
+// メールアドレスの正規表現パターン
+export const EMAIL_PATTERN = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+
+// フォーム言及のキーワードパターン
+export const FORM_MENTION_PATTERNS = [
+  'フォーム', 'form', 'お問い合わせ', 'contact', '送信', 'submit'
+];

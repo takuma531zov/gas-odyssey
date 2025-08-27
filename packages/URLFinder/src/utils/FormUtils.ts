@@ -5,35 +5,33 @@ import { StringUtils } from './StringUtils';
 import type { ContactPageResult } from '../types/interfaces';
 import { SearchState } from '../core/SearchState';
 import { Environment } from '../env';
+import {
+  SUBMIT_BUTTON_KEYWORDS,
+  RECAPTCHA_PATTERNS,
+  FORM_ELEMENT_KEYWORDS,
+  CONTACT_KEYWORDS,
+  CONTACT_FIELD_PATTERNS,
+  EMBEDDED_FORM_CONTACT_FIELD_KEYWORDS,
+  FORM_EXCLUDE_SEARCH_KEYWORDS,
+  FORM_EXCLUDE_ACTIONS,
+  FORM_EXCLUDE_CONTEXT_KEYWORDS,
+  FORM_CONTEXT_CONTACT_KEYWORDS,
+  GOOGLE_FORM_EXCLUDE_KEYWORDS,
+  GOOGLE_FORM_CONTACT_KEYWORDS
+} from '../constants/form_constants';
 
 export class FormUtils {
-  static readonly SUBMIT_BUTTON_KEYWORDS = [
-    '送信', '送る', 'submit', 'send',
-    'お問い合わせ', '問い合わせ', 'お問合せ', '問合せ',
-    'ご相談', '相談', 'contact', 'inquiry'
-  ];
 
   static containsSubmitKeyword(buttonHTML: string): boolean {
     const lowerHTML = buttonHTML.toLowerCase();
-    return this.SUBMIT_BUTTON_KEYWORDS.some(keyword => lowerHTML.includes(keyword.toLowerCase()));
+    return SUBMIT_BUTTON_KEYWORDS.some(keyword => lowerHTML.includes(keyword.toLowerCase()));
   }
 
   static hasScriptAndRecaptcha(html: string): boolean {
     const hasScript = /<script[^>]*>[\s\S]*?<\/script>/gi.test(html) || /<script[^>]*src=[^>]*>/gi.test(html);
     if (!hasScript) return false;
 
-    const recaptchaPatterns = [
-      /https:\/\/www\.google\.com\/recaptcha\/api\.js/gi,
-      /recaptcha\/api\.js/gi,
-      /<div[^>]*class=["|'][^"|']*g-recaptcha[^"|']*["|']/gi,
-      /<div[^>]*id=["|'][^"|']*recaptcha[^"|']*["|']/gi,
-      /data-sitekey=["|'][^"|']*["|']/gi,
-      /私はロボットではありません/gi,
-      /I'm not a robot/gi,
-      /reCAPTCHA/gi
-    ];
-
-    return recaptchaPatterns.some(pattern => pattern.test(html));
+    return RECAPTCHA_PATTERNS.some(pattern => pattern.test(html));
   }
 
   static analyzeFormElements(html: string): { isValidForm: boolean, reasons: string[], keywords: string[] } {
@@ -48,24 +46,13 @@ export class FormUtils {
       foundKeywords.push('structured_forms');
     }
 
-    const formElements = [
-      'お名前', 'メールアドレス', '電話番号', 'ご質問', 'お問い合わせ内容', '会社名',
-      'name', 'email', 'phone', 'message', 'inquiry', 'company',
-      '<input', '<textarea', '<select', 'type="text"', 'type="email"', 'type="tel"'
-    ];
-
-    const formElementCount = formElements.filter(element => lowerHtml.includes(element.toLowerCase())).length;
+    const formElementCount = FORM_ELEMENT_KEYWORDS.filter(element => lowerHtml.includes(element.toLowerCase())).length;
     if (formElementCount >= 3) {
       foundReasons.push(`legacy_form_elements:${formElementCount}`);
       foundKeywords.push('legacy_form_elements');
     }
 
-    const contactKeywords = [
-      'お問い合わせ', '問い合わせ', 'お問合せ', '問合せ',
-      'contact', 'inquiry', 'ご相談', '相談'
-    ];
-
-    const foundContactKeywords = contactKeywords.filter(keyword => lowerHtml.includes(keyword.toLowerCase()));
+    const foundContactKeywords = CONTACT_KEYWORDS.filter(keyword => lowerHtml.includes(keyword.toLowerCase()));
     if (foundContactKeywords.length >= 1) {
       foundReasons.push(`contact_keywords:${foundContactKeywords.length}`);
       foundKeywords.push('contact_keywords');
@@ -102,12 +89,7 @@ export class FormUtils {
           continue;
         }
         formFieldCount++;
-        const contactFieldPatterns = [
-          'name="(?:.*(?:name|名前|氏名))"', 'name="(?:.*(?:email|メール))"',
-          'name="(?:.*(?:phone|電話|tel))"', 'name="(?:.*(?:company|会社))"',
-          'name="(?:.*(?:message|メッセージ|質問|問い合わせ|inquiry))"'
-        ];
-        if (contactFieldPatterns.some(pattern => lowerInput.match(new RegExp(pattern)))) {
+        if (CONTACT_FIELD_PATTERNS.some(pattern => lowerInput.match(new RegExp(pattern)))) {
           hasContactSpecificFieldsInForm = true;
         }
       }
@@ -194,13 +176,7 @@ export class FormUtils {
       const excludeResult = this.shouldExcludeForm(formTag, formContent, html, formMatch.index);
       if (excludeResult.shouldExclude) continue;
 
-      const contactFieldKeywords = [
-        '御社名', 'お名前', 'メールアドレス', '電話番号', 'ご質問',
-        'company', 'name', 'email', 'phone', 'message', 'inquiry',
-        '会社名', '名前', 'メール', '問い合わせ', '質問',
-        '送信', 'submit', '送る', 'send', '確認', 'confirm'
-      ];
-      const matchingKeywords = contactFieldKeywords.filter(keyword => formContent.toLowerCase().includes(keyword.toLowerCase()));
+      const matchingKeywords = EMBEDDED_FORM_CONTACT_FIELD_KEYWORDS.filter(keyword => formContent.toLowerCase().includes(keyword.toLowerCase()));
       if (matchingKeywords.length >= 2) return true;
     }
     return false;
@@ -213,15 +189,13 @@ export class FormUtils {
     const action = (lowerFormTag.match(/action\s*=\s*['"]([^'"]*)['"]/) || [])[1];
 
     if (method === 'get') {
-      const searchKeywords = ['search', 'filter', 'sort', '検索', 'フィルター', 'ソート', 'find', 'query'];
-      if (searchKeywords.some(keyword => lowerFormContent.includes(keyword) || (action && action.toLowerCase().includes(keyword)))) {
+      if (FORM_EXCLUDE_SEARCH_KEYWORDS.some(keyword => lowerFormContent.includes(keyword) || (action && action.toLowerCase().includes(keyword)))) {
         return { shouldExclude: true, reason: 'GET method with search keywords', priority: 'exclude' };
       }
     }
 
     if (action) {
-      const excludeActions = ['/search', '/filter', '/sort', '?search', '?q=', '?query=', '/newsletter', '/subscribe', '/download', '/signup', '/login', '/register', '/member', '/formresponse', 'formresponse'];
-      if (excludeActions.some(pattern => action.toLowerCase().includes(pattern))) {
+      if (FORM_EXCLUDE_ACTIONS.some(pattern => action.toLowerCase().includes(pattern))) {
         return { shouldExclude: true, reason: `Excluded action: ${action}`, priority: 'exclude' };
       }
     }
@@ -229,8 +203,7 @@ export class FormUtils {
     const contextStart = Math.max(0, formIndex - 500);
     const contextEnd = Math.min(html.length, formIndex + formContent.length + 500);
     const context = html.substring(contextStart, contextEnd).toLowerCase();
-    const excludeContextKeywords = ['newsletter', 'subscribe', 'メルマガ', 'ニュースレター', 'download', 'ダウンロード', '資料請求', '資料ダウンロード', 'survey', 'questionnaire', 'アンケート', 'feedback', 'search', 'filter', '検索', 'フィルター'];
-    const foundExcludeKeywords = excludeContextKeywords.filter(keyword => context.includes(keyword));
+    const foundExcludeKeywords = FORM_EXCLUDE_CONTEXT_KEYWORDS.filter(keyword => context.includes(keyword));
     if (foundExcludeKeywords.length > 0) {
       return { shouldExclude: true, reason: `Context keywords: ${foundExcludeKeywords.join(', ')}`, priority: 'exclude' };
     }
@@ -239,8 +212,7 @@ export class FormUtils {
     if (method === 'post') {
       priority = 'high';
     } else if (!method) {
-      const contactContextKeywords = ['contact', 'inquiry', 'お問い合わせ', '問い合わせ', 'ご相談'];
-      priority = contactContextKeywords.some(keyword => context.includes(keyword)) ? 'medium' : 'low';
+      priority = FORM_CONTEXT_CONTACT_KEYWORDS.some(keyword => context.includes(keyword)) ? 'medium' : 'low';
     }
 
     return { shouldExclude: false, reason: `Valid form (method: ${method || 'unspecified'}, action: ${action || 'unspecified'})`, priority };
@@ -251,21 +223,19 @@ export class FormUtils {
   }
 
   static validateGoogleFormContent(html: string, googleFormUrl: string): boolean {
-    const excludeKeywords = ['ライター', 'writer', '募集', 'recruit', 'recruitment', 'career', 'job', 'hire', 'employment', '採用', '求人', '応募', 'apply', 'application', '資料請求', 'download', 'material', 'brochure', 'request', 'アンケート', 'survey', 'questionnaire', 'feedback', 'セミナー', 'seminar', 'webinar', 'event', 'workshop', 'メルマガ', 'newsletter', 'subscription', 'subscribe'];
-    const contactKeywords = ['お問い合わせ', '問い合わせ', 'お問合せ', '問合せ', 'contact', 'inquiry', 'ご相談', '相談', 'support', 'business inquiry', 'general inquiry'];
     const lowerHtml = html.toLowerCase();
     const formUrlIndex = html.indexOf(googleFormUrl);
     const contextStart = Math.max(0, formUrlIndex - 1000);
     const contextEnd = Math.min(html.length, formUrlIndex + googleFormUrl.length + 1000);
     const context = html.substring(contextStart, contextEnd).toLowerCase();
 
-    if (excludeKeywords.some(keyword => context.includes(keyword.toLowerCase()))) {
+    if (GOOGLE_FORM_EXCLUDE_KEYWORDS.some(keyword => context.includes(keyword.toLowerCase()))) {
       return false;
     }
-    if (contactKeywords.some(keyword => context.includes(keyword.toLowerCase()))) {
+    if (GOOGLE_FORM_CONTACT_KEYWORDS.some(keyword => context.includes(keyword.toLowerCase()))) {
       return true;
     }
-    if (contactKeywords.some(keyword => lowerHtml.includes(keyword.toLowerCase()))) {
+    if (GOOGLE_FORM_CONTACT_KEYWORDS.some(keyword => lowerHtml.includes(keyword.toLowerCase()))) {
       return true;
     }
     return false;

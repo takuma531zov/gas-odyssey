@@ -115,3 +115,11 @@ export interface PurityResult {
   score: number;
   reasons: string[];
 }
+
+/**
+ * Google Forms検出結果
+ */
+export interface GoogleFormDetectionResult {
+  found: boolean;
+  url?: string;
+}

@@ -3,29 +3,21 @@ import { StringUtils } from './StringUtils';
 import { NetworkUtils } from './NetworkUtils';
 import { FormUtils } from './FormUtils';
 import { SearchState } from '../core/SearchState';
+import {
+  FORM_LINK_PATTERNS,
+  FORM_TEXT_PATTERNS
+} from '../constants/html_patterns';
+import {
+  ANCHOR_SECTION_CONTACT_KEYWORDS,
+  HTML_HIGH_PRIORITY_CONTACT_KEYWORDS,
+  HTML_MEDIUM_PRIORITY_CONTACT_KEYWORDS,
+  HTML_EXCLUDED_KEYWORDS,
+  FORM_LINK_NEGATIVE_KEYWORDS
+} from '../constants/html_keywords';
 
 export class HtmlUtils {
-  private static readonly HIGH_PRIORITY_CONTACT_KEYWORDS = [
-    'contact', 'contact us', 'contact form', 'inquiry', 'enquiry',
-    'get in touch', 'reach out', 'send message', 'message us',
-    'お問い合わせ', '問い合わせ', 'お問合せ', '問合せ',
-    'ご相談', '相談', 'お客様窓口', 'お問い合わせフォーム',
-    'お問い合わせはこちら', '問い合わせフォーム',
-    'form', 'フォーム',
-    '%E3%81%8A%E5%95%8F%E3%81%84%E5%90%88%E3%82%8F%E3%81%9B', 
-    '%E5%95%8F%E3%81%84%E5%90%88%E3%82%8F%E3%81%9B', 
-    '%E3%81%8A%E5%95%8F%E5%90%88%E3%81%9B', 
-    '%E5%95%8F%E5%90%88%E3%81%9B'
-  ];
 
-  private static readonly MEDIUM_PRIORITY_CONTACT_KEYWORDS = [
-    'form', 'フォーム', 'submit', 'send', 'mail form',
-    'feedback'
-  ];
 
-  private static readonly EXCLUDED_KEYWORDS = [
-    'download', 'recruit', 'career'
-  ];
 
   static detectSameHtmlPattern(urls: string[], htmlContent: string, searchState: SearchState): boolean {
     const contentHash = StringUtils.hashString(htmlContent);
@@ -67,7 +59,7 @@ export class HtmlUtils {
     const lowerUrl = url.toLowerCase();
     const lowerLinkText = linkText.toLowerCase();
 
-    for (const excludedKeyword of this.EXCLUDED_KEYWORDS) {
+    for (const excludedKeyword of HTML_EXCLUDED_KEYWORDS) {
       if (lowerUrl.includes(excludedKeyword.toLowerCase()) ||
           lowerLinkText.includes(excludedKeyword.toLowerCase())) {
         score -= 15;
@@ -76,7 +68,7 @@ export class HtmlUtils {
       }
     }
 
-    for (const keyword of this.HIGH_PRIORITY_CONTACT_KEYWORDS) {
+    for (const keyword of HTML_HIGH_PRIORITY_CONTACT_KEYWORDS) {
       const normalizedKeyword = keyword.toLowerCase();
       if (lowerLinkText.includes(normalizedKeyword) && !foundKeywords.has(normalizedKeyword)) {
         score += 10;
@@ -89,7 +81,7 @@ export class HtmlUtils {
       }
     }
 
-    for (const keyword of this.MEDIUM_PRIORITY_CONTACT_KEYWORDS) {
+    for (const keyword of HTML_MEDIUM_PRIORITY_CONTACT_KEYWORDS) {
       const normalizedKeyword = keyword.toLowerCase();
       if (lowerLinkText.includes(normalizedKeyword) && !foundKeywords.has(normalizedKeyword)) {
         score += 3;
@@ -150,7 +142,7 @@ export class HtmlUtils {
     }
 
     const contactLinks = allCandidates.filter(candidate =>
-      this.HIGH_PRIORITY_CONTACT_KEYWORDS.some(keyword =>
+      HTML_HIGH_PRIORITY_CONTACT_KEYWORDS.some(keyword =>
         candidate.url?.toLowerCase().includes(keyword.toLowerCase()) ||
         candidate.keywords.some(k => k.toLowerCase().includes(keyword.toLowerCase()))
       )
@@ -177,14 +169,14 @@ export class HtmlUtils {
       const cleanLinkText = linkText.replace(/<[^>]*>/g, '').trim();
       if (url.startsWith('mailto:') || url.startsWith('javascript:') || url.startsWith('tel:')) continue;
 
-      const hasContactKeywords = this.HIGH_PRIORITY_CONTACT_KEYWORDS.some(keyword =>
+      const hasContactKeywords = HTML_HIGH_PRIORITY_CONTACT_KEYWORDS.some(keyword =>
         url.toLowerCase().includes(keyword.toLowerCase()) ||
         cleanLinkText.toLowerCase().includes(keyword.toLowerCase())
       );
 
       if (!hasContactKeywords) continue;
 
-      const hasExcludedKeywords = this.EXCLUDED_KEYWORDS.some(keyword =>
+      const hasExcludedKeywords = HTML_EXCLUDED_KEYWORDS.some(keyword =>
         url.toLowerCase().includes(keyword.toLowerCase()) ||
         cleanLinkText.toLowerCase().includes(keyword.toLowerCase())
       );
@@ -257,8 +249,7 @@ export class HtmlUtils {
         }
       }
       if (!sectionContent) {
-        const contactKeywords = ['contact', 'お問い合わせ', '問い合わせ'];
-        for (const keyword of contactKeywords) {
+        for (const keyword of ANCHOR_SECTION_CONTACT_KEYWORDS) {
           const keywordIndex = html.toLowerCase().indexOf(keyword);
           if (keywordIndex !== -1) {
             const start = Math.max(0, keywordIndex - 1000);
@@ -287,8 +278,6 @@ export class HtmlUtils {
   }
 
   static findSecondStageFormLink(html: string, contactPageUrl: string): string | null {
-    const formLinkPatterns = ['form', 'フォーム', 'submit', '送信', 'formzu', 'fc2', 'google.com/forms', 'forms.gle'];
-    const formTextPatterns = ['フォームはこちら', 'フォームへ', '問い合わせフォーム', '入力フォーム', '送信フォーム', 'form here', 'click here', 'go to form'];
     const linkRegex = /<a[^>]*href=['"]([^'"\\]*?)['"][^>]*>([\s\S]*?)<\/a>/gi;
     let match;
     const candidateLinks: Array<{url: string, score: number}> = [];
@@ -303,12 +292,11 @@ export class HtmlUtils {
       const lowerUrl = url.toLowerCase();
       let score = 0;
 
-      const negativeKeywords = ['recruit', 'career', 'job', 'hire', 'employment', '採用', '求人', 'request', 'download', 'material', '資料', '資料請求', 'brochure'];
-      if (negativeKeywords.some(keyword => lowerUrl.includes(keyword) || cleanLinkText.includes(keyword))) continue;
+      if (FORM_LINK_NEGATIVE_KEYWORDS.some(keyword => lowerUrl.includes(keyword) || cleanLinkText.includes(keyword))) continue;
       if (NetworkUtils.isHomepageUrl(url, contactPageUrl)) continue;
 
-      if (formLinkPatterns.some(pattern => lowerUrl.includes(pattern))) score += 3;
-      if (formTextPatterns.some(pattern => cleanLinkText.includes(pattern))) score += 2;
+      if (FORM_LINK_PATTERNS.some(pattern => lowerUrl.includes(pattern))) score += 3;
+      if (FORM_TEXT_PATTERNS.some(pattern => cleanLinkText.includes(pattern))) score += 2;
 
       if (score > 0) {
         candidateLinks.push({ url: NetworkUtils.resolveUrl(url, contactPageUrl), score });

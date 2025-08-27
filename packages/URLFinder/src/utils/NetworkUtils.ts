@@ -3,6 +3,10 @@
  * HTTP通信とエラーハンドリングを管理
  */
 
+import { FORM_CONTEXT_CONTACT_KEYWORDS } from '../constants/form_constants';
+import { HTTP_ERROR_MESSAGES, SNS_PATTERNS } from '../constants/network';
+import { HIGH_CONFIDENCE_PATTERNS, MEDIUM_CONFIDENCE_PATTERNS, HOMEPAGE_FILE_PATTERNS } from '../constants/patterns';
+
 export class NetworkUtils {
 
   /**
@@ -79,27 +83,8 @@ export class NetworkUtils {
    * @returns 詳細なエラーメッセージ
    */
   static getDetailedErrorMessage(statusCode: number): string {
-    const errorMessages: { [key: number]: string } = {
-      400: 'Bad Request - 不正なリクエスト',
-      401: 'Unauthorized - 認証が必要',
-      403: 'Forbidden - アクセス拒否（Bot対策またはアクセス制限）',
-      404: 'Not Found - ページが存在しません',
-      405: 'Method Not Allowed - 許可されていないHTTPメソッド',
-      408: 'Request Timeout - リクエストタイムアウト',
-      429: 'Too Many Requests - レート制限（アクセス過多）',
-      500: 'Internal Server Error - サーバー内部エラー',
-      501: 'Not Implemented - Bot対策によりブロック',
-      502: 'Bad Gateway - ゲートウェイエラー',
-      503: 'Service Unavailable - サービス利用不可（メンテナンス中）',
-      504: 'Gateway Timeout - ゲートウェイタイムアウト',
-      520: 'Web Server Error - Webサーバーエラー（Cloudflare）',
-      521: 'Web Server Down - Webサーバーダウン（Cloudflare）',
-      522: 'Connection Timed Out - 接続タイムアウト（Cloudflare）',
-      523: 'Origin Unreachable - オリジンサーバー到達不可（Cloudflare）',
-      524: 'A Timeout Occurred - タイムアウト発生（Cloudflare）'
-    };
 
-    return errorMessages[statusCode] || `HTTP Error ${statusCode} - 不明なエラー`;
+    return HTTP_ERROR_MESSAGES[statusCode] || `HTTP Error ${statusCode} - 不明なエラー`;
   }
 
   /**
@@ -108,22 +93,8 @@ export class NetworkUtils {
    * @returns SNSページかどうか
    */
   static isSNSPage(url: string): boolean {
-    const snsPatterns = [
-      'facebook.com',
-      'twitter.com',
-      'x.com',
-      'instagram.com',
-      'linkedin.com',
-      'youtube.com',
-      'tiktok.com',
-      'line.me',
-      'ameba.jp',
-      'note.com',
-      'qiita.com'
-    ];
-
     const lowerUrl = url.toLowerCase();
-    return snsPatterns.some(pattern => lowerUrl.includes(pattern));
+    return SNS_PATTERNS.some(pattern => lowerUrl.includes(pattern));
   }
 
   /**
@@ -197,11 +168,7 @@ export class NetworkUtils {
     const homepagePatterns = [
       baseDomain,                     // https://example.com/
       baseDomain.replace(/\/$/, ''),  // https://example.com
-      baseDomain + 'index.html',
-      baseDomain + 'index.htm',
-      baseDomain + 'index.php',
-      baseDomain + 'home/',
-      baseDomain + 'home'
+      ...HOMEPAGE_FILE_PATTERNS.map(pattern => baseDomain + pattern)
     ];
 
     // 完全一致チェック
@@ -223,22 +190,20 @@ export class NetworkUtils {
     const keywords: string[] = [];
 
     // 高信頼度パターン
-    const highConfidencePatterns = ['/contact/', '/contact', '/inquiry/', '/inquiry'];
-    if (highConfidencePatterns.includes(pattern)) {
+    if (HIGH_CONFIDENCE_PATTERNS.includes(pattern)) {
       confidence += 0.3;
       keywords.push('high_confidence_pattern');
     }
 
     // 中信頼度パターン
-    const mediumConfidencePatterns = ['/form/', '/form'];
-    if (mediumConfidencePatterns.includes(pattern)) {
+    if (MEDIUM_CONFIDENCE_PATTERNS.includes(pattern)) {
       confidence += 0.1;
       keywords.push('medium_confidence_pattern');
     }
 
     // URL内のcontactキーワードチェック（ドメイン除外）
     const urlPath = url.replace(/https?:\/\/[^/]+/, ''); // ドメインを除外
-    const contactKeywords = ['contact', 'inquiry', 'form', 'お問い合わせ', '問い合わせ'];
+    const contactKeywords = [...FORM_CONTEXT_CONTACT_KEYWORDS, 'form'];
 
     for (const keyword of contactKeywords) {
       if (urlPath.toLowerCase().includes(keyword.toLowerCase())) {
