@@ -4,13 +4,9 @@ import { Environment } from '../env';
 import { NetworkUtils } from '../utils/NetworkUtils';
 import { FormUtils } from '../utils/FormUtils';
 import { HtmlUtils } from '../utils/HtmlUtils';
+import { HIGH_PRIORITY_PATTERNS } from '../constants/patterns';
 
 export class UrlPatternStrategy implements SearchStrategy {
-  private readonly HIGH_PRIORITY_PATTERNS = [
-    '/contact/', '/contact', '/contact.php', '/inquiry/', '/inquiry', '/inquiry.php', '/form', '/form/', '/form.php', '/contact-us/', '/contact-us',
-    '/%E3%81%8A%E5%95%8F%E3%81%84%E5%90%88%E3%82%8F%E3%81%9B/', // お問い合わせ
-    '/%E5%95%8F%E3%81%84%E5%90%88%E3%82%8F%E3%81%9B/', // 問い合わせ
-  ];
 
   public getStrategyName(): string {
     return 'URL Pattern Search';
@@ -21,7 +17,7 @@ export class UrlPatternStrategy implements SearchStrategy {
     const maxTotalTime = Environment.getMaxTotalTime();
     const testedUrls: string[] = [];
 
-    for (const pattern of this.HIGH_PRIORITY_PATTERNS) {
+    for (const pattern of HIGH_PRIORITY_PATTERNS) {
       if (Date.now() - startTime > maxTotalTime) {
         console.log('Timeout during priority search');
         break;

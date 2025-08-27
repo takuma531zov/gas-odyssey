@@ -63,14 +63,6 @@ export const GOOGLE_FORM_URL_PATTERNS = [
   /https?:\/\/goo\.gl\/forms\/[^"'\s\)]+/gi
 ];
 
-// 埋め込みフォーム連絡先キーワード
-export const EMBEDDED_FORM_CONTACT_KEYWORDS = [
-  '御社名', 'お名前', 'メールアドレス', '電話番号', 'ご質問',
-  'company', 'name', 'email', 'phone', 'message', 'inquiry',
-  '会社名', '名前', 'メール', '問い合わせ', '質問',
-  '送信', 'submit', '送る', 'send', '確認', 'confirm'
-];
-
 // 埋め込みフォーム連絡先フィールドキーワード（form_keywords.tsから移動）
 export const EMBEDDED_FORM_CONTACT_FIELD_KEYWORDS = [
   '御社名', 'お名前', 'メールアドレス', '電話番号', 'ご質問',
@@ -79,19 +71,9 @@ export const EMBEDDED_FORM_CONTACT_FIELD_KEYWORDS = [
   '送信', 'submit', '送る', 'send', '確認', 'confirm'
 ];
 
-// 除外アクション
-export const EXCLUDE_ACTIONS = [
-  '/search', '/filter', '/sort', '?search', '?q=', '?query=', '/newsletter', '/subscribe', '/download', '/signup', '/login', '/register', '/member', '/formresponse', 'formresponse'
-];
-
 // フォーム除外アクションパターン（form_keywords.tsから移動）
 export const FORM_EXCLUDE_ACTIONS = [
   '/search', '/filter', '/sort', '?search', '?q=', '?query=', '/newsletter', '/subscribe', '/download', '/signup', '/login', '/register', '/member', '/formresponse', 'formresponse'
-];
-
-// 除外コンテキストキーワード
-export const EXCLUDE_CONTEXT_KEYWORDS = [
-  'newsletter', 'subscribe', 'メルマガ', 'ニュースレター', 'download', 'ダウンロード', '資料請求', '資料ダウンロード', 'survey', 'questionnaire', 'アンケート', 'feedback', 'search', 'filter', '検索', 'フィルター'
 ];
 
 // フォーム除外コンテキストキーワード（form_keywords.tsから移動）
@@ -104,29 +86,14 @@ export const FORM_EXCLUDE_SEARCH_KEYWORDS = [
   'search', 'filter', 'sort', '検索', 'フィルター', 'ソート', 'find', 'query'
 ];
 
-// コンタクトコンテキストキーワード
-export const CONTACT_CONTEXT_KEYWORDS = [
-  'contact', 'inquiry', 'お問い合わせ', '問い合わせ', 'ご相談'
-];
-
 // フォームコンテキスト問い合わせキーワード（form_keywords.tsから移動）
 export const FORM_CONTEXT_CONTACT_KEYWORDS = [
   'contact', 'inquiry', 'お問い合わせ', '問い合わせ', 'ご相談'
 ];
 
-// Googleフォーム検証除外キーワード
-export const VALIDATE_GOOGLE_FORM_EXCLUDE_KEYWORDS = [
-  'ライター', 'writer', '募集', 'recruit', 'recruitment', 'career', 'job', 'hire', 'employment', '採用', '求人', '応募', 'apply', 'application', '資料請求', 'download', 'material', 'brochure', 'request', 'アンケート', 'survey', 'questionnaire', 'feedback', 'セミナー', 'seminar', 'webinar', 'event', 'workshop', 'メルマガ', 'newsletter', 'subscription', 'subscribe'
-];
-
 // Googleフォーム除外キーワード（form_keywords.tsから移動）
 export const GOOGLE_FORM_EXCLUDE_KEYWORDS = [
   'ライター', 'writer', '募集', 'recruit', 'recruitment', 'career', 'job', 'hire', 'employment', '採用', '求人', '応募', 'apply', 'application', '資料請求', 'download', 'material', 'brochure', 'request', 'アンケート', 'survey', 'questionnaire', 'セミナー', 'seminar', 'webinar', 'event', 'workshop', 'メルマガ', 'newsletter', 'subscription', 'subscribe'
-];
-
-// Googleフォーム検証コンタクトキーワード
-export const VALIDATE_GOOGLE_FORM_CONTACT_KEYWORDS = [
-  'お問い合わせ', '問い合わせ', 'お問合せ', '問合せ', 'contact', 'inquiry', 'ご相談', '相談', 'support', 'business inquiry', 'general inquiry'
 ];
 
 // Googleフォームコンタクトキーワード（form_keywords.tsから移動）

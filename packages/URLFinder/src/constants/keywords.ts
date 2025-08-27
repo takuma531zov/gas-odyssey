@@ -1,4 +1,9 @@
-// 高優先度問い合わせキーワード
+/**
+ * キーワード定数統合版 - 完全一致データの統合
+ * 既存ロジックを完全維持
+ */
+
+// 高優先度問い合わせキーワード（keywords.tsから）
 export const HIGH_PRIORITY_CONTACT_KEYWORDS = [
   'お問い合わせ', '問い合わせ', 'お問合せ', '問合せ', 'contact', 'inquiry', 'Contact', 'Inquiry',
   'お問い合わせフォーム', '問い合わせフォーム', 'contact form', 'inquiry form',
@@ -9,7 +14,7 @@ export const HIGH_PRIORITY_CONTACT_KEYWORDS = [
   'サポート', 'support', 'help', 'ヘルプ', 'お困りごと'
 ];
 
-// 基本問い合わせキーワード（より広範囲）
+// 基本問い合わせキーワード（より広範囲）（keywords.tsから）
 export const CONTACT_KEYWORDS = [
   ...HIGH_PRIORITY_CONTACT_KEYWORDS,
   'フォーム', 'form', 'Form', 'mail', 'メール', 'email',
@@ -18,7 +23,3 @@ export const CONTACT_KEYWORDS = [
   '申し込み', '申込み', 'application', 'apply',
   '登録', 'registration', 'register', 'signup', 'sign up'
 ];
-
-
-
-
