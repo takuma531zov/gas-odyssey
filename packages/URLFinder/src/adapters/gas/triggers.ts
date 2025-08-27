@@ -1,6 +1,7 @@
 
 import type { ContactPageResult } from '../../data/types/interfaces';
 import { ContactPageFinder } from '../../ContactPageFinder';
+import { Environment } from '../../env';
 
 function findContactPage(url: string): ContactPageResult {
   return ContactPageFinder.findContactPage(url);
@@ -74,8 +75,12 @@ export function processContactPageFinder() {
     const urlRange = sheet.getRange(startRow, 12, endRow - startRow + 1, 1); // L列は12列目
     const urls = urlRange.getValues();
 
-    // 結果配列を準備
+    // バッチ処理による中間出力
+    // 理由: GASタイムアウト時の進捗保護 + 処理速度維持（1行ずつ出力の20-40倍高速）
+    const batchSize = Environment.getBatchSize();
+    console.log(`バッチサイズ設定: ${batchSize}`);
     const results = [];
+    let processedCount = 0;
 
     // 各URLを処理
     for (let i = 0; i < urls.length; i++) {
@@ -85,69 +90,75 @@ export function processContactPageFinder() {
 
       if (!url || url.toString().trim() === '') {
         results.push(['']);
-        continue;
-      }
-
-      // ヘッダー行の場合はスキップ
-      if (currentRow === headerRow) {
+      } else if (currentRow === headerRow) {
+        // ヘッダー行の場合はスキップ
         console.log(`${currentRow}行目: ヘッダー行のためスキップ`);
         results.push(['']);
-        continue;
+      } else {
+        console.log(`${currentRow}行目: ${url} を処理中...`);
+
+        try {
+          const result = findContactPage(url.toString().trim());
+
+          console.log(`Result for ${currentRow}行目: searchMethod=${result.searchMethod}, foundKeywords=${result.foundKeywords ? result.foundKeywords.join(',') : 'none'}`);
+
+          // actualFormURLをチェックして出力値を決定
+          let outputValue = '';
+
+          // エラーの場合はエラーメッセージを出力
+          if (result.searchMethod === 'error' || result.searchMethod === 'dns_error' || result.searchMethod === 'bot_blocked' || result.searchMethod === 'site_closed' || result.searchMethod === 'timeout_error') {
+            if (result.foundKeywords && result.foundKeywords.length > 0) {
+              outputValue = result.foundKeywords[0] || 'エラーが発生しました'; // 詳細エラーメッセージ
+              console.log(`Using error message: ${outputValue}`);
+            } else {
+              outputValue = 'エラーが発生しました';
+              console.log(`Using default error message: ${outputValue}`);
+            }
+          } else if (result.actualFormUrl) {
+            // 実際のURLの場合はそのURL、識別子の場合はフォームが存在するページのURLを出力
+            if (result.actualFormUrl.startsWith('http')) {
+              outputValue = result.actualFormUrl;
+            } else {
+              // 識別子の場合、フォームが存在するページのURLを出力
+              outputValue = result.contactUrl || url.toString().trim();
+            }
+          } else if (result.contactUrl) {
+            // actualFormUrlはないが、contactUrlがある場合
+            outputValue = result.contactUrl;
+          } else {
+            // SNSページや見つからない場合
+            outputValue = '問い合わせフォームが見つかりませんでした';
+          }
+
+          results.push([outputValue]);
+          console.log(`${currentRow}行目: 完了 - ${outputValue}`);
+
+        } catch (error) {
+          const errorMessage = `エラー: ${error instanceof Error ? error.message : String(error)}`;
+          results.push([errorMessage]);
+          console.error(`${currentRow}行目: ${errorMessage}`);
+        }
       }
 
-      console.log(`${currentRow}行目: ${url} を処理中...`);
-
-      try {
-        const result = findContactPage(url.toString().trim());
-
-        console.log(`Result for ${currentRow}行目: searchMethod=${result.searchMethod}, foundKeywords=${result.foundKeywords ? result.foundKeywords.join(',') : 'none'}`);
-
-        // actualFormURLをチェックして出力値を決定
-        let outputValue = '';
-
-        // エラーの場合はエラーメッセージを出力
-        if (result.searchMethod === 'error' || result.searchMethod === 'dns_error' || result.searchMethod === 'bot_blocked' || result.searchMethod === 'site_closed' || result.searchMethod === 'timeout_error') {
-          if (result.foundKeywords && result.foundKeywords.length > 0) {
-            outputValue = result.foundKeywords[0] || 'エラーが発生しました'; // 詳細エラーメッセージ
-            console.log(`Using error message: ${outputValue}`);
-          } else {
-            outputValue = 'エラーが発生しました';
-            console.log(`Using default error message: ${outputValue}`);
-          }
-        } else if (result.actualFormUrl) {
-          // 実際のURLの場合はそのURL、識別子の場合はフォームが存在するページのURLを出力
-          if (result.actualFormUrl.startsWith('http')) {
-            outputValue = result.actualFormUrl;
-          } else {
-            // 識別子の場合、フォームが存在するページのURLを出力
-            outputValue = result.contactUrl || url.toString().trim();
-          }
-        } else if (result.contactUrl) {
-          // actualFormUrlはないが、contactUrlがある場合
-          outputValue = result.contactUrl;
-        } else {
-          // SNSページや見つからない場合
-          outputValue = '問い合わせフォームが見つかりませんでした';
+      // バッチサイズに達したら中間出力
+      if (results.length >= batchSize || i === urls.length - 1) {
+        if (results.length > 0) {
+          const batchStartRow = startRow + processedCount;
+          const outputRange = sheet.getRange(batchStartRow, 42, results.length, 1); // AP列は42列目
+          outputRange.setValues(results);
+          
+          processedCount += results.length;
+          console.log(`中間出力完了: ${batchStartRow}行目から${results.length}行をAP列に出力（バッチサイズ: ${batchSize}）`);
+          
+          results.length = 0; // 配列クリア
         }
-
-        results.push([outputValue]);
-        console.log(`${currentRow}行目: 完了 - ${outputValue}`);
-
-      } catch (error) {
-        const errorMessage = `エラー: ${error instanceof Error ? error.message : String(error)}`;
-        results.push([errorMessage]);
-        console.error(`${currentRow}行目: ${errorMessage}`);
       }
     }
 
-    // AP列に結果を一括書き込み
-    const outputRange = sheet.getRange(startRow, 42, results.length, 1); // AP列は42列目
-    outputRange.setValues(results);
-
-    console.log(`処理完了: ${results.length}行の結果をAP列に出力しました`);
+    console.log(`処理完了: ${processedCount}行の結果をAP列に出力しました`);
 
     // MAX_COUNT制限で処理が打ち切られた場合の通知
-    if (maxCount && results.length === maxCount && startRow + maxCount - 1 < lastRowL) {
+    if (maxCount && processedCount === maxCount && startRow + maxCount - 1 < lastRowL) {
       console.log(`注意: MAX_COUNT(${maxCount})制限により処理を制限しました。残り${lastRowL - (startRow + maxCount - 1)}行のデータが未処理です。`);
     }
 

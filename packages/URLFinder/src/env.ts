@@ -74,4 +74,17 @@ export class Environment {
     }
     return parseInt(thresholdStr);
   }
+
+  /**
+   * バッチサイズを取得
+   * @returns バッチサイズ（デフォルト10）
+   */
+  static getBatchSize(): number {
+    const properties = PropertiesService.getScriptProperties();
+    const batchSizeStr = properties.getProperty('BATCH_SIZE');
+    if (!batchSizeStr || isNaN(parseInt(batchSizeStr))) {
+      return 10; // デフォルト値
+    }
+    return parseInt(batchSizeStr);
+  }
 }
