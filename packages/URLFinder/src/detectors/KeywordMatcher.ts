@@ -4,29 +4,11 @@
  */
 
 import { PurityResult, KeywordDetectionResult, ContactInfoResult } from '../types/interfaces';
+import { HIGH_PRIORITY_CONTACT_KEYWORDS, CONTACT_KEYWORDS } from '../constants/keywords';
+import { PHONE_PATTERNS, EMAIL_PATTERN, NEGATIVE_PATTERNS, FORM_MENTION_PATTERNS, DYNAMIC_CONTACT_KEYWORDS, DYNAMIC_INDUCTION_PHRASES, DYNAMIC_FORM_HINTS } from '../constants/contact_patterns';
 
 export class KeywordMatcher {
 
-  // 高優先度問い合わせキーワード
-  private static readonly HIGH_PRIORITY_CONTACT_KEYWORDS = [
-    'お問い合わせ', '問い合わせ', 'お問合せ', '問合せ', 'contact', 'inquiry', 'Contact', 'Inquiry',
-    'お問い合わせフォーム', '問い合わせフォーム', 'contact form', 'inquiry form',
-    'お問い合わせはこちら', '問い合わせはこちら', 'contact us', 'Contact Us',
-    'ご質問', '質問', 'question', 'FAQ', 'よくある質問',
-    'ご相談', '相談', 'consultation', 'お気軽にご相談',
-    '資料請求', 'request', '見積もり', '見積り', 'estimate', 'quote',
-    'サポート', 'support', 'help', 'ヘルプ', 'お困りごと'
-  ];
-
-  // 基本問い合わせキーワード（より広範囲）
-  private static readonly CONTACT_KEYWORDS = [
-    ...this.HIGH_PRIORITY_CONTACT_KEYWORDS,
-    'フォーム', 'form', 'Form', 'mail', 'メール', 'email',
-    '送信', 'submit', 'send', '投稿', 'post',
-    '入力', 'input', '記入', 'fill', 'フィルイン',
-    '申し込み', '申込み', 'application', 'apply',
-    '登録', 'registration', 'register', 'signup', 'sign up'
-  ];
 
   /**
    * URL・リンクテキストの問い合わせ純度計算
@@ -50,7 +32,7 @@ export class KeywordMatcher {
     console.log(`Calculating contact purity for: URL="${url}", Text="${linkText}", Context="${context}"`);
 
     // URL内の高優先度キーワードチェック
-    for (const keyword of this.HIGH_PRIORITY_CONTACT_KEYWORDS) {
+    for (const keyword of HIGH_PRIORITY_CONTACT_KEYWORDS) {
       const lowerKeyword = keyword.toLowerCase();
       if (lowerUrl.includes(lowerKeyword)) {
         const points = this.getKeywordWeight(keyword, 'url');
@@ -61,7 +43,7 @@ export class KeywordMatcher {
     }
 
     // リンクテキスト内の高優先度キーワードチェック
-    for (const keyword of this.HIGH_PRIORITY_CONTACT_KEYWORDS) {
+    for (const keyword of HIGH_PRIORITY_CONTACT_KEYWORDS) {
       const lowerKeyword = keyword.toLowerCase();
       if (lowerText.includes(lowerKeyword)) {
         const points = this.getKeywordWeight(keyword, 'text');
@@ -97,8 +79,7 @@ export class KeywordMatcher {
     }
 
     // ネガティブパターンチェック
-    const negativePatterns = ['privacy', 'legal', 'terms', 'policy', 'about', 'news', 'blog'];
-    for (const negative of negativePatterns) {
+    for (const negative of NEGATIVE_PATTERNS) {
       if (lowerUrl.includes(negative) || lowerText.includes(negative)) {
         score -= 2;
         reasons.push(`negative_pattern:${negative}(-2)`);
@@ -136,7 +117,7 @@ export class KeywordMatcher {
    * @returns キーワード検出結果
    */
   static detectKeywords(html: string, keywords?: string[]): KeywordDetectionResult {
-    const targetKeywords = keywords || this.HIGH_PRIORITY_CONTACT_KEYWORDS;
+    const targetKeywords = keywords || HIGH_PRIORITY_CONTACT_KEYWORDS;
     const lowerHtml = html.toLowerCase();
     const foundKeywords: Set<string> = new Set();
 
@@ -164,25 +145,11 @@ export class KeywordMatcher {
   static extractContactInfo(content: string): ContactInfoResult {
     const lowerContent = content.toLowerCase();
 
-    // 電話番号パターン
-    const phonePatterns = [
-      /\d{2,4}[-‐]\d{2,4}[-‐]\d{3,4}/g,      // 03-1234-5678
-      /\d{3}\.\d{3}\.\d{4}/g,                 // 123.456.7890
-      /\(\d{3}\)\s?\d{3}[-‐]\d{4}/g,         // (123) 456-7890
-      /tel[:\s]*[\d\-\(\)\s+]{10,}/gi        // tel: 形式
-    ];
+    const hasPhone = PHONE_PATTERNS.some(pattern => pattern.test(content));
 
-    const hasPhone = phonePatterns.some(pattern => pattern.test(content));
+    const hasEmail = EMAIL_PATTERN.test(content);
 
-    // メールアドレスパターン
-    const emailPattern = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
-    const hasEmail = emailPattern.test(content);
-
-    // フォーム言及パターン
-    const formMentionPatterns = [
-      'フォーム', 'form', 'お問い合わせ', 'contact', '送信', 'submit'
-    ];
-    const hasFormMention = formMentionPatterns.some(pattern =>
+    const hasFormMention = FORM_MENTION_PATTERNS.some(pattern =>
       lowerContent.includes(pattern.toLowerCase())
     );
 
@@ -209,13 +176,7 @@ export class KeywordMatcher {
     const lowerHtml = html.toLowerCase();
     let score = 0;
 
-    // 高優先度キーワード（問い合わせ関連）
-    const contactKeywords = [
-      'お問い合わせ', '問い合わせ', 'contact', 'inquiry',
-      'お問い合わせフォーム', 'contact form'
-    ];
-
-    for (const keyword of contactKeywords) {
+    for (const keyword of DYNAMIC_CONTACT_KEYWORDS) {
       const matches = (lowerHtml.match(new RegExp(keyword.toLowerCase(), 'g')) || []).length;
       score += matches * 3; // 各マッチ3点
       if (matches > 0) {
@@ -223,26 +184,14 @@ export class KeywordMatcher {
       }
     }
 
-    // 誘導文言
-    const inductionPhrases = [
-      'お気軽にご相談', 'お問い合わせはこちら',
-      'get in touch', 'contact us', 'reach out'
-    ];
-
-    for (const phrase of inductionPhrases) {
+    for (const phrase of DYNAMIC_INDUCTION_PHRASES) {
       if (lowerHtml.includes(phrase.toLowerCase())) {
         score += 5; // 誘導文言は5点
         console.log(`Found induction phrase: "${phrase}"`);
       }
     }
 
-    // フォーム関連ヒント
-    const formHints = [
-      'フォーム読み込み中', 'loading contact form',
-      'form-container', 'contact-form-placeholder'
-    ];
-
-    for (const hint of formHints) {
+    for (const hint of DYNAMIC_FORM_HINTS) {
       if (lowerHtml.includes(hint.toLowerCase())) {
         score += 4; // フォームヒントは4点
         console.log(`Found form hint: "${hint}"`);
@@ -258,7 +207,7 @@ export class KeywordMatcher {
    * @returns 高優先度キーワード配列
    */
   static getHighPriorityKeywords(): string[] {
-    return [...this.HIGH_PRIORITY_CONTACT_KEYWORDS];
+    return [...HIGH_PRIORITY_CONTACT_KEYWORDS];
   }
 
   /**
@@ -266,6 +215,6 @@ export class KeywordMatcher {
    * @returns 全キーワード配列
    */
   static getAllKeywords(): string[] {
-    return [...this.CONTACT_KEYWORDS];
+    return [...CONTACT_KEYWORDS];
   }
 }

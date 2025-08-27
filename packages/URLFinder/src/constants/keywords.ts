@@ -9,6 +9,16 @@ export const HIGH_PRIORITY_CONTACT_KEYWORDS = [
   'サポート', 'support', 'help', 'ヘルプ', 'お困りごと'
 ];
 
+// 基本問い合わせキーワード（より広範囲）
+export const CONTACT_KEYWORDS = [
+  ...HIGH_PRIORITY_CONTACT_KEYWORDS,
+  'フォーム', 'form', 'Form', 'mail', 'メール', 'email',
+  '送信', 'submit', 'send', '投稿', 'post',
+  '入力', 'input', '記入', 'fill', 'フィルイン',
+  '申し込み', '申込み', 'application', 'apply',
+  '登録', 'registration', 'register', 'signup', 'sign up'
+];
+
 
 
 
