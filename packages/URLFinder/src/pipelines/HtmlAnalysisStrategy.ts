@@ -1,9 +1,9 @@
-import type { ContactPageResult, SearchStrategy } from '../../data/types/interfaces';
-import { SearchState } from '../core/SearchState';
-import { NetworkUtils } from '../utils/NetworkUtils';
-import { FormUtils } from '../utils/FormUtils';
-import { HtmlUtils } from '../utils/HtmlUtils';
-import { StringUtils } from '../utils/StringUtils';
+import type { ContactPageResult, SearchStrategy } from '../data/types/interfaces';
+import { SearchState } from './state';
+import { NetworkUtils } from '../functions/network/fetch';
+import { FormUtils } from '../functions/html/extractor';
+import { HtmlUtils } from '../functions/html/parser';
+import { StringUtils } from '../functions/network/validation';
 
 export class HtmlAnalysisStrategy implements SearchStrategy {
   public getStrategyName(): string {

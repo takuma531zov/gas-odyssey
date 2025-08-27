@@ -1,6 +1,6 @@
 
-import type { ContactPageResult, SearchStrategy } from '../../data/types/interfaces';
-import { SearchState } from '../core/SearchState';
+import type { ContactPageResult, SearchStrategy } from '../data/types/interfaces';
+import { SearchState } from './state';
 
 export class FallbackStrategy implements SearchStrategy {
   public getStrategyName(): string {

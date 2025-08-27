@@ -3,8 +3,8 @@
  * 44ac0de最適版から分離：全検索フローで共有される状態を一元管理
  */
 
-import type { ContactPageResult } from '../../data/types/interfaces';
-import { NetworkUtils } from '../utils/NetworkUtils';
+import type { ContactPageResult } from '../data/types/interfaces';
+import { NetworkUtils } from '../functions/network/fetch';
 
 export class SearchState {
   /**

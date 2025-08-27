@@ -76,7 +76,7 @@ export const executeSearchStrategy = (strategy: SearchFunction, strategyName: st
       maybe(validateResult),
       onSearchSuccess(strategyName),
       onSearchFailure(strategyName)
-    )();
+    )(undefined);
 
 /**
  * メイン検索パイプライン

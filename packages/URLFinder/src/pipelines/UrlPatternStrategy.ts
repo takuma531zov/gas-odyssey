@@ -1,10 +1,10 @@
-import type { ContactPageResult, SearchStrategy } from '../../data/types/interfaces';
-import { SearchState } from '../core/SearchState';
+import type { ContactPageResult, SearchStrategy } from '../data/types/interfaces';
+import { SearchState } from './state';
 import { Environment } from '../env';
-import { NetworkUtils } from '../utils/NetworkUtils';
-import { FormUtils } from '../utils/FormUtils';
-import { HtmlUtils } from '../utils/HtmlUtils';
-import { HIGH_PRIORITY_PATTERNS } from '../../data/constants/patterns';
+import { NetworkUtils } from '../functions/network/fetch';
+import { FormUtils } from '../functions/html/extractor';
+import { HtmlUtils } from '../functions/html/parser';
+import { HIGH_PRIORITY_PATTERNS } from '../data/constants/patterns';
 
 export class UrlPatternStrategy implements SearchStrategy {
 
