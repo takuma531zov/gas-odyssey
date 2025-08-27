@@ -4,7 +4,7 @@
  * デフォルト値は設定せず、プロパティ未設定時はエラーとして扱う
  */
 export class Environment {
-  
+
   /**
    * 最大処理時間を取得
    * @returns 最大処理時間（ミリ秒）
@@ -18,7 +18,7 @@ export class Environment {
     }
     return parseInt(maxTimeStr);
   }
-  
+
   /**
    * HTTP通信タイムアウト時間を取得
    * @returns タイムアウト時間（ミリ秒）
@@ -32,7 +32,7 @@ export class Environment {
     }
     return parseInt(timeoutStr);
   }
-  
+
   /**
    * 高信頼度閾値を取得
    * @returns 閾値スコア
@@ -46,7 +46,7 @@ export class Environment {
     }
     return parseInt(thresholdStr);
   }
-  
+
   /**
    * 中信頼度閾値を取得
    * @returns 閾値スコア
@@ -60,7 +60,7 @@ export class Environment {
     }
     return parseInt(thresholdStr);
   }
-  
+
   /**
    * 最小許容閾値を取得
    * @returns 閾値スコア

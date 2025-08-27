@@ -1,9 +1,8 @@
 import type { ContactPageResult, PurityResult, HtmlSearchResult } from '../../data/types/interfaces';
 import { hashString, isAnchorLink, isValidEncoding } from '../network/validation';
-import { resolveUrl, extractDomain, isHomepageUrl, fetchWithTimeout } from '../network/fetch';
+import { resolveUrl, isHomepageUrl, fetchWithTimeout } from '../network/fetch';
 import { FormUtils } from './extractor';
 import { SearchState } from '../../pipelines/state';
-import { pipe, maybe, filter, map } from '../utils/compose';
 import {
   FORM_LINK_PATTERNS,
   FORM_TEXT_PATTERNS
@@ -82,7 +81,7 @@ export const calculateContactPurity = (url: string, linkText: string): PurityRes
   HTML_HIGH_PRIORITY_CONTACT_KEYWORDS
     .filter(keyword => {
       const normalizedKeyword = keyword.toLowerCase();
-      return (lowerLinkText.includes(normalizedKeyword) || lowerUrl.includes(normalizedKeyword)) 
+      return (lowerLinkText.includes(normalizedKeyword) || lowerUrl.includes(normalizedKeyword))
         && !foundKeywords.has(normalizedKeyword);
     })
     .forEach(keyword => {

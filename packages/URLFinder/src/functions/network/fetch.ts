@@ -6,7 +6,6 @@
 import { FORM_CONTEXT_CONTACT_KEYWORDS } from '../../data/constants/form_constants';
 import { HTTP_ERROR_MESSAGES, SNS_PATTERNS } from '../../data/constants/network';
 import { HIGH_CONFIDENCE_PATTERNS, MEDIUM_CONFIDENCE_PATTERNS, HOMEPAGE_FILE_PATTERNS } from '../../data/constants/patterns';
-import { maybe, either, pipe } from '../utils/compose';
 
 // 型定義
 type NetworkResult<T> = T | Error;
@@ -203,7 +202,7 @@ export const checkDomainAvailability = (baseUrl: string): { available: boolean, 
   try {
     console.log(`Testing domain availability: ${baseUrl}`);
     const response = fetchWithTimeout(baseUrl, 3000); // 3秒タイムアウト
-    
+
     if (response instanceof Error) {
       const detailedError = getDetailedNetworkError(response);
       console.log(`Domain check error: ${detailedError}`);
