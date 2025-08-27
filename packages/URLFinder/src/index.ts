@@ -1,7 +1,7 @@
 
-import { processContactPageFinder } from './gas/triggers';
-import { executeUrlFinderWithUI, executeSelectedMode } from './gas/ui';
-import { test } from './gas/test';
+import { processContactPageFinder } from './adapters/gas/triggers';
+import { executeUrlFinderWithUI, executeSelectedMode } from './adapters/gas/ui';
+import { test } from './adapters/gas/test';
 
 // GASのグローバル空間に関数を登録
 
