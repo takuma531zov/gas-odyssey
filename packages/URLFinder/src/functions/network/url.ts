@@ -1,129 +1,127 @@
 /**
- * URL処理ユーティリティ
- * 純粋関数として実装し、副作用を排除
+ * URL処理純粋関数群
+ * 副作用なし、入力→出力の関数型実装
  */
 
 import { UrlResolutionResult } from '../../data/types/interfaces';
 
-export class UrlUtils {
-  
-  /**
-   * 相対URLを絶対URLに解決
-   * @param url 対象URL（相対または絶対）
-   * @param baseUrl ベースURL
-   * @returns 解決されたURL
-   */
-  static resolveUrl(url: string, baseUrl: string): string {
-    // Skip invalid or non-web URLs
-    if (url.startsWith('mailto:') || url.startsWith('javascript:') || url.startsWith('tel:')) {
-      return url; // Return as-is but these should be filtered out in calling code
-    }
-
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-      return url;
-    }
-
-    // Extract protocol and host from baseUrl manually
-    const protocolMatch = baseUrl.match(/^https?:/);
-    const hostMatch = baseUrl.match(/^https?:\/\/([^\/]+)/);
-
-    if (!protocolMatch || !hostMatch) {
-      return url;
-    }
-
-    const protocol = protocolMatch[0];
-    const host = hostMatch[1];
-
-    if (url.startsWith('/')) {
-      return `${protocol}//${host}${url}`;
-    }
-
-    return `${protocol}//${host}/${url}`;
+/**
+ * 相対URLを絶対URLに解決（カリー化対応）
+ */
+export const resolveUrl = (baseUrl: string) => (url: string): string => {
+  // Skip invalid or non-web URLs
+  if (url.startsWith('mailto:') || url.startsWith('javascript:') || url.startsWith('tel:')) {
+    return url; // Return as-is but these should be filtered out in calling code
   }
 
-  /**
-   * URLからドメイン部分を抽出
-   * @param url 対象URL
-   * @returns ドメインURL（プロトコル + ホスト + /）
-   */
-  static extractDomain(url: string): string {
-    // Extract protocol and host from URL
-    const protocolMatch = url.match(/^https?:/);
-    const hostMatch = url.match(/^https?:\/\/([^\/]+)/);
-
-    if (!protocolMatch || !hostMatch) {
-      return url;
-    }
-
-    const protocol = protocolMatch[0];
-    const host = hostMatch[1];
-
-    return `${protocol}//${host}/`;
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
   }
 
-  /**
-   * URLの妥当性チェック
-   * @param url チェック対象URL
-   * @returns 妥当性結果
-   */
-  static validateUrl(url: string): UrlResolutionResult {
-    if (!url) {
-      return {
-        resolvedUrl: '',
-        isValid: false,
-        error: 'URL is empty'
-      };
-    }
+  // Extract protocol and host from baseUrl manually
+  const protocolMatch = baseUrl.match(/^https?:/);
+  const hostMatch = baseUrl.match(/^https?:\/\/([^\/]+)/);
 
-    // Skip non-web URLs
-    if (url.startsWith('mailto:') || url.startsWith('javascript:') || url.startsWith('tel:')) {
-      return {
-        resolvedUrl: url,
-        isValid: false,
-        error: 'Non-web URL'
-      };
-    }
+  if (!protocolMatch || !hostMatch) {
+    return url;
+  }
 
-    // Check for valid HTTP/HTTPS URLs
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-      return {
-        resolvedUrl: url,
-        isValid: true
-      };
-    }
+  const protocol = protocolMatch[0];
+  const host = hostMatch[1];
 
+  if (url.startsWith('/')) {
+    return `${protocol}//${host}${url}`;
+  }
+
+  return `${protocol}//${host}/${url}`;
+};
+
+/**
+ * URLからドメイン部分を抽出
+ */
+export const extractDomain = (url: string): string => {
+  // Extract protocol and host from URL
+  const protocolMatch = url.match(/^https?:/);
+  const hostMatch = url.match(/^https?:\/\/([^\/]+)/);
+
+  if (!protocolMatch || !hostMatch) {
+    return url;
+  }
+
+  const protocol = protocolMatch[0];
+  const host = hostMatch[1];
+
+  return `${protocol}//${host}/`;
+};
+
+/**
+ * URLの妥当性チェック
+ */
+export const validateUrl = (url: string): UrlResolutionResult => {
+  if (!url) {
     return {
-      resolvedUrl: url,
+      resolvedUrl: '',
       isValid: false,
-      error: 'Invalid URL format'
+      error: 'URL is empty'
     };
   }
 
-  /**
-   * URLを正規化（末尾スラッシュの統一等）
-   * @param url 対象URL
-   * @returns 正規化されたURL
-   */
-  static normalizeUrl(url: string): string {
-    if (!url) return '';
-    
-    // Remove trailing slash except for domain root
-    if (url.endsWith('/') && url.match(/^https?:\/\/[^\/]+\/$/)) {
-      return url; // Keep trailing slash for domain root
-    }
-    
-    return url.replace(/\/$/, '');
+  // Skip non-web URLs
+  if (url.startsWith('mailto:') || url.startsWith('javascript:') || url.startsWith('tel:')) {
+    return {
+      resolvedUrl: url,
+      isValid: false,
+      error: 'Non-web URL'
+    };
   }
 
-  /**
-   * 同一ドメインかチェック
-   * @param url1 比較URL1
-   * @param url2 比較URL2
-   * @returns 同一ドメインかどうか
-   */
-  static isSameDomain(url1: string, url2: string): boolean {
-    const domain1 = this.extractDomain(url1);
-    const domain2 = this.extractDomain(url2);
-    return domain1 === domain2;
+  // Check for valid HTTP/HTTPS URLs
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return {
+      resolvedUrl: url,
+      isValid: true
+    };
   }
+
+  return {
+    resolvedUrl: url,
+    isValid: false,
+    error: 'Invalid URL format'
+  };
+};
+
+/**
+ * URLを正規化（末尾スラッシュの統一等）
+ */
+export const normalizeUrl = (url: string): string => {
+  if (!url) return '';
+  
+  // Remove trailing slash except for domain root
+  if (url.endsWith('/') && url.match(/^https?:\/\/[^\/]+\/$/)) {
+    return url; // Keep trailing slash for domain root
+  }
+  
+  return url.replace(/\/$/, '');
+};
+
+/**
+ * 同一ドメインかチェック（カリー化対応）
+ */
+export const isSameDomain = (url1: string) => (url2: string): boolean => {
+  const domain1 = extractDomain(url1);
+  const domain2 = extractDomain(url2);
+  return domain1 === domain2;
+};
+
+// 非カリー化版（2引数）
+export const isSameDomainBinary = (url1: string, url2: string): boolean => 
+  isSameDomain(url1)(url2);
+
+// 後方互換性のためのクラス（段階的移行用）
+export class UrlUtils {
+  static resolveUrl = (url: string, baseUrl: string) => resolveUrl(baseUrl)(url);
+  static extractDomain = extractDomain;
+  static validateUrl = validateUrl;
+  static normalizeUrl = normalizeUrl;
+  static isSameDomain = isSameDomainBinary;
 }
