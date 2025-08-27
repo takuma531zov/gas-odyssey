@@ -1,10 +1,6 @@
-import { FormUtils as CustomFormUtils } from './FormUtils';
-import { HtmlUtils } from './HtmlUtils';
-import { NetworkUtils } from './NetworkUtils';
-import { StringUtils } from './StringUtils';
 import type { ContactPageResult } from '../../data/types/interfaces';
-import { SearchState } from '../core/SearchState';
-import { Environment } from '../env';
+import { SearchState } from '../../pipelines/state';
+import { Environment } from '../../env';
 import {
   SUBMIT_BUTTON_KEYWORDS,
   RECAPTCHA_PATTERNS,

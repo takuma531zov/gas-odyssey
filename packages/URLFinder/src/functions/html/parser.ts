@@ -1,8 +1,8 @@
 import type { ContactPageResult, PurityResult, HtmlSearchResult } from '../../data/types/interfaces';
-import { StringUtils } from './StringUtils';
-import { NetworkUtils } from './NetworkUtils';
-import { FormUtils } from './FormUtils';
-import { SearchState } from '../core/SearchState';
+import { StringUtils } from '../network/validation';
+import { NetworkUtils } from '../network/fetch';
+import { FormUtils } from './extractor';
+import { SearchState } from '../../pipelines/state';
 import {
   FORM_LINK_PATTERNS,
   FORM_TEXT_PATTERNS
