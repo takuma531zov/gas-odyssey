@@ -3,6 +3,7 @@
 import type { ContactPageResult } from '../../data/types/interfaces';
 import { processContactPageFinder } from './triggers';
 import { ContactPageFinder } from '../../ContactPageFinder';
+import { Environment } from '../../env';
 
 function findContactPage(url: string): ContactPageResult {
   return ContactPageFinder.findContactPage(url);
@@ -94,7 +95,7 @@ function executeCheckedRowsProcessing(): void {
 
     for (const rowNumber of checkedRows) {
       try {
-        // L列からURL取得
+        // 対象列からURL取得
         const url = getUrlFromRow(rowNumber!);
 
         if (!url || typeof url !== 'string' || url.trim() === '') {
@@ -107,7 +108,7 @@ function executeCheckedRowsProcessing(): void {
         // 既存のfindContactPage関数を使用
         const result: ContactPageResult = findContactPage(url);
 
-        // AP列に結果を書き込み
+        // 出力列に結果を書き込み
         writeResultToSheet(rowNumber!, result);
 
         if (result.contactUrl) {
@@ -132,22 +133,22 @@ function executeCheckedRowsProcessing(): void {
 }
 
 /**
- * 指定行のL列からURLを取得
+ * 指定行の対象列からURLを取得
  */
 function getUrlFromRow(rowNumber: number): string {
   const sheet = SpreadsheetApp.getActiveSheet();
-  const lColumn = 12; // L列
+  const targetColumn = Environment.getTargetColumn();
 
-  const cellValue = sheet.getRange(rowNumber, lColumn).getValue();
+  const cellValue = sheet.getRange(rowNumber, targetColumn).getValue();
   return cellValue ? cellValue.toString().trim() : '';
 }
 
 /**
- * 結果をAP列に書き込み（既存ロジックと完全に一致）
+ * 結果を出力列に書き込み（既存ロジックと完全に一致）
  */
 function writeResultToSheet(rowNumber: number, result: ContactPageResult): void {
   const sheet = SpreadsheetApp.getActiveSheet();
-  const apColumn = 42; // AP列
+  const outputColumn = Environment.getOutputColumn();
 
   // 既存のprocessContactPageFinderと完全に同じロジック
   let outputValue = '';
@@ -175,11 +176,11 @@ function writeResultToSheet(rowNumber: number, result: ContactPageResult): void 
     outputValue = '問い合わせフォームが見つかりませんでした';
   }
 
-  sheet.getRange(rowNumber, apColumn).setValue(outputValue);
+  sheet.getRange(rowNumber, outputColumn).setValue(outputValue);
 }
 
 /**
- * AQ列でチェックされた行番号一覧を取得
+ * チェック列でチェックされた行番号一覧を取得
  */
 function getCheckedRows(): number[] {
   try {
@@ -195,13 +196,13 @@ function getCheckedRows(): number[] {
     const maxRowsToCheck = Math.min(lastRow, 1000);
     console.log(`チェック対象行数: ${maxRowsToCheck}`);
 
-    const aqColumn = 43; // AQ列
+    const checkColumn = Environment.getCheckColumn();
     const checkedRows: number[] = [];
 
     console.log('チェックボックス値の確認開始...');
     for (let row = 2; row <= maxRowsToCheck; row++) {
       try {
-        const checkboxValue = sheet.getRange(row, aqColumn).getValue();
+        const checkboxValue = sheet.getRange(row, checkColumn).getValue();
         if (checkboxValue === true) {
           checkedRows.push(row);
         }

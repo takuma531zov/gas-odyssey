@@ -10,30 +10,13 @@ function findContactPage(url: string): ContactPageResult {
 export function processContactPageFinder() {
   try {
     // スクリプトプロパティから設定値を取得
-    const properties = PropertiesService.getScriptProperties();
-    const sheetName = properties.getProperty('SHEET');
-    const maxCountStr = properties.getProperty('MAX_COUNT');
-    const headerRowStr = properties.getProperty('HEADER_ROW');
-
-    if (!sheetName) {
-      throw new Error('スクリプトプロパティ「SHEET」が設定されていません');
-    }
+    const sheetName = Environment.getSheetName();
+    const maxCount = Environment.getMaxCount();
+    const headerRow = Environment.getHeaderRow();
 
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
     if (!sheet) {
       throw new Error(`シート「${sheetName}」が見つかりません`);
-    }
-
-    // MAX_COUNTの処理（未設定の場合は制限なし）
-    const maxCount = maxCountStr ? parseInt(maxCountStr, 10) : null;
-    if (maxCountStr && isNaN(maxCount!)) {
-      throw new Error('スクリプトプロパティ「MAX_COUNT」は数値で設定してください');
-    }
-
-    // HEADER_ROWの処理（未設定の場合は1行目）
-    const headerRow = headerRowStr ? parseInt(headerRowStr, 10) : 1;
-    if (headerRowStr && isNaN(headerRow!)) {
-      throw new Error('スクリプトプロパティ「HEADER_ROW」は数値で設定してください');
     }
 
     console.log(`処理上限: ${maxCount ? `${maxCount}行` : '制限なし'}`);
@@ -71,8 +54,9 @@ export function processContactPageFinder() {
 
     console.log(`処理対象行: ${startRow}行目から${endRow}行目まで（${endRow - startRow + 1}行）`);
 
-    // L列のURLを一括取得
-    const urlRange = sheet.getRange(startRow, 12, endRow - startRow + 1, 1); // L列は12列目
+    // 対象列のURLを一括取得
+    const targetColumn = Environment.getTargetColumn();
+    const urlRange = sheet.getRange(startRow, targetColumn, endRow - startRow + 1, 1);
     const urls = urlRange.getValues();
 
     // バッチ処理による中間出力
@@ -144,18 +128,19 @@ export function processContactPageFinder() {
       if (results.length >= batchSize || i === urls.length - 1) {
         if (results.length > 0) {
           const batchStartRow = startRow + processedCount;
-          const outputRange = sheet.getRange(batchStartRow, 42, results.length, 1); // AP列は42列目
+          const outputColumn = Environment.getOutputColumn();
+          const outputRange = sheet.getRange(batchStartRow, outputColumn, results.length, 1);
           outputRange.setValues(results);
           
           processedCount += results.length;
-          console.log(`中間出力完了: ${batchStartRow}行目から${results.length}行をAP列に出力（バッチサイズ: ${batchSize}）`);
+          console.log(`中間出力完了: ${batchStartRow}行目から${results.length}行を出力列に出力（バッチサイズ: ${batchSize}）`);
           
           results.length = 0; // 配列クリア
         }
       }
     }
 
-    console.log(`処理完了: ${processedCount}行の結果をAP列に出力しました`);
+    console.log(`処理完了: ${processedCount}行の結果を出力列に出力しました`);
 
     // MAX_COUNT制限で処理が打ち切られた場合の通知
     if (maxCount && processedCount === maxCount && startRow + maxCount - 1 < lastRowL) {
