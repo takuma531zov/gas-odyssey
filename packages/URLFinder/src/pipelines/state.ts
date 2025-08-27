@@ -1,10 +1,11 @@
 /**
  * 検索状態管理クラス
  * 44ac0de最適版から分離：全検索フローで共有される状態を一元管理
+ * 関数型実装への移行中
  */
 
 import type { ContactPageResult } from '../data/types/interfaces';
-import { NetworkUtils } from '../functions/network/fetch';
+import { evaluateFallbackUrlQuality } from '../functions/network/fetch';
 
 export class SearchState {
   /**
@@ -168,7 +169,7 @@ export class SearchState {
       
       if (matchingUrl) {
         console.log(`Priority contact pattern found: ${matchingUrl.url} (${priorityPattern})`);
-        const qualityScore = NetworkUtils.evaluateFallbackUrlQuality(matchingUrl.url, matchingUrl.pattern);
+        const qualityScore = evaluateFallbackUrlQuality(matchingUrl.url, matchingUrl.pattern);
         
         return {
           contactUrl: matchingUrl.url,
@@ -194,7 +195,7 @@ export class SearchState {
     console.log(`Final fallback: Using first valid URL ${firstValidUrl.url} (pattern: ${firstValidUrl.pattern})`);
     
     // URLの品質を評価
-    const qualityScore = NetworkUtils.evaluateFallbackUrlQuality(firstValidUrl.url, firstValidUrl.pattern);
+    const qualityScore = evaluateFallbackUrlQuality(firstValidUrl.url, firstValidUrl.pattern);
     
     return {
       contactUrl: firstValidUrl.url,
