@@ -9,7 +9,3 @@ export const PHONE_PATTERNS = [
 // メールアドレスの正規表現パターン
 export const EMAIL_PATTERN = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
 
-// フォーム言及のキーワードパターン
-export const FORM_MENTION_PATTERNS = [
-  'フォーム', 'form', 'お問い合わせ', 'contact', '送信', 'submit'
-];
