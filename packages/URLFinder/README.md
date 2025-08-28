@@ -6,6 +6,9 @@ WebサイトからContact Form URLを自動検出するGoogle Apps Script (GAS) 
 
 URLFinderは、指定されたWebサイトのURLから自動的に問い合わせフォームを検出し、結果をスプレッドシートに出力するツールです。大量のWebサイトから効率的にコンタクト情報を収集することができます。
 
+スプレッドシートURL
+https://docs.google.com/spreadsheets/d/128kxWEs7DceOEEX8Eglih9855RoZbLdLryv2clB9DX4/edit?gid=0#gid=0
+
 ### 主な機能
 
 - **自動フォーム検出**: HTML解析による構造化フォーム検出
@@ -67,10 +70,13 @@ URLFinder/
 
 ```bash
 # ビルド
-npm run build
+pnpm build:url
 
-# dist/main.js の内容をGASエディターにコピー
-# simpleOptions.html も同様にアップロード
+# デプロイ
+# 開発環境
+pnpm build:dev:url
+# 本番環境
+pnpm build:prod:url
 ```
 
 ### 2. スクリプトプロパティ設定
