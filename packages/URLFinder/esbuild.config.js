@@ -13,25 +13,17 @@ const config = {
       name: 'copy-html-files',
       setup(build) {
         build.onEnd(() => {
-          // HTMLファイルをdistにコピー
-          const htmlFiles = ['simpleOptions.html', 'progress.html'];
-          const srcDir = path.join(__dirname, 'src');
-          const distDir = path.join(__dirname, 'dist');
+          const srcFile = path.join(__dirname, 'src', 'simpleOptions.html');
+          const distFile = path.join(__dirname, 'dist', 'simpleOptions.html');
           
-          // distディレクトリが存在することを確認
-          if (!fs.existsSync(distDir)) {
-            fs.mkdirSync(distDir, { recursive: true });
-          }
-          
-          htmlFiles.forEach(file => {
-            const srcFile = path.join(srcDir, file);
-            const distFile = path.join(distDir, file);
-            
-            if (fs.existsSync(srcFile)) {
-              fs.copyFileSync(srcFile, distFile);
-              console.log(`Copied ${file} to dist/`);
+          if (fs.existsSync(srcFile)) {
+            const distDir = path.dirname(distFile);
+            if (!fs.existsSync(distDir)) {
+              fs.mkdirSync(distDir, { recursive: true });
             }
-          });
+            fs.copyFileSync(srcFile, distFile);
+            console.log('Copied simpleOptions.html to dist/');
+          }
         });
       }
     }
