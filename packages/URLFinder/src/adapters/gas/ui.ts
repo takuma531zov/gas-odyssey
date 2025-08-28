@@ -2,7 +2,7 @@
 
 import type { ContactPageResult } from '../../data/types/interfaces';
 import { processContactPageFinder } from './triggers';
-import { ContactPageFinder } from '../../ContactPageFinder';
+import { ContactPageFinder } from '../../contactPageFinder';
 import { Environment } from '../../env';
 
 function findContactPage(url: string): ContactPageResult {
@@ -22,7 +22,7 @@ export function executeUrlFinderWithUI(): void {
     const maxCount = getMaxCountSetting();
 
     // 実行オプション選択ダイアログを表示
-    const htmlTemplate = HtmlService.createTemplateFromFile('simple-options');
+    const htmlTemplate = HtmlService.createTemplateFromFile('simpleOptions');
     htmlTemplate.checkedCount = checkedCount;
     htmlTemplate.maxCount = maxCount;
 

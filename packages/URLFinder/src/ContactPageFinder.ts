@@ -2,9 +2,9 @@
 import type { ContactPageResult } from './data/types/interfaces';
 import { SearchState } from './pipelines/state';
 import { NetworkUtils } from './functions/network/fetch';
-import { UrlPatternStrategy } from './pipelines/UrlPatternStrategy';
-import { HtmlAnalysisStrategy } from './pipelines/HtmlAnalysisStrategy';
-import { FallbackStrategy } from './pipelines/FallbackStrategy';
+import { UrlPatternStrategy } from './pipelines/urlPatternStrategy';
+import { HtmlAnalysisStrategy } from './pipelines/htmlAnalysisStrategy';
+import { FallbackStrategy } from './pipelines/fallbackStrategy';
 
 export class ContactPageFinder {
   static findContactPage(baseUrl: string): ContactPageResult {

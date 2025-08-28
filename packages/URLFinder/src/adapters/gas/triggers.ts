@@ -1,6 +1,6 @@
 
 import type { ContactPageResult } from '../../data/types/interfaces';
-import { ContactPageFinder } from '../../ContactPageFinder';
+import { ContactPageFinder } from '../../contactPageFinder';
 import { Environment } from '../../env';
 
 function findContactPage(url: string): ContactPageResult {

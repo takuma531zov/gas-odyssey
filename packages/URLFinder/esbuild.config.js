@@ -14,7 +14,7 @@ const config = {
       setup(build) {
         build.onEnd(() => {
           // HTMLファイルをdistにコピー
-          const htmlFiles = ['simple-options.html', 'progress.html'];
+          const htmlFiles = ['simpleOptions.html', 'progress.html'];
           const srcDir = path.join(__dirname, 'src');
           const distDir = path.join(__dirname, 'dist');
           
