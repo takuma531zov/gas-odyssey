@@ -1,22 +1,7 @@
 {
-  "name": "URLFinder",
+  "name": "urlFinder",
   "version": "1.0.0",
   "description": "営業リスト問い合わせフォーム抽出システム",
-  "main": "dist/index.ts",
-  "scripts": {
-    "build": "node esbuild.config.js",
-    "deploy": "clasp push",
-    "watch": "node esbuild.config.js --watch",
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": ["google-apps-script", "form-finder", "web-scraping"],
-  "author": "",
-  "license": "ISC",
-  "packageManager": "pnpm@10.11.1",
-  "devDependencies": {
-    "@google/clasp": "^2.4.2",
-    "@types/google-apps-script": "^1.0.83",
-    "esbuild": "^0.24.0",
-    "typescript": "^5.6.3"
+  "main": "dist/index.ts"
+
   }
-}
