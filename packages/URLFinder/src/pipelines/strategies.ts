@@ -20,7 +20,7 @@ type StrategyFunction = (baseUrl: string, searchState: SearchState) => StrategyR
 // 純粋関数群
 
 /**
- * URL Pattern 検索戦略（純粋関数）
+ * URL Pattern 検索戦略
  */
 export const executeUrlPatternStrategy = (baseUrl: string, searchState: SearchState): StrategyResult => {
   const startTime = Date.now();
@@ -84,7 +84,7 @@ export const executeUrlPatternStrategy = (baseUrl: string, searchState: SearchSt
 };
 
 /**
- * HTML Analysis 検索戦略（純粋関数）
+ * HTML Analysis 検索戦略
  */
 export const executeHtmlAnalysisStrategy = (baseUrl: string, searchState: SearchState): StrategyResult => {
   try {
@@ -126,7 +126,7 @@ export const executeHtmlAnalysisStrategy = (baseUrl: string, searchState: Search
 };
 
 /**
- * ネットワークエラー処理（純粋関数）
+ * ネットワークエラー処理
  */
 const handleNetworkError = (error: any): ContactPageResult => {
   const detailedError = getDetailedNetworkError(error);
@@ -146,7 +146,7 @@ const handleNetworkError = (error: any): ContactPageResult => {
 };
 
 /**
- * HTMLコンテンツ分析（純粋関数）
+ * HTMLコンテンツ分析
  */
 const analyzeHtmlContent = (html: string, baseUrl: string, searchState: SearchState): ContactPageResult | null => {
   const navResult = HtmlUtils.searchInNavigation(html, baseUrl);
@@ -189,7 +189,7 @@ const analyzeHtmlContent = (html: string, baseUrl: string, searchState: SearchSt
 };
 
 /**
- * 実際のフォーム検索（純粋関数）
+ * 実際のフォーム検索
  */
 const findActualForm = (contactPageUrl: string): string | null => {
   try {
@@ -214,10 +214,13 @@ const findActualForm = (contactPageUrl: string): string | null => {
   }
 };
 
-// 高階関数とコンビネータ
+// ===== 戦略の組み合わせと制御機能 =====
+// 複数の検索戦略を効率的に実行・制御するためのヘルパー関数群
 
 /**
- * 戦略実行パイプライン生成（高階関数）
+ * 検索戦略パイプライン作成
+ * 複数の戦略を順番に実行し、最初に成功した結果を返す
+ * 用途: 優先度順で戦略を試行し、効率的な検索を実現
  */
 export const createSearchPipeline = (strategies: StrategyFunction[]) =>
   (baseUrl: string, searchState: SearchState): StrategyResult => {
@@ -229,7 +232,9 @@ export const createSearchPipeline = (strategies: StrategyFunction[]) =>
   };
 
 /**
- * 戦略コンディション生成（高階関数）
+ * 条件付き戦略実行
+ * 特定の条件を満たす場合のみ戦略を実行する
+ * 用途: 「SNSサイトの場合はスキップ」などの条件分岐処理
  */
 export const createConditionalStrategy = (condition: (baseUrl: string) => boolean, strategy: StrategyFunction) =>
   (baseUrl: string, searchState: SearchState): StrategyResult => {
@@ -240,30 +245,35 @@ export const createConditionalStrategy = (condition: (baseUrl: string) => boolea
   };
 
 /**
- * 戦略タイムアウト制御（高階関数）
+ * タイムアウト制御付き戦略実行
+ * 指定時間を超過した場合に強制終了する
+ * 用途: 重いHTMLページ解析等でGASタイムアウトを防止
  */
 export const createTimeoutStrategy = (timeoutMs: number, strategy: StrategyFunction) =>
   (baseUrl: string, searchState: SearchState): StrategyResult => {
     const startTime = Date.now();
     const result = strategy(baseUrl, searchState);
     const elapsed = Date.now() - startTime;
-    
+
     if (elapsed > timeoutMs) {
       console.log(`Strategy timeout after ${elapsed}ms`);
       return { contactUrl: null, actualFormUrl: null, foundKeywords: ['strategy_timeout'], searchMethod: 'timeout_error' };
     }
-    
+
     return result;
   };
 
 /**
- * 戦略チェーン合成（関数合成）
+ * 戦略合成（ショートハンド）
+ * createSearchPipelineのエイリアス
  */
 export const composeStrategies = (...strategies: StrategyFunction[]) =>
   createSearchPipeline(strategies);
 
 /**
- * メイン検索実行（統合API）
+ * メイン検索実行
+ * URLパターン検索 → HTML分析の順で実行し、最初の成功結果を返す
+ * 用途: ContactPageFinderから呼び出される統合検索API
  */
 export const executeSearchStrategies = (baseUrl: string, searchState: SearchState): StrategyResult => {
   const strategies = [
@@ -274,23 +284,3 @@ export const executeSearchStrategies = (baseUrl: string, searchState: SearchStat
   return createSearchPipeline(strategies)(baseUrl, searchState);
 };
 
-// 後方互換性のためのクラス（段階的移行用）
-export class UrlPatternStrategy implements SearchStrategy {
-  public getStrategyName(): string {
-    return 'URL Pattern Search';
-  }
-
-  public search(baseUrl: string, searchState: SearchState): ContactPageResult | null {
-    return executeUrlPatternStrategy(baseUrl, searchState);
-  }
-}
-
-export class HtmlAnalysisStrategy implements SearchStrategy {
-  public getStrategyName(): string {
-    return 'HTML Content Analysis';
-  }
-
-  public search(baseUrl: string, searchState: SearchState): ContactPageResult | null {
-    return executeHtmlAnalysisStrategy(baseUrl, searchState);
-  }
-}

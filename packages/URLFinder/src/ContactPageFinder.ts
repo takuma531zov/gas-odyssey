@@ -2,18 +2,11 @@
 import type { ContactPageResult } from './data/types/interfaces';
 import { SearchState } from './pipelines/state';
 import { NetworkUtils } from './functions/network/fetch';
-import { UrlPatternStrategy } from './pipelines/urlPatternStrategy';
-import { HtmlAnalysisStrategy } from './pipelines/htmlAnalysisStrategy';
-import { FallbackStrategy } from './pipelines/fallbackStrategy';
+import { executeSearchStrategies } from './pipelines/strategies';
 
 export class ContactPageFinder {
   static findContactPage(baseUrl: string): ContactPageResult {
     const searchState = new SearchState();
-    const strategies = [
-      new UrlPatternStrategy(),
-      new HtmlAnalysisStrategy(),
-      new FallbackStrategy(),
-    ];
 
     if (NetworkUtils.isSNSPage(baseUrl)) {
       return { contactUrl: null, actualFormUrl: null, foundKeywords: ['sns_page'], searchMethod: 'sns_not_supported' };
@@ -22,8 +15,7 @@ export class ContactPageFinder {
     const domainCheck = NetworkUtils.checkDomainAvailability(baseUrl);
     if (!domainCheck.available) {
       const errorMessage = domainCheck.error || 'サイトが閉鎖されています';
-      // エラーメッセージを直接searchMethodに反映
-      let searchMethod = 'site_closed'; // デフォルト
+      let searchMethod = 'site_closed';
       if (errorMessage.includes('DNS')) {
         searchMethod = 'dns_error';
       } else if (errorMessage.includes('bot') || errorMessage.includes('Bot') || errorMessage.includes('403') || errorMessage.includes('501')) {
@@ -33,7 +25,6 @@ export class ContactPageFinder {
       } else if (errorMessage === 'サイトが閉鎖されています') {
         searchMethod = 'site_closed';
       } else {
-        // 詳細エラーメッセージがある場合はerrorとして扱う
         searchMethod = 'error';
       }
       return { contactUrl: null, actualFormUrl: null, foundKeywords: [errorMessage], searchMethod };
@@ -41,20 +32,18 @@ export class ContactPageFinder {
 
     const domainUrl = NetworkUtils.extractDomain(baseUrl);
 
-    for (const strategy of strategies) {
-      try {
-        const result = strategy.search(domainUrl, searchState);
-        if (result) {
-          if (result.contactUrl) {
-            console.log(`✅ Found via ${strategy.getStrategyName()}: ${result.contactUrl}`);
-          } else {
-            console.log(`Strategy ${strategy.getStrategyName()} returned a terminal result: ${result.searchMethod}`);
-          }
-          return result;
+    try {
+      const result = executeSearchStrategies(domainUrl, searchState);
+      if (result) {
+        if (result.contactUrl) {
+          console.log(`✅ Found contact form: ${result.contactUrl}`);
+        } else {
+          console.log(`Search completed with result: ${result.searchMethod}`);
         }
-      } catch (error) {
-        console.error(`Error in strategy ${strategy.getStrategyName()}:`, error);
+        return result;
       }
+    } catch (error) {
+      console.error('Error in search strategies:', error);
     }
 
     return { contactUrl: null, actualFormUrl: null, foundKeywords: [], searchMethod: 'not_found' };
