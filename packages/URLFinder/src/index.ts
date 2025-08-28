@@ -5,7 +5,11 @@ import { test } from './adapters/gas/test';
 
 // GASのグローバル空間に関数を登録
 
-declare const global: any;
+declare const global: {
+  processContactPageFinder: typeof processContactPageFinder;
+  executeUrlFinderWithUI: typeof executeUrlFinderWithUI;
+  test: typeof test;
+};
 
 global.processContactPageFinder = processContactPageFinder;
 global.executeUrlFinderWithUI = executeUrlFinderWithUI;

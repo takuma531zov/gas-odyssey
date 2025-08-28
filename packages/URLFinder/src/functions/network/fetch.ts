@@ -33,7 +33,7 @@ export const fetchWithTimeout = (url: string, timeoutMs: number = 5000): Network
 /**
  * ネットワークエラーの詳細情報を取得（純粋関数）
  */
-export const getDetailedNetworkError = (error: any): string => {
+export const getDetailedNetworkError = (error: Error | unknown): string => {
   if (!error) {
     return 'Unknown error';
   }

@@ -9,16 +9,16 @@ type UnaryFunction<T, R> = (arg: T) => R;
 /**
  * パイプ関数：左から右への関数合成
  */
-export const pipe = <T>(...fns: UnaryFunction<any, any>[]) =>
-  (value: T): any =>
-    fns.reduce((acc, fn) => fn(acc), value);
+export const pipe = <T, R>(...fns: UnaryFunction<unknown, unknown>[]) =>
+  (value: T): R =>
+    fns.reduce((acc, fn) => fn(acc), value as unknown) as R;
 
 /**
  * 合成関数：右から左への関数合成
  */
-export const compose = <T>(...fns: UnaryFunction<any, any>[]) =>
-  (value: T): any =>
-    fns.reduceRight((acc, fn) => fn(acc), value);
+export const compose = <T, R>(...fns: UnaryFunction<unknown, unknown>[]) =>
+  (value: T): R =>
+    fns.reduceRight((acc, fn) => fn(acc), value as unknown) as R;
 
 /**
  * Maybe モナド：null/undefined セーフな処理
@@ -32,7 +32,7 @@ export const maybe = <T, R>(fn: (value: T) => R) =>
  */
 export const either = <T, R>(
   onSuccess: (value: T) => R,
-  onError: (error: any) => R
+  onError: (error: Error | unknown) => R
 ) =>
   (value: T | Error): R => {
     if (value instanceof Error) {

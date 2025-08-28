@@ -320,7 +320,7 @@ const analyzeFormElements = (html: string): FormAnalysisInternal => {
 /**
  * 状態変換パイプライン生成（高階関数）
  */
-export const createStateTransformer = <T>(...transformers: Array<(state: SearchStateData, ...args: any[]) => SearchStateData>) =>
+export const createStateTransformer = <T>(...transformers: Array<(state: SearchStateData, ...args: T[]) => SearchStateData>) =>
   (initialState: SearchStateData, ...args: T[]): SearchStateData => {
     return transformers.reduce((state, transformer, index) => {
       return transformer(state, args[index]);
@@ -343,12 +343,13 @@ export const createConditionalStateTransformer = <T>(
 /**
  * 状態フィルタ生成（高階関数）
  */
-export const createStateFilter = (predicate: (item: any) => boolean) =>
+export const createStateFilter = <T>(predicate: (item: T) => boolean) =>
   (state: SearchStateData, field: keyof SearchStateData): SearchStateData => {
-    if (Array.isArray(state[field])) {
+    const fieldValue = state[field];
+    if (Array.isArray(fieldValue)) {
       return {
         ...state,
-        [field]: (state[field] as any[]).filter(predicate)
+        [field]: (fieldValue as T[]).filter(predicate)
       };
     }
     return state;

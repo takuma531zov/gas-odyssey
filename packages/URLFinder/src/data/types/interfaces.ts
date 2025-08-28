@@ -2,6 +2,8 @@
  * URLFinder共通インターフェース定義
  */
 
+import type { SearchState } from '../pipelines/state';
+
 /**
  * 問い合わせページ検索結果
  */
@@ -22,7 +24,7 @@ export interface SearchStrategy {
    * @param searchState 検索状態
    * @returns 検索結果（null=失敗、結果=成功）
    */
-  search(baseUrl: string, searchState: any): ContactPageResult | null;
+  search(baseUrl: string, searchState: SearchState): ContactPageResult | null;
   
   /**
    * 戦略名（デバッグ用）

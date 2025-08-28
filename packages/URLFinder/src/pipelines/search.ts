@@ -70,13 +70,13 @@ const onSearchSuccess = (strategyName: string) =>
  * 検索戦略実行パイプライン
  */
 export const executeSearchStrategy = (strategy: SearchFunction, strategyName: string) =>
-  (baseUrl: string, searchState: SearchState): ContactPageResult | null =>
-    pipe(
-      () => strategy(baseUrl, searchState),
-      maybe(validateResult),
-      onSearchSuccess(strategyName),
-      onSearchFailure(strategyName)
-    )(undefined);
+  (baseUrl: string, searchState: SearchState): ContactPageResult | null => {
+    const result = strategy(baseUrl, searchState);
+    const validatedResult = maybe(validateResult)(result);
+    onSearchSuccess(strategyName)(validatedResult);
+    onSearchFailure(strategyName)(validatedResult);
+    return validatedResult;
+  };
 
 /**
  * メイン検索パイプライン
@@ -123,17 +123,24 @@ export const executeContactSearch = (baseUrl: string): ContactPageResult => {
   const domainUrl = NetworkUtils.extractDomain(baseUrl);
 
   // 検索戦略パイプライン：順次実行し、最初に成功した結果を返す
-  const searchPipeline = pipe(
-    (url: string) => executeSearchStrategy(urlPatternSearch, 'URL Pattern Search')(url, searchState),
-    orElse(() => executeSearchStrategy(htmlAnalysisSearch, 'HTML Analysis Search')(domainUrl, searchState)),
-    orElse(() => executeSearchStrategy(fallbackSearch, 'Fallback Search')(domainUrl, searchState)),
-    orElse(() => ({ 
+  let result = executeSearchStrategy(urlPatternSearch, 'URL Pattern Search')(domainUrl, searchState);
+  
+  if (!result) {
+    result = executeSearchStrategy(htmlAnalysisSearch, 'HTML Analysis Search')(domainUrl, searchState);
+  }
+  
+  if (!result) {
+    result = executeSearchStrategy(fallbackSearch, 'Fallback Search')(domainUrl, searchState);
+  }
+  
+  if (!result) {
+    result = { 
       contactUrl: null, 
       actualFormUrl: null, 
       foundKeywords: [], 
       searchMethod: 'not_found' as const
-    }))
-  );
+    };
+  }
 
-  return searchPipeline(domainUrl);
+  return result;
 };
