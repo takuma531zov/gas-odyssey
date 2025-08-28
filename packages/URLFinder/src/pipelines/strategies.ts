@@ -33,53 +33,61 @@ export const executeUrlPatternStrategy = (baseUrl: string, searchState: SearchSt
       break;
     }
 
+    const testUrl = baseUrl.replace(/\/$/, '') + pattern;
+    testedUrls.push(testUrl);
+
+    let response;
     try {
-      const testUrl = baseUrl.replace(/\/$/, '') + pattern;
-      testedUrls.push(testUrl);
-
-      const response = fetchWithTimeout(testUrl, 5000);
-      if (response instanceof Error) {
-        const detailedError = getDetailedNetworkError(response);
-        if (detailedError.includes('DNS解決失敗')) {
-          return { contactUrl: null, actualFormUrl: null, foundKeywords: [detailedError], searchMethod: 'dns_error' };
-        }
-        continue;
-      }
-
-      if (response.getResponseCode() === 200) {
-        const html = response.getContentText();
-
-        if (testedUrls.length >= 2 && HtmlUtils.detectSameHtmlPattern(testedUrls, html, searchState)) {
-          const anchorResult = HtmlUtils.executeSPAAnalysis(html, baseUrl);
-          if (anchorResult.contactUrl) return anchorResult;
-        }
-
-        if (HtmlUtils.isValidContactPage(html)) {
-          searchState.addValidUrl(testUrl, pattern);
-          if (FormUtils.isValidContactForm(html)) {
-            searchState.addSuccessfulFormUrl(testUrl);
-            return { contactUrl: testUrl, actualFormUrl: testUrl, foundKeywords: [pattern.replace(/\//g, ''), 'contact_form_confirmed'], searchMethod: 'contact_form_priority_search' };
-          }
-          const googleFormsResult = FormUtils.detectGoogleForms(html);
-          if (googleFormsResult.found && googleFormsResult.url) {
-            searchState.addSuccessfulFormUrl(testUrl);
-            return { contactUrl: testUrl, actualFormUrl: googleFormsResult.url, foundKeywords: [pattern.replace(/\//g, ''), 'google_forms', googleFormsResult.type], searchMethod: 'google_forms_priority_search' };
-          }
-          searchState.addCandidate(testUrl, 'no_contact_form', html);
-        }
-      } else {
-        const statusCode = response.getResponseCode();
-        if (statusCode === 403 || statusCode === 501) {
-          return { contactUrl: null, actualFormUrl: null, foundKeywords: [getDetailedErrorMessage(statusCode)], searchMethod: 'bot_blocked' };
-        }
-      }
+      response = fetchWithTimeout(testUrl, 5000);
     } catch (error) {
       const detailedError = getDetailedNetworkError(error);
       if (detailedError.includes('DNS解決失敗')) {
         return { contactUrl: null, actualFormUrl: null, foundKeywords: [detailedError], searchMethod: 'dns_error' };
       }
+      continue;
     }
+
+    if (response instanceof Error) {
+      const detailedError = getDetailedNetworkError(response);
+      if (detailedError.includes('DNS解決失敗')) {
+        return { contactUrl: null, actualFormUrl: null, foundKeywords: [detailedError], searchMethod: 'dns_error' };
+      }
+      continue;
+    }
+
+    if (response.getResponseCode() !== 200) {
+      const statusCode = response.getResponseCode();
+      if (statusCode === 403 || statusCode === 501) {
+        return { contactUrl: null, actualFormUrl: null, foundKeywords: [getDetailedErrorMessage(statusCode)], searchMethod: 'bot_blocked' };
+      }
+      continue;
+    }
+
+    const html = response.getContentText();
+
+    if (testedUrls.length >= 2 && HtmlUtils.detectSameHtmlPattern(testedUrls, html, searchState)) {
+      const anchorResult = HtmlUtils.executeSPAAnalysis(html, baseUrl);
+      if (anchorResult.contactUrl) return anchorResult;
+    }
+
+    if (!HtmlUtils.isValidContactPage(html)) continue;
+
+    searchState.addValidUrl(testUrl, pattern);
+    
+    if (FormUtils.isValidContactForm(html)) {
+      searchState.addSuccessfulFormUrl(testUrl);
+      return { contactUrl: testUrl, actualFormUrl: testUrl, foundKeywords: [pattern.replace(/\//g, ''), 'contact_form_confirmed'], searchMethod: 'contact_form_priority_search' };
+    }
+    
+    const googleFormsResult = FormUtils.detectGoogleForms(html);
+    if (googleFormsResult.found && googleFormsResult.url) {
+      searchState.addSuccessfulFormUrl(testUrl);
+      return { contactUrl: testUrl, actualFormUrl: googleFormsResult.url, foundKeywords: [pattern.replace(/\//g, ''), 'google_forms', googleFormsResult.type], searchMethod: 'google_forms_priority_search' };
+    }
+    
+    searchState.addCandidate(testUrl, 'no_contact_form', html);
   }
+  
   return null;
 };
 
@@ -87,48 +95,54 @@ export const executeUrlPatternStrategy = (baseUrl: string, searchState: SearchSt
  * HTML Analysis 検索戦略
  */
 export const executeHtmlAnalysisStrategy = (baseUrl: string, searchState: SearchState): StrategyResult => {
+  let response;
   try {
-    const response = fetchWithTimeout(baseUrl, 7000);
-    if (response instanceof Error) {
-      return handleNetworkError(response);
-    }
-
-    const html = HtmlUtils.getContentWithEncoding(response);
-
-    const googleFormUrls = FormUtils.findGoogleFormUrlsOnly(html);
-    if (googleFormUrls) {
-      return { contactUrl: baseUrl, actualFormUrl: googleFormUrls, foundKeywords: ['homepage_google_form'], searchMethod: 'homepage_google_form_fallback' };
-    }
-
-    const result = analyzeHtmlContent(html, baseUrl, searchState);
-    if (result && result.contactUrl) {
-      const formUrl = findActualForm(result.contactUrl);
-      result.actualFormUrl = formUrl;
-      result.searchMethod = 'homepage_link_fallback';
-
-      if (result.actualFormUrl && result.actualFormUrl.startsWith('http')) {
-        return result;
-      } else if (result.actualFormUrl === 'embedded_contact_form_on_page') {
-        result.actualFormUrl = result.contactUrl;
-        return result;
-      }
-      return result;
-    }
-
-    const embeddedFormResult = FormUtils.findEmbeddedHTMLForm(html);
-    if (embeddedFormResult) {
-      return { contactUrl: baseUrl, actualFormUrl: baseUrl, foundKeywords: ['homepage_embedded_form'], searchMethod: 'homepage_embedded_fallback' };
-    }
+    response = fetchWithTimeout(baseUrl, 7000);
   } catch (homepageError) {
     return handleNetworkError(homepageError);
   }
+
+  if (response instanceof Error) {
+    return handleNetworkError(response);
+  }
+
+  const html = HtmlUtils.getContentWithEncoding(response);
+
+  const googleFormUrls = FormUtils.findGoogleFormUrlsOnly(html);
+  if (googleFormUrls) {
+    return { contactUrl: baseUrl, actualFormUrl: googleFormUrls, foundKeywords: ['homepage_google_form'], searchMethod: 'homepage_google_form_fallback' };
+  }
+
+  const result = analyzeHtmlContent(html, baseUrl, searchState);
+  if (result && result.contactUrl) {
+    const formUrl = findActualForm(result.contactUrl);
+    result.actualFormUrl = formUrl;
+    result.searchMethod = 'homepage_link_fallback';
+
+    if (result.actualFormUrl && result.actualFormUrl.startsWith('http')) {
+      return result;
+    }
+    
+    if (result.actualFormUrl === 'embedded_contact_form_on_page') {
+      result.actualFormUrl = result.contactUrl;
+      return result;
+    }
+    
+    return result;
+  }
+
+  const embeddedFormResult = FormUtils.findEmbeddedHTMLForm(html);
+  if (embeddedFormResult) {
+    return { contactUrl: baseUrl, actualFormUrl: baseUrl, foundKeywords: ['homepage_embedded_form'], searchMethod: 'homepage_embedded_fallback' };
+  }
+
   return null;
 };
 
 /**
  * ネットワークエラー処理
  */
-const handleNetworkError = (error: any): ContactPageResult => {
+const handleNetworkError = (error: Error | unknown): ContactPageResult => {
   const detailedError = getDetailedNetworkError(error);
   console.log(`Error in homepage analysis fallback: ${detailedError}`);
 
@@ -150,41 +164,52 @@ const handleNetworkError = (error: any): ContactPageResult => {
  */
 const analyzeHtmlContent = (html: string, baseUrl: string, searchState: SearchState): ContactPageResult | null => {
   const navResult = HtmlUtils.searchInNavigation(html, baseUrl);
-  if (navResult.url && navResult.score > 0) {
-    if (searchState.isSuccessfulFormUrl(navResult.url)) {
-      return null;
-    }
+  
+  if (!navResult.url || navResult.score <= 0) {
+    return null;
+  }
 
-    if (StringUtils.isAnchorLink(navResult.url)) {
-      const anchorSectionResult = HtmlUtils.analyzeAnchorSection(html, navResult.url, baseUrl);
-      if (anchorSectionResult.contactUrl) {
-        return anchorSectionResult;
-      }
-    }
+  if (searchState.isSuccessfulFormUrl(navResult.url)) {
+    return null;
+  }
 
-    try {
-      const response = fetchWithTimeout(navResult.url, 5000);
-      if (response instanceof Error) {
-        return handleNetworkError(response);
-      }
-
-      if (response.getResponseCode() === 200) {
-        const candidateHtml = response.getContentText();
-        if (FormUtils.isValidContactForm(candidateHtml)) {
-          return { contactUrl: navResult.url, actualFormUrl: navResult.url, foundKeywords: [...navResult.keywords, 'form_validation_success'], searchMethod: 'homepage_navigation_form' };
-        }
-        const googleFormsResult = FormUtils.detectGoogleForms(candidateHtml);
-        if (googleFormsResult.found && googleFormsResult.url) {
-          return { contactUrl: navResult.url, actualFormUrl: googleFormsResult.url, foundKeywords: [...navResult.keywords, 'google_forms', googleFormsResult.type], searchMethod: 'homepage_navigation_google_forms' };
-        }
-        if (navResult.score >= 15) {
-          return { contactUrl: navResult.url, actualFormUrl: navResult.url, foundKeywords: [...navResult.keywords, 'keyword_based_validation'], searchMethod: 'homepage_navigation_keyword_based' };
-        }
-      }
-    } catch (error) {
-      return handleNetworkError(error);
+  if (StringUtils.isAnchorLink(navResult.url)) {
+    const anchorSectionResult = HtmlUtils.analyzeAnchorSection(html, navResult.url, baseUrl);
+    if (anchorSectionResult.contactUrl) {
+      return anchorSectionResult;
     }
   }
+
+  let response;
+  try {
+    response = fetchWithTimeout(navResult.url, 5000);
+  } catch (error) {
+    return handleNetworkError(error);
+  }
+
+  if (response instanceof Error) {
+    return handleNetworkError(response);
+  }
+
+  if (response.getResponseCode() !== 200) {
+    return null;
+  }
+
+  const candidateHtml = response.getContentText();
+  
+  if (FormUtils.isValidContactForm(candidateHtml)) {
+    return { contactUrl: navResult.url, actualFormUrl: navResult.url, foundKeywords: [...navResult.keywords, 'form_validation_success'], searchMethod: 'homepage_navigation_form' };
+  }
+  
+  const googleFormsResult = FormUtils.detectGoogleForms(candidateHtml);
+  if (googleFormsResult.found && googleFormsResult.url) {
+    return { contactUrl: navResult.url, actualFormUrl: googleFormsResult.url, foundKeywords: [...navResult.keywords, 'google_forms', googleFormsResult.type], searchMethod: 'homepage_navigation_google_forms' };
+  }
+  
+  if (navResult.score >= 15) {
+    return { contactUrl: navResult.url, actualFormUrl: navResult.url, foundKeywords: [...navResult.keywords, 'keyword_based_validation'], searchMethod: 'homepage_navigation_keyword_based' };
+  }
+
   return null;
 };
 
