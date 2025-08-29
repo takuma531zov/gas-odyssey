@@ -2,12 +2,8 @@
 
 import type { ContactPageResult } from '../../data/types/interfaces';
 import { processContactPageFinder } from './triggers';
-import { ContactPageFinder } from '../../contactPageFinder';
+import { findContactPage } from '../../index';
 import { Environment } from '../../env';
-
-function findContactPage(url: string): ContactPageResult {
-  return ContactPageFinder.findContactPage(url);
-}
 
 /**
  * スプレッドシートUI付きURLFinder実行関数

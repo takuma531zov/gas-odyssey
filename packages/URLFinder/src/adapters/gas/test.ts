@@ -1,10 +1,6 @@
 
 import type { ContactPageResult } from '../../data/types/interfaces';
-import { ContactPageFinder } from '../../contactPageFinder';
-
-function findContactPage(url: string): ContactPageResult {
-  return ContactPageFinder.findContactPage(url);
-}
+import { findContactPage } from '../../index';
 
 /**
  * テスト用関数

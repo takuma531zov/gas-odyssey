@@ -1,11 +1,7 @@
 
 import type { ContactPageResult } from '../../data/types/interfaces';
-import { ContactPageFinder } from '../../contactPageFinder';
+import { findContactPage } from '../../index';
 import { Environment } from '../../env';
-
-function findContactPage(url: string): ContactPageResult {
-  return ContactPageFinder.findContactPage(url);
-}
 
 export function processContactPageFinder() {
   const { getSheetName, getMaxCount, getHeaderRow, getTargetColumn, getBatchSize, getOutputColumn } = Environment;
