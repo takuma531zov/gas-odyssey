@@ -8,11 +8,13 @@ function findContactPage(url: string): ContactPageResult {
 }
 
 export function processContactPageFinder() {
+  const { getSheetName, getMaxCount, getHeaderRow, getTargetColumn, getBatchSize, getOutputColumn } = Environment;
+  
   try {
     // スクリプトプロパティから設定値を取得
-    const sheetName = Environment.getSheetName();
-    const maxCount = Environment.getMaxCount();
-    const headerRow = Environment.getHeaderRow();
+    const sheetName = getSheetName();
+    const maxCount = getMaxCount();
+    const headerRow = getHeaderRow();
 
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
     if (!sheet) {
@@ -55,13 +57,13 @@ export function processContactPageFinder() {
     console.log(`処理対象行: ${startRow}行目から${endRow}行目まで（${endRow - startRow + 1}行）`);
 
     // 対象列のURLを一括取得
-    const targetColumn = Environment.getTargetColumn();
+    const targetColumn = getTargetColumn();
     const urlRange = sheet.getRange(startRow, targetColumn, endRow - startRow + 1, 1);
     const urls = urlRange.getValues();
 
     // バッチ処理による中間出力
     // 理由: GASタイムアウト時の進捗保護 + 処理速度維持（1行ずつ出力の20-40倍高速）
-    const batchSize = Environment.getBatchSize();
+    const batchSize = getBatchSize();
     console.log(`バッチサイズ設定: ${batchSize}`);
     const results = [];
     let processedCount = 0;
@@ -128,7 +130,7 @@ export function processContactPageFinder() {
       if (results.length >= batchSize || i === urls.length - 1) {
         if (results.length > 0) {
           const batchStartRow = startRow + processedCount;
-          const outputColumn = Environment.getOutputColumn();
+          const outputColumn = getOutputColumn();
           const outputRange = sheet.getRange(batchStartRow, outputColumn, results.length, 1);
           outputRange.setValues(results);
           

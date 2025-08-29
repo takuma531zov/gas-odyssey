@@ -136,8 +136,9 @@ function executeCheckedRowsProcessing(): void {
  * 指定行の対象列からURLを取得
  */
 function getUrlFromRow(rowNumber: number): string {
+  const { getTargetColumn } = Environment;
   const sheet = SpreadsheetApp.getActiveSheet();
-  const targetColumn = Environment.getTargetColumn();
+  const targetColumn = getTargetColumn();
 
   const cellValue = sheet.getRange(rowNumber, targetColumn).getValue();
   return cellValue ? cellValue.toString().trim() : '';
@@ -147,8 +148,9 @@ function getUrlFromRow(rowNumber: number): string {
  * 結果を出力列に書き込み（既存ロジックと完全に一致）
  */
 function writeResultToSheet(rowNumber: number, result: ContactPageResult): void {
+  const { getOutputColumn } = Environment;
   const sheet = SpreadsheetApp.getActiveSheet();
-  const outputColumn = Environment.getOutputColumn();
+  const outputColumn = getOutputColumn();
 
   // 既存のprocessContactPageFinderと完全に同じロジック
   let outputValue = '';
@@ -183,6 +185,8 @@ function writeResultToSheet(rowNumber: number, result: ContactPageResult): void 
  * チェック列でチェックされた行番号一覧を取得
  */
 function getCheckedRows(): number[] {
+  const { getCheckColumn } = Environment;
+  
   try {
     console.log('SpreadsheetApp.getActiveSheet()実行中...');
     const sheet = SpreadsheetApp.getActiveSheet();
@@ -196,7 +200,7 @@ function getCheckedRows(): number[] {
     const maxRowsToCheck = Math.min(lastRow, 1000);
     console.log(`チェック対象行数: ${maxRowsToCheck}`);
 
-    const checkColumn = Environment.getCheckColumn();
+    const checkColumn = getCheckColumn();
     const checkedRows: number[] = [];
 
     console.log('チェックボックス値の確認開始...');
@@ -239,30 +243,7 @@ function getCheckedRowsCount(): number {
  * MAX_COUNT設定値を取得
  */
 function getMaxCountSetting(): number {
-  try {
-    console.log('PropertiesService.getScriptProperties()実行中...');
-    const properties = PropertiesService.getScriptProperties();
-    console.log('プロパティサービス取得完了');
-
-    console.log('MAX_COUNTプロパティ取得中...');
-    const maxCountStr = properties.getProperty('MAX_COUNT');
-    console.log(`MAX_COUNTプロパティ値: "${maxCountStr}"`);
-
-    if (!maxCountStr) {
-      console.log('MAX_COUNTが未設定、デフォルト値10を使用');
-      return 10;
-    }
-
-    const parsed = parseInt(maxCountStr, 10);
-    if (isNaN(parsed) || parsed <= 0) {
-      console.log(`MAX_COUNTの値が無効: "${maxCountStr}", デフォルト値10を使用`);
-      return 10;
-    }
-
-    console.log(`MAX_COUNT設定値: ${parsed}`);
-    return parsed;
-  } catch (error) {
-    console.error('getMaxCountSetting()エラー:', error);
-    return 10; // デフォルト値
-  }
+  const { getMaxCount } = Environment;
+  const maxCount = getMaxCount();
+  return maxCount ?? 30; // nullの場合はデフォルト値30を使用
 }

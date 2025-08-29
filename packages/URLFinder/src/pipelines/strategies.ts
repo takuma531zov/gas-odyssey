@@ -23,8 +23,9 @@ type StrategyFunction = (baseUrl: string, searchState: SearchState) => StrategyR
  * URL Pattern 検索戦略
  */
 export const executeUrlPatternStrategy = (baseUrl: string, searchState: SearchState): StrategyResult => {
+  const { getMaxTotalTime } = Environment;
   const startTime = Date.now();
-  const maxTotalTime = Environment.getMaxTotalTime();
+  const maxTotalTime = getMaxTotalTime();
   const testedUrls: string[] = [];
 
   for (const pattern of HIGH_PRIORITY_PATTERNS) {
