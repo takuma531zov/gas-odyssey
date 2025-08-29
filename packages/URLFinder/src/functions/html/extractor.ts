@@ -227,7 +227,7 @@ export const findEmbeddedHTMLForm = (html: string): boolean => {
     if (excludeResult.shouldExclude) continue;
 
     const matchingKeywords = EMBEDDED_FORM_CONTACT_FIELD_KEYWORDS.filter(keyword => formContent.toLowerCase().includes(keyword.toLowerCase()));
-    if (matchingKeywords.length >= 2) return true;
+    if (matchingKeywords.length >= 1) return true;
   }
   return false;
 };
@@ -306,15 +306,14 @@ export const validateGoogleFormContent = (html: string, googleFormUrl: string): 
  * フォーム分析パイプライン生成（高階関数）
  */
 export const createFormAnalysisPipeline = () => 
-  (html: string) => {
-    const structured = analyzeStructuredForms(html);
-    const elements = analyzeFormElements(html);
-    const withElements = { structured, elements };
-    return {
-      ...withElements,
-      isValid: elements && isValidContactForm(html)
-    };
-  };
+  pipe(
+    analyzeStructuredForms as any,
+    (structured: any) => ({ structured, elements: analyzeFormElements }),
+    (analysis: any) => ({
+      ...analysis,
+      isValid: analysis.elements && isValidContactForm
+    })
+  );
 
 /**
  * フォーム検証フィルタ生成（高階関数）
