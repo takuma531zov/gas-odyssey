@@ -306,14 +306,15 @@ export const validateGoogleFormContent = (html: string, googleFormUrl: string): 
  * フォーム分析パイプライン生成（高階関数）
  */
 export const createFormAnalysisPipeline = () => 
-  pipe(
-    analyzeStructuredForms,
-    (structured) => ({ structured, elements: analyzeFormElements }),
-    (analysis) => ({
-      ...analysis,
-      isValid: analysis.elements && isValidContactForm
-    })
-  );
+  (html: string) => {
+    const structured = analyzeStructuredForms(html);
+    const elements = analyzeFormElements(html);
+    const withElements = { structured, elements };
+    return {
+      ...withElements,
+      isValid: elements && isValidContactForm(html)
+    };
+  };
 
 /**
  * フォーム検証フィルタ生成（高階関数）

@@ -39,8 +39,8 @@ export const getDetailedNetworkError = (error: Error | unknown): string => {
   }
 
   // GASのエラーオブジェクトの場合
-  if (error.message) {
-    const message = error.message.toLowerCase();
+  if (typeof error === 'object' && error !== null && 'message' in error) {
+    const message = (error as { message: string }).message.toLowerCase();
 
     if (message.includes('timeout')) {
       return 'Network timeout - サーバーの応答が遅すぎます';

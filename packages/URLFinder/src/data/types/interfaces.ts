@@ -2,7 +2,7 @@
  * URLFinder共通インターフェース定義
  */
 
-import type { SearchState } from '../pipelines/state';
+import type { SearchState } from '../../pipelines/state';
 
 /**
  * 問い合わせページ検索結果

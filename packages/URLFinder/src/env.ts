@@ -24,13 +24,6 @@ export const DEFAULT_VALUES = {
   CHECK_COLUMN: columnNameToNumber('AQ'),  // AQ列 = 43
 } as const;
 
-// エラーメッセージの定数
-const ERROR_MESSAGES = {
-  MISSING_MAX_TOTAL_TIME: 'MAX_TOTAL_TIME プロパティが設定されていません',
-  MISSING_SHEET: 'スクリプトプロパティ「SHEET」が設定されていません',
-  INVALID_MAX_COUNT: 'スクリプトプロパティ「MAX_COUNT」は数値で設定してください',
-  INVALID_HEADER_ROW: 'スクリプトプロパティ「HEADER_ROW」は数値で設定してください',
-} as const;
 
 /**
  * オプションの文字列プロパティを取得
@@ -42,26 +35,14 @@ const getOptionalStringProperty = (key: string, defaultValue: string): string =>
 
 /**
  * オプションの数値プロパティを取得
+ * @param key プロパティキー
+ * @param defaultValue デフォルト値（省略時はnull）
  */
-const getOptionalNumberProperty = (key: string, defaultValue: number): number => {
+const getOptionalNumberProperty = (key: string, defaultValue?: number): number | null => {
   const value = getScriptPropertyValue(key);
   if (!value) {
-    return defaultValue;
+    return defaultValue ?? null;
   }
-
-  const parsed = parseInt(value, 10);
-  if (isNaN(parsed)) {
-    throw new Error(`スクリプトプロパティ「${key}」は数値で設定してください`);
-  }
-  return parsed;
-};
-
-/**
- * オプションの数値プロパティを取得（null許可）
- */
-const getOptionalNumberPropertyNullable = (key: string): number | null => {
-  const value = getScriptPropertyValue(key);
-  if (!value) return null;
 
   const parsed = parseInt(value, 10);
   if (isNaN(parsed)) {
@@ -88,7 +69,7 @@ export const Environment = {
    * @returns 最大処理時間（ミリ秒、デフォルト60秒）
    */
   getMaxTotalTime: (): number =>
-    getOptionalNumberProperty(SCRIPT_PROPERTIES.MAX_TOTAL_TIME, DEFAULT_VALUES.MAX_TOTAL_TIME),
+    getOptionalNumberProperty(SCRIPT_PROPERTIES.MAX_TOTAL_TIME, DEFAULT_VALUES.MAX_TOTAL_TIME) as number,
 
   /**
    * シート名を取得
@@ -102,21 +83,21 @@ export const Environment = {
    * @returns 最大処理件数（未設定の場合はnull、無制限）
    */
   getMaxCount: (): number | null =>
-    getOptionalNumberPropertyNullable(SCRIPT_PROPERTIES.MAX_COUNT),
+    getOptionalNumberProperty(SCRIPT_PROPERTIES.MAX_COUNT),
 
   /**
    * ヘッダー行を取得
    * @returns ヘッダー行番号（デフォルト1）
    */
   getHeaderRow: (): number =>
-    getOptionalNumberProperty(SCRIPT_PROPERTIES.HEADER_ROW, DEFAULT_VALUES.HEADER_ROW),
+    getOptionalNumberProperty(SCRIPT_PROPERTIES.HEADER_ROW, DEFAULT_VALUES.HEADER_ROW) as number,
 
   /**
    * バッチサイズを取得
    * @returns バッチサイズ（デフォルト10）
    */
   getBatchSize: (): number =>
-    getOptionalNumberProperty(SCRIPT_PROPERTIES.BATCH_SIZE, DEFAULT_VALUES.BATCH_SIZE),
+    getOptionalNumberProperty(SCRIPT_PROPERTIES.BATCH_SIZE, DEFAULT_VALUES.BATCH_SIZE) as number,
 
   /**
    * 対象URL列番号を取得
