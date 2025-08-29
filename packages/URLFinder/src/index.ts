@@ -1,16 +1,29 @@
 
+/**
+ * 📋 URLFinder - GAS関数エントリーポイント
+ *
+ * Google Apps Scriptで使用する関数の純粋な呼び出し専用ファイル
+ * ビジネスロジックは含まず、各機能への振り分けのみ行う
+ *
+ * 利用可能な関数:
+ * - processContactPageFinder: スプレッドシート一括処理
+ * - executeUrlFinderWithUI: UI選択型処理（通常処理/チェック行処理の分岐）
+ *
+ * デバッグ用関数:
+ * - debug.tsのfindContactPageWithVisibility (別ファイルで提供)
+ */
+
 import { processContactPageFinder } from './adapters/gas/triggers';
 import { executeUrlFinderWithUI } from './adapters/gas/ui';
-import { test } from './adapters/gas/test';
+import { findContactPageWithVisibility } from './debug';
 
 // GASのグローバル空間に関数を登録
-
 declare const global: {
   processContactPageFinder: typeof processContactPageFinder;
   executeUrlFinderWithUI: typeof executeUrlFinderWithUI;
-  test: typeof test;
+  findContactPageWithVisibility: typeof findContactPageWithVisibility;
 };
 
 global.processContactPageFinder = processContactPageFinder;
 global.executeUrlFinderWithUI = executeUrlFinderWithUI;
-global.test = test;
+global.findContactPageWithVisibility = findContactPageWithVisibility;
