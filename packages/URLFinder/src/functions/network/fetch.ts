@@ -3,7 +3,7 @@
  * HTTP通信とエラーハンドリングの関数型実装
  */
 
-import { FORM_CONTEXT_CONTACT_KEYWORDS } from '../../data/constants/form_constants';
+import { FORM_CONTEXT_CONTACT_KEYWORDS } from '../../data/constants/formConstants';
 import { HTTP_ERROR_MESSAGES, SNS_PATTERNS } from '../../data/constants/network';
 import { HIGH_CONFIDENCE_PATTERNS, MEDIUM_CONFIDENCE_PATTERNS, HOMEPAGE_FILE_PATTERNS } from '../../data/constants/patterns';
 

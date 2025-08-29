@@ -297,14 +297,27 @@ export const composeStrategies = (...strategies: StrategyFunction[]) =>
   createSearchPipeline(strategies);
 
 /**
+ * Fallback検索戦略
+ * SearchStateに蓄積された情報を利用してフォールバック結果を提供
+ */
+export const executeFallbackStrategy = (baseUrl: string, searchState: SearchState): StrategyResult => {
+  const fallbackResult = searchState.getFinalResult();
+  if (fallbackResult.contactUrl) {
+    return fallbackResult;
+  }
+  return null;
+};
+
+/**
  * メイン検索実行
- * URLパターン検索 → HTML分析の順で実行し、最初の成功結果を返す
+ * URLパターン検索 → HTML分析 → フォールバックの順で実行し、最初の成功結果を返す
  * 用途: ContactPageFinderから呼び出される統合検索API
  */
 export const executeSearchStrategies = (baseUrl: string, searchState: SearchState): StrategyResult => {
   const strategies = [
     executeUrlPatternStrategy,
-    executeHtmlAnalysisStrategy
+    executeHtmlAnalysisStrategy,
+    executeFallbackStrategy
   ];
 
   return createSearchPipeline(strategies)(baseUrl, searchState);

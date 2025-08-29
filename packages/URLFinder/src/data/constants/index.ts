@@ -18,7 +18,7 @@ export {
   DYNAMIC_CONTACT_KEYWORDS,
   DYNAMIC_INDUCTION_PHRASES,
   DYNAMIC_FORM_HINTS
-} from './contact_patterns';
+} from './contactPatterns';
 
 // HTML Analysis Keywords
 export {
@@ -27,7 +27,7 @@ export {
   HTML_EXCLUDED_KEYWORDS,
   ANCHOR_SECTION_CONTACT_KEYWORDS,
   FORM_LINK_NEGATIVE_KEYWORDS
-} from './html_keywords';
+} from './htmlKeywords';
 
 // HTML Patterns
 export {
@@ -37,7 +37,7 @@ export {
   ANCHOR_SECTION_PATTERNS,
   FORM_LINK_PATTERNS,
   FORM_TEXT_PATTERNS
-} from './html_patterns';
+} from './htmlPatterns';
 
 // Form Constants
 export {
@@ -49,7 +49,7 @@ export {
   GOOGLE_FORM_URL_PATTERNS,
   CONTACT_KEYWORDS as FORM_CONTACT_KEYWORDS,
   CONTACT_FIELD_PATTERNS
-} from './form_constants';
+} from './formConstants';
 
 // URL Patterns
 export {

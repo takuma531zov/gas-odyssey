@@ -6,14 +6,14 @@ import { SearchState } from '../../pipelines/state';
 import {
   FORM_LINK_PATTERNS,
   FORM_TEXT_PATTERNS
-} from '../../data/constants/html_patterns';
+} from '../../data/constants/htmlPatterns';
 import {
   ANCHOR_SECTION_CONTACT_KEYWORDS,
   HTML_HIGH_PRIORITY_CONTACT_KEYWORDS,
   HTML_MEDIUM_PRIORITY_CONTACT_KEYWORDS,
   HTML_EXCLUDED_KEYWORDS,
   FORM_LINK_NEGATIVE_KEYWORDS
-} from '../../data/constants/html_keywords';
+} from '../../data/constants/htmlKeywords';
 
 // 純粋関数版の主要関数
 

@@ -2,7 +2,7 @@
 
 import type { ContactPageResult } from '../../data/types/interfaces';
 import { processContactPageFinder } from './triggers';
-import { ContactPageFinder } from '../../contactPageFinder';
+import { ContactPageFinder } from '../../ContactPageFinder';
 import { Environment } from '../../env';
 
 function findContactPage(url: string): ContactPageResult {

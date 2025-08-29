@@ -17,7 +17,7 @@ import {
   FORM_CONTEXT_CONTACT_KEYWORDS,
   GOOGLE_FORM_EXCLUDE_KEYWORDS,
   GOOGLE_FORM_CONTACT_KEYWORDS
-} from '../../data/constants/form_constants';
+} from '../../data/constants/formConstants';
 
 // 型定義
 type FormAnalysisResult = {
@@ -227,7 +227,7 @@ export const findEmbeddedHTMLForm = (html: string): boolean => {
     if (excludeResult.shouldExclude) continue;
 
     const matchingKeywords = EMBEDDED_FORM_CONTACT_FIELD_KEYWORDS.filter(keyword => formContent.toLowerCase().includes(keyword.toLowerCase()));
-    if (matchingKeywords.length >= 1) return true;
+    if (matchingKeywords.length >= 2) return true;
   }
   return false;
 };
