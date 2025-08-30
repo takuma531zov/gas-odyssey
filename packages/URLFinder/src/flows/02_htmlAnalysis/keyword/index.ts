@@ -3,9 +3,18 @@
  * 高階関数とカリー化による関数型実装
  */
 
-import { PurityResult, KeywordDetectionResult, ContactInfoResult } from '../../data/types/interfaces';
-import { HIGH_PRIORITY_CONTACT_KEYWORDS, CONTACT_KEYWORDS } from '../../data/constants/keywords';
-import { PHONE_PATTERNS, EMAIL_PATTERN, NEGATIVE_PATTERNS, FORM_MENTION_PATTERNS, DYNAMIC_CONTACT_KEYWORDS, DYNAMIC_INDUCTION_PHRASES, DYNAMIC_FORM_HINTS } from '../../data/constants/contactPatterns';
+import type { PurityResult, KeywordDetectionResult, ContactInfoResult } from '../../../common/types';
+import {
+  HIGH_PRIORITY_CONTACT_KEYWORDS,
+  CONTACT_KEYWORDS,
+  PHONE_PATTERNS,
+  EMAIL_PATTERN,
+  NEGATIVE_PATTERNS,
+  FORM_MENTION_PATTERNS,
+  DYNAMIC_CONTACT_KEYWORDS,
+  DYNAMIC_INDUCTION_PHRASES,
+  DYNAMIC_FORM_HINTS
+} from './constants';
 
 // 高階関数型定義
 type KeywordProcessor<T> = (keywords: string[]) => (input: string) => T;

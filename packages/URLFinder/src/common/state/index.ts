@@ -3,37 +3,7 @@
  * SearchState の関数型実装
  */
 
-import type { ContactPageResult } from '../data/types/interfaces';
-import { evaluateFallbackUrlQuality } from '../functions/network/fetch';
-
-// 型定義
-export type SearchStateData = {
-  candidatePages: Array<{
-    url: string;
-    reason: string;
-    score: number;
-    structuredForms: number;
-    legacyScore: number;
-  }>;
-  validUrls: Array<{ 
-    url: string;
-    pattern: string;
-  }>;
-  successfulFormUrls: Array<string>;
-  sameHtmlCache: { [url: string]: string };
-};
-
-export type CandidateAnalysis = {
-  formCount: number;
-  totalFields: number;
-  hasContactFields: boolean;
-};
-
-export type FormAnalysisInternal = {
-  isValidForm: boolean;
-  score: number;
-  reasons: string[];
-};
+import type { ContactPageResult, SearchStateData, CandidateAnalysis, FormAnalysisInternal, CandidatePage } from '../types';
 
 // 純粋関数群
 
@@ -62,7 +32,7 @@ export const addCandidate = (
   const formAnalysis = analyzeFormElements(html);
   const score = calculateCandidateScore(url, reason, structuredAnalysis, formAnalysis);
 
-  const newCandidate = {
+  const newCandidate: CandidatePage = {
     url,
     reason,
     score,
@@ -154,7 +124,7 @@ export const getCandidateCount = (state: SearchStateData): number => {
  */
 export const getFinalResult = (state: SearchStateData): ContactPageResult => {
   console.log(`Checking final fallback from ${state.validUrls.length} valid URLs`);
-  
+
   if (state.validUrls.length === 0) {
     console.log('No valid URLs available for final fallback');
     return {
@@ -167,24 +137,22 @@ export const getFinalResult = (state: SearchStateData): ContactPageResult => {
 
   // 高優先度contactパターンを優先的に探す
   const contactPriorityPatterns = [
-    '/contact/', '/contact', '/inquiry/', '/inquiry', 
+    '/contact/', '/contact', '/inquiry/', '/inquiry',
     '/form/', '/form'
   ];
 
   // 高優先度contact patternを探す
   for (const priorityPattern of contactPriorityPatterns) {
-    const matchingUrl = state.validUrls.find(urlInfo => 
+    const matchingUrl = state.validUrls.find(urlInfo =>
       urlInfo.pattern === priorityPattern
     );
-    
+
     if (matchingUrl) {
       console.log(`Priority contact pattern found: ${matchingUrl.url} (${priorityPattern})`);
-      const qualityScore = evaluateFallbackUrlQuality(matchingUrl.url, matchingUrl.pattern);
-      
       return {
         contactUrl: matchingUrl.url,
         actualFormUrl: matchingUrl.url,
-        foundKeywords: ['priority_fallback', priorityPattern.replace(/\//g, ''), ...qualityScore.keywords],
+        foundKeywords: ['priority_fallback', priorityPattern.replace(/\//g, '')],
         searchMethod: 'priority_fallback_contact'
       };
     }
@@ -203,15 +171,12 @@ export const getFinalResult = (state: SearchStateData): ContactPageResult => {
   }
 
   console.log(`Final fallback: Using first valid URL ${firstValidUrl.url} (pattern: ${firstValidUrl.pattern})`);
-  
-  // URLの品質を評価
-  const qualityScore = evaluateFallbackUrlQuality(firstValidUrl.url, firstValidUrl.pattern);
-  
+
   return {
     contactUrl: firstValidUrl.url,
     actualFormUrl: firstValidUrl.url,
-    foundKeywords: ['final_fallback', 'first_valid_url', firstValidUrl.pattern.replace(/\//g, ''), ...qualityScore.keywords],
-    searchMethod: qualityScore.confidence >= 0.7 ? 'final_fallback_high_confidence' : 'final_fallback_low_confidence'
+    foundKeywords: ['final_fallback', 'first_valid_url', firstValidUrl.pattern.replace(/\//g, '')],
+    searchMethod: 'final_fallback' // Simplified searchMethod
   };
 };
 

@@ -3,7 +3,7 @@
  * HTML解析とフォーム検証の関数型実装
  */
 
-import { pipe } from '../utils/compose';
+import { pipe } from '../../../common/utils/compose';
 import {
   SUBMIT_BUTTON_KEYWORDS,
   RECAPTCHA_PATTERNS,
@@ -17,32 +17,8 @@ import {
   FORM_CONTEXT_CONTACT_KEYWORDS,
   GOOGLE_FORM_EXCLUDE_KEYWORDS,
   GOOGLE_FORM_CONTACT_KEYWORDS
-} from '../../data/constants/formConstants';
-
-// 型定義
-type FormAnalysisResult = {
-  isValidForm: boolean;
-  reasons: string[];
-  keywords: string[];
-};
-
-type StructuredFormResult = {
-  formCount: number;
-  totalFields: number;
-  hasContactFields: boolean;
-};
-
-type GoogleFormResult = {
-  found: boolean;
-  url: string | null;
-  type: string;
-};
-
-type FormExclusionResult = {
-  shouldExclude: boolean;
-  reason: string;
-  priority: string;
-};
+} from './constants';
+import type { ExtractorFormAnalysisResult as FormAnalysisResult, StructuredFormResult, ExtractorGoogleFormResult as GoogleFormResult, FormExclusionResult } from '../../../common/types';
 
 // 純粋関数群
 
@@ -169,8 +145,8 @@ export const isValidContactForm = (html: string): boolean => {
  */
 export const detectGoogleForms = (html: string): GoogleFormResult => {
   const googleFormsPatterns = [
-    /<a[^>]*href=['"]([^'"']*docs\.google\.com\/forms\/d\/[a-zA-Z0-9-_]+\/?[^"'\s\)\]]*)['"][^>]*>/gi,
-    /<iframe[^>]*src=['"]([^'"']*docs\.google\.com\/forms\/d\/[a-zA-Z0-9-_]+\/?[^"'\s\)\]]*)['"][^>]*>/gi
+    /<a[^>]*href=['']([^'"]*docs\.google\.com\/forms\/d\/[a-zA-Z0-9-_]+\/?[^"'\s\)\]]*)['"][^>]*>/gi,
+    /<iframe[^>]*src=['"]([^'"]*docs\.google\.com\/forms\/d\/[a-zA-Z0-9-_]+\/?[^"'\s\)\]]*)['"][^>]*>/gi
   ];
 
   for (const pattern of googleFormsPatterns) {

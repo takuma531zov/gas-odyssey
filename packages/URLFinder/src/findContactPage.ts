@@ -14,21 +14,22 @@
  * @returns 検索結果
  */
 
-import type { ContactPageResult } from './data/types/interfaces';
-import { SearchState } from './pipelines/state';
-import { NetworkUtils } from './functions/network/fetch';
-import { snsCheck, domainCheck, urlPatternSearch, htmlAnalysis, fallbackSearch } from './flows';
+import type { ContactPageResult } from './common/types';
+import { createEmptyState } from './common/state';
+import { extractDomain } from './common/network/url';
+import { snsCheck, domainCheck } from './flows/00_preprocessing';
+import { urlPatternSearch } from './flows/01_urlPattern';
+import { htmlAnalysisSearch } from './flows/02_htmlAnalysis';
+import { fallbackSearch } from './flows/03_fallback';
 
 export function findContactPage(baseUrl: string): ContactPageResult {
   // ============================================
   // Step 1: 前処理フロー（SNS判定 + ドメイン検証）
   // ============================================
 
-  // 1-1: SNS判定
   const snsResult = snsCheck(baseUrl);
   if (snsResult) return snsResult;
 
-  // 1-2: ドメイン可用性チェック
   const domainResult = domainCheck(baseUrl);
   if (domainResult) return domainResult;
 
@@ -36,41 +37,37 @@ export function findContactPage(baseUrl: string): ContactPageResult {
   // Step 2: 検索戦略フロー（3段階戦略実行）
   // ============================================
 
-  const searchState = new SearchState();
-  const domainUrl = NetworkUtils.extractDomain(baseUrl);
+  let state = createEmptyState();
+  const domainUrl = extractDomain(baseUrl);
+  let result: ContactPageResult | null = null;
 
   try {
-    // 2-1: URLパターン検索戦略（高確率パターンテスト）
-    const urlPatternResult = urlPatternSearch(domainUrl, searchState);
-    if (urlPatternResult) {
-      if (urlPatternResult.contactUrl) {
-        console.log(`✅ Found contact form: ${urlPatternResult.contactUrl}`);
-      } else {
-        console.log(`Search completed with result: ${urlPatternResult.searchMethod}`);
-      }
-      return urlPatternResult;
+    // 2-1: URLパターン検索戦略
+    const urlPattern = urlPatternSearch(domainUrl, state);
+    state = urlPattern.newState;
+    result = urlPattern.result;
+
+    // 2-2: HTML解析戦略
+    if (!result) {
+      const htmlAnalysis = htmlAnalysisSearch(domainUrl, state);
+      state = htmlAnalysis.newState;
+      result = htmlAnalysis.result;
     }
 
-    // 2-2: HTML解析戦略（トップページ詳細解析）
-    const htmlResult = htmlAnalysis(domainUrl, searchState);
-    if (htmlResult) {
-      if (htmlResult.contactUrl) {
-        console.log(`✅ Found contact form: ${htmlResult.contactUrl}`);
-      } else {
-        console.log(`Search completed with result: ${htmlResult.searchMethod}`);
-      }
-      return htmlResult;
+    // 2-3: フォールバック戦略
+    if (!result) {
+      const fallback = fallbackSearch(domainUrl, state);
+      state = fallback.newState;
+      result = fallback.result;
     }
 
-    // 2-3: フォールバック戦略（蓄積情報活用）
-    const fallbackResult = fallbackSearch(domainUrl, searchState);
-    if (fallbackResult) {
-      if (fallbackResult.contactUrl) {
-        console.log(`✅ Found contact form: ${fallbackResult.contactUrl}`);
-      } else {
-        console.log(`Search completed with result: ${fallbackResult.searchMethod}`);
-      }
-      return fallbackResult;
+    if (result) {
+        if (result.contactUrl) {
+            console.log(`✅ Found contact form: ${result.contactUrl}`);
+        } else {
+            console.log(`Search completed with result: ${result.searchMethod}`);
+        }
+        return result;
     }
 
   } catch (error) {

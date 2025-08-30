@@ -11,10 +11,14 @@
  * - 新規開発者の学習支援
  */
 
-import type { ContactPageResult } from './data/types/interfaces';
-import { SearchState } from './pipelines/state';
-import { NetworkUtils } from './functions/network/fetch';
-import { executeUrlPatternStrategy, executeHtmlAnalysisStrategy, executeFallbackStrategy } from './pipelines/strategies';
+import type { ContactPageResult } from './common/types';
+import { createEmptyState, getCandidateCount, getValidUrls } from './common/state';
+import type { SearchStateData } from './common/types';
+import { extractDomain } from './common/network/url';
+import { snsCheck, domainCheck } from './flows/00_preprocessing';
+import { urlPatternSearch } from './flows/01_urlPattern';
+import { htmlAnalysisSearch } from './flows/02_htmlAnalysis';
+import { fallbackSearch } from './flows/03_fallback';
 
 /**
  * 🎯 URLFinder処理フロー完全可視化関数
@@ -49,7 +53,7 @@ export function findContactPageWithVisibility(): ContactPageResult {
   console.log('      ├─ 候補ページ蓄積用配列初期化');
   console.log('      ├─ 有効URL記録用配列初期化');
   console.log('      └─ HTMLキャッシュ初期化');
-  const searchState = new SearchState();
+  let state = createEmptyState();
   console.log('  ✅ SearchState初期化完了');
   console.log('');
 
@@ -58,14 +62,14 @@ export function findContactPageWithVisibility(): ContactPageResult {
   // ============================================
   console.log('📱 ステップ2: SNSページ判定');
   console.log('  └─ Twitter、Facebook、Instagram、LinkedIn等のSNSサイトかチェック');
-  const isSNS = NetworkUtils.isSNSPage(baseUrl);
+  const snsResult = snsCheck(baseUrl);
 
-  if (isSNS) {
+  if (snsResult) {
     console.log('  ❌ SNSページと判定 → URLFinderは非対応のため処理終了');
     console.log('      理由: SNSサイトは問い合わせフォームの構造が特殊で検出困難');
     console.log(`  ⏱️  処理時間: ${Date.now() - startTime}ms`);
     console.log('=== 🐛 URLFinder デバッグモード: 完全可視化処理フロー完了 ===');
-    return { contactUrl: null, actualFormUrl: null, foundKeywords: ['sns_page'], searchMethod: 'sns_not_supported' };
+    return snsResult;
   }
   console.log('  ✅ 一般Webサイトと判定 → 処理続行');
   console.log('');
@@ -78,35 +82,15 @@ export function findContactPageWithVisibility(): ContactPageResult {
   console.log('      ├─ DNS解決可能性チェック');
   console.log('      ├─ 基本的なHTTP接続テスト');
   console.log('      └─ Bot検出・アクセス拒否の確認');
-  const domainCheck = NetworkUtils.checkDomainAvailability(baseUrl);
+  const domainCheckResult = domainCheck(baseUrl);
 
-  if (!domainCheck.available) {
-    const errorMessage = domainCheck.error || 'サイトが閉鎖されています';
+  if (domainCheckResult) {
+    const errorMessage = domainCheckResult.foundKeywords[0] || 'サイトが閉鎖されています';
     console.log(`  ❌ ドメインアクセスエラー: ${errorMessage}`);
-
-    // エラー分類ロジック（既存ロジック完全維持）
-    let searchMethod = 'site_closed';
-    console.log('  🔍 エラー詳細分析:');
-    if (errorMessage.includes('DNS')) {
-      searchMethod = 'dns_error';
-      console.log('      ├─ DNS解決失敗: ドメインが存在しないか、DNSサーバーに問題');
-    } else if (errorMessage.includes('bot') || errorMessage.includes('Bot') || errorMessage.includes('403') || errorMessage.includes('501')) {
-      searchMethod = 'bot_blocked';
-      console.log('      ├─ Bot検出/アクセス拒否: サーバーがbot的アクセスを拒否');
-    } else if (errorMessage.includes('timeout') || errorMessage.includes('タイムアウト')) {
-      searchMethod = 'timeout_error';
-      console.log('      ├─ タイムアウト: サーバー応答が制限時間内に完了せず');
-    } else if (errorMessage === 'サイトが閉鎖されています') {
-      searchMethod = 'site_closed';
-      console.log('      ├─ サイト閉鎖: HTTPレスポンスが正常でない');
-    } else {
-      searchMethod = 'error';
-      console.log('      ├─ その他のネットワークエラー');
-    }
 
     console.log(`  ⏱️  処理時間: ${Date.now() - startTime}ms`);
     console.log('=== 🐛 URLFinder デバッグモード: 完全可視化処理フロー完了 ===');
-    return { contactUrl: null, actualFormUrl: null, foundKeywords: [errorMessage], searchMethod };
+    return domainCheckResult;
   }
   console.log('  ✅ ドメイン正常アクセス可能 → 検索処理へ進行');
   console.log('');
@@ -119,7 +103,7 @@ export function findContactPageWithVisibility(): ContactPageResult {
   console.log('      ├─ プロトコル統一 (http/https)');
   console.log('      ├─ 末尾スラッシュ正規化');
   console.log('      └─ 不要なパス・クエリパラメータ除去');
-  const domainUrl = NetworkUtils.extractDomain(baseUrl);
+  const domainUrl = extractDomain(baseUrl);
   console.log(`  ✅ 正規化完了: ${domainUrl}`);
   console.log(`      差分: ${baseUrl} → ${domainUrl}`);
   console.log('');
@@ -133,7 +117,9 @@ export function findContactPageWithVisibility(): ContactPageResult {
   console.log('      各パターンでHTTPアクセス → レスポンス解析 → フォーム検証');
 
   const urlPatternStartTime = Date.now();
-  const urlPatternResult = executeUrlPatternStrategy(domainUrl, searchState);
+  const urlPattern = urlPatternSearch(domainUrl, state);
+  state = urlPattern.newState;
+  const urlPatternResult = urlPattern.result;
   const urlPatternTime = Date.now() - urlPatternStartTime;
 
   if (urlPatternResult) {
@@ -164,7 +150,9 @@ export function findContactPageWithVisibility(): ContactPageResult {
   console.log('      └─ 各候補の品質スコア計算');
 
   const htmlAnalysisStartTime = Date.now();
-  const htmlAnalysisResult = executeHtmlAnalysisStrategy(domainUrl, searchState);
+  const htmlAnalysis = htmlAnalysisSearch(domainUrl, state);
+  state = htmlAnalysis.newState;
+  const htmlAnalysisResult = htmlAnalysis.result;
   const htmlAnalysisTime = Date.now() - htmlAnalysisStartTime;
 
   if (htmlAnalysisResult) {
@@ -195,7 +183,9 @@ export function findContactPageWithVisibility(): ContactPageResult {
   console.log('      └─ ベスト候補の最終選択');
 
   const fallbackStartTime = Date.now();
-  const fallbackResult = executeFallbackStrategy(domainUrl, searchState);
+  const fallback = fallbackSearch(domainUrl, state);
+  state = fallback.newState;
+  const fallbackResult = fallback.result;
   const fallbackTime = Date.now() - fallbackStartTime;
 
   if (fallbackResult) {
@@ -236,10 +226,10 @@ export function findContactPageWithVisibility(): ContactPageResult {
  * 📊 SearchState状態表示用デバッグ関数
  * 処理途中のSearchStateの内部状態を可視化
  */
-export function displaySearchStateStatus(searchState: SearchState): void {
+export function displaySearchStateStatus(searchState: SearchStateData): void {
   console.log('📊 SearchState 現在状態:');
-  console.log(`  ├─ 候補ページ数: ${searchState.getCandidateCount()}`);
-  console.log(`  ├─ 有効URL数: ${searchState.getValidUrls().length}`);
+  console.log(`  ├─ 候補ページ数: ${getCandidateCount(searchState)}`);
+  console.log(`  ├─ 有効URL数: ${getValidUrls(searchState).length}`);
   console.log('  └─ 蓄積情報を次戦略で活用');
 }
 

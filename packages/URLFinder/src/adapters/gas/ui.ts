@@ -1,6 +1,4 @@
-
-
-import type { ContactPageResult } from '../../data/types/interfaces';
+import type { ContactPageResult } from '../../common/types';
 import { processContactPageFinder } from './triggers';
 import { Environment } from '../../env';
 import { findContactPage } from '../../findContactPage';
@@ -243,3 +241,13 @@ function getMaxCountSetting(): number {
   const maxCount = getMaxCount();
   return maxCount ?? 30; // nullの場合はデフォルト値30を使用
 }
+
+
+// GASのグローバル空間に関数を登録
+declare const global: {
+  executeUrlFinderWithUI: typeof executeUrlFinderWithUI;
+  executeSelectedMode: typeof executeSelectedMode;
+};
+
+global.executeUrlFinderWithUI = executeUrlFinderWithUI;
+global.executeSelectedMode = executeSelectedMode;

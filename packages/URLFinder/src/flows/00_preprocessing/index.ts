@@ -5,8 +5,8 @@
  * SNS判定とドメイン可用性チェックを一元化
  */
 
-import { NetworkUtils } from '../../functions/network/fetch';
-import type { ContactPageResult } from '../../data/types/interfaces';
+import { isSNSPage, checkDomainAvailability } from '../../common/network/fetch';
+import type { ContactPageResult } from '../../common/types';
 
 /**
  * SNSページ判定実行
@@ -14,7 +14,7 @@ import type { ContactPageResult } from '../../data/types/interfaces';
  * @returns SNSページの場合は結果オブジェクト、それ以外はnull
  */
 export function snsCheck(baseUrl: string): ContactPageResult | null {
-  if (NetworkUtils.isSNSPage(baseUrl)) {
+  if (isSNSPage(baseUrl)) {
     return { 
       contactUrl: null, 
       actualFormUrl: null, 
@@ -31,7 +31,7 @@ export function snsCheck(baseUrl: string): ContactPageResult | null {
  * @returns アクセス不可の場合は結果オブジェクト、正常アクセス可能の場合はnull
  */
 export function domainCheck(baseUrl: string): ContactPageResult | null {
-  const domainCheckResult = NetworkUtils.checkDomainAvailability(baseUrl);
+  const domainCheckResult = checkDomainAvailability(baseUrl);
   
   if (!domainCheckResult.available) {
     const errorMessage = domainCheckResult.error || 'サイトが閉鎖されています';

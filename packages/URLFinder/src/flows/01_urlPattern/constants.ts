@@ -10,6 +10,3 @@ export const HIGH_CONFIDENCE_PATTERNS = ['/contact/', '/contact', '/inquiry/', '
 
 // 中信頼度パターン（NetworkUtilsから移動）  
 export const MEDIUM_CONFIDENCE_PATTERNS = ['/form/', '/form'];
-
-// ホームページ判定用のファイル拡張子パターン
-export const HOMEPAGE_FILE_PATTERNS = ['index.html', 'index.htm', 'index.php', 'home/', 'home'];

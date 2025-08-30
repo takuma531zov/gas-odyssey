@@ -3,7 +3,7 @@
  * 副作用なし、入力→出力の関数型実装
  */
 
-import { UrlResolutionResult } from '../../data/types/interfaces';
+import { UrlResolutionResult } from '../types';
 
 /**
  * 相対URLを絶対URLに解決（カリー化対応）

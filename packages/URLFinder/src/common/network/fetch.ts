@@ -3,9 +3,8 @@
  * HTTP通信とエラーハンドリングの関数型実装
  */
 
-import { FORM_CONTEXT_CONTACT_KEYWORDS } from '../../data/constants/formConstants';
-import { HTTP_ERROR_MESSAGES, SNS_PATTERNS } from '../../data/constants/network';
-import { HIGH_CONFIDENCE_PATTERNS, MEDIUM_CONFIDENCE_PATTERNS, HOMEPAGE_FILE_PATTERNS } from '../../data/constants/patterns';
+import { HTTP_ERROR_MESSAGES, SNS_PATTERNS } from '../constants/network';
+import { HOMEPAGE_FILE_PATTERNS } from '../constants/patterns';
 
 // 型定義
 type NetworkResult<T> = T | Error;
@@ -159,43 +158,6 @@ export const isHomepageUrl = (baseUrl: string) => (url: string): boolean => {
 };
 
 /**
- * フォールバックURLの品質評価（純粋関数）
- */
-export const evaluateFallbackUrlQuality = (url: string, pattern: string): { confidence: number, keywords: string[] } => {
-  let confidence = 0.5; // ベーススコア
-  const keywords: string[] = [];
-
-  // 高信頼度パターン
-  if (HIGH_CONFIDENCE_PATTERNS.includes(pattern)) {
-    confidence += 0.3;
-    keywords.push('high_confidence_pattern');
-  }
-
-  // 中信頼度パターン
-  if (MEDIUM_CONFIDENCE_PATTERNS.includes(pattern)) {
-    confidence += 0.1;
-    keywords.push('medium_confidence_pattern');
-  }
-
-  // URL内のcontactキーワードチェック（ドメイン除外）
-  const urlPath = url.replace(/https?:\/\/[^/]+/, ''); // ドメインを除外
-  const contactKeywords = [...FORM_CONTEXT_CONTACT_KEYWORDS, 'form'];
-
-  for (const keyword of contactKeywords) {
-    if (urlPath.toLowerCase().includes(keyword.toLowerCase())) {
-      confidence += 0.1;
-      keywords.push(`path_contains_${keyword}`);
-    }
-  }
-
-  // 信頼度を上限で制限
-  confidence = Math.min(confidence, 1.0);
-
-  console.log(`URL quality evaluation for ${url}: confidence=${confidence.toFixed(2)}, keywords=[${keywords.join(', ')}]`);
-  return { confidence, keywords };
-};
-
-/**
  * ドメイン可用性チェック（Either モナド使用）
  */
 export const checkDomainAvailability = (baseUrl: string): { available: boolean, error?: string } => {
@@ -224,22 +186,3 @@ export const checkDomainAvailability = (baseUrl: string): { available: boolean, 
     return { available: false, error: detailedError };
   }
 };
-
-// 後方互換性のためのクラス（段階的移行用）
-export class NetworkUtils {
-  static fetchWithTimeout = (url: string, timeoutMs: number = 5000): GoogleAppsScript.URL_Fetch.HTTPResponse => {
-    const result = fetchWithTimeout(url, timeoutMs);
-    if (result instanceof Error) {
-      throw result;
-    }
-    return result;
-  };
-  static getDetailedNetworkError = getDetailedNetworkError;
-  static getDetailedErrorMessage = getDetailedErrorMessage;
-  static isSNSPage = isSNSPage;
-  static extractDomain = extractDomain;
-  static resolveUrl = (url: string, baseUrl: string) => resolveUrl(baseUrl)(url);
-  static isHomepageUrl = (url: string, baseUrl: string) => isHomepageUrl(baseUrl)(url);
-  static evaluateFallbackUrlQuality = evaluateFallbackUrlQuality;
-  static checkDomainAvailability = checkDomainAvailability;
-}
