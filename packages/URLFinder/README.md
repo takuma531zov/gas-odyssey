@@ -22,21 +22,26 @@ https://docs.google.com/spreadsheets/d/128kxWEs7DceOEEX8Eglih9855RoZbLdLryv2clB9
 ```
 URLFinder/
 ├── src/
-│   ├── contactPageFinder.ts      # メインエントリーポイント
+│   ├── index.ts                  # GAS関数エントリーポイント
+│   ├── findContactPage.ts      # メイン検索統合関数
 │   ├── env.ts                    # 環境設定管理
 │   ├── adapters/gas/             # GAS用アダプター
 │   │   ├── triggers.ts          # バッチ処理エンジン
 │   │   └── ui.ts                # UI制御
-│   ├── functions/               # コア機能
-│   │   ├── network/            # ネットワーク処理
-│   │   ├── html/               # HTML解析
-│   │   └── domain/             # ドメインロジック
-│   ├── pipelines/              # 検索パイプライン
-│   │   ├── strategies.ts       # 検索戦略
-│   │   └── state.ts           # 状態管理
-│   └── data/                  # データ定義
-│       ├── constants/         # 定数・パターン
-│       └── types/            # 型定義
+│   ├── common/                  # 共通機能・定義
+│   │   ├── network/            # ネットワーク処理 (fetch, url, validation)
+│   │   ├── utils/              # ユーティリティ (compose)
+│   │   ├── constants/          # 共通定数 (network, patterns)
+│   │   ├── types/              # 共通型定義
+│   │   └── state/              # 状態管理関数
+│   ├── flows/                   # 検索フロー (処理順にナンバリング)
+│   │   ├── 00_preprocessing/   # 前処理 (SNS判定, ドメイン検証)
+│   │   ├── 01_urlPattern/      # URLパターン検索
+│   │   ├── 02_htmlAnalysis/    # HTML解析
+│   │   │   ├── parser/         # HTMLパース
+│   │   │   ├── extractor/      # フォーム抽出
+│   │   │   └── keyword/        # キーワード分析
+│   │   └── 03_fallback/        # フォールバック戦略
 └── dist/                     # ビルド出力
 ```
 
@@ -45,21 +50,24 @@ URLFinder/
 ```
 1. スプレッドシートからURL取得
    ↓
-2. URL Pattern 検索戦略
-   - 高優先度パターン検索 (/contact/, /inquiry/, /form/)
-   - 200 OK応答のURL記録
+2. 00_preprocessing (前処理)
+   - SNSページ判定
+   - ドメイン可用性チェック
    ↓
-3. HTML Content Analysis 戦略
+3. 01_urlPattern (URLパターン検索戦略)
+   - 高優先度パターン検索 (/contact/, /inquiry/, /form/)
+   - 200 OK応答のURL記録 (SearchStateDataに蓄積)
+   ↓
+4. 02_htmlAnalysis (HTML解析戦略)
    - ホームページHTML解析
    - ナビゲーション検索
    - Google Forms検出
+   - フォーム検証・分析 (構造化フォーム分析, 送信ボタン確認, reCAPTCHA検出)
    ↓
-4. フォーム検証・分析
-   - 構造化フォーム分析
-   - 送信ボタン確認
-   - reCAPTCHA検出
+5. 03_fallback (フォールバック戦略)
+   - SearchStateDataに蓄積された情報からベスト候補を選出
    ↓
-5. 結果出力（バッチ処理）
+6. 結果出力（バッチ処理）
    - 設定可能なバッチサイズで段階的出力
    - タイムアウト時の進捗保護
 ```
@@ -174,7 +182,6 @@ CHECK_COLUMN = "AR"   // チェック列をAR列に変更
 ## 技術仕様
 
 - **対応フォーム**: HTML form, Google Forms, 埋め込みフォーム, reCAPTCHA
-- **検出方式**: URL パターンマッチング + HTML解析
-- **タイムアウト対応**: バッチ処理による段階的出力
+- **検出方式**: 段階的検索フロー (前処理 -> URLパターン -> HTML解析 -> フォールバック)
+- **状態管理**: 関数型アプローチによる状態管理 (SearchStateData)
 - **処理速度**: バッチ出力により1行ずつ出力の20-40倍高速
-

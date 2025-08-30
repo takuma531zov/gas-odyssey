@@ -3,10 +3,9 @@
  * 📋 URLFinder - GAS関数エントリーポイント
  *
  * Google Apps Scriptで使用する関数の純粋な呼び出し専用ファイル
- * ビジネスロジックは含まず、各機能への振り分けのみ行う
  *
  * 利用可能な関数:
- * - processContactPageFinder: スプレッドシート一括処理
+ * - processContactPageFinder: スプレッドシート一括処理（通女処置/トリガー用）
  * - executeUrlFinderWithUI: UI選択型処理（通常処理/チェック行処理の分岐）
  *
  * デバッグ用関数:
