@@ -74,21 +74,21 @@ export const executeUrlPatternStrategy = (baseUrl: string, searchState: SearchSt
     if (!HtmlUtils.isValidContactPage(html)) continue;
 
     searchState.addValidUrl(testUrl, pattern);
-    
+
     if (FormUtils.isValidContactForm(html)) {
       searchState.addSuccessfulFormUrl(testUrl);
       return { contactUrl: testUrl, actualFormUrl: testUrl, foundKeywords: [pattern.replace(/\//g, ''), 'contact_form_confirmed'], searchMethod: 'contact_form_priority_search' };
     }
-    
+
     const googleFormsResult = FormUtils.detectGoogleForms(html);
     if (googleFormsResult.found && googleFormsResult.url) {
       searchState.addSuccessfulFormUrl(testUrl);
       return { contactUrl: testUrl, actualFormUrl: googleFormsResult.url, foundKeywords: [pattern.replace(/\//g, ''), 'google_forms', googleFormsResult.type], searchMethod: 'google_forms_priority_search' };
     }
-    
+
     searchState.addCandidate(testUrl, 'no_contact_form', html);
   }
-  
+
   return null;
 };
 
@@ -123,12 +123,12 @@ export const executeHtmlAnalysisStrategy = (baseUrl: string, searchState: Search
     if (result.actualFormUrl && result.actualFormUrl.startsWith('http')) {
       return result;
     }
-    
+
     if (result.actualFormUrl === 'embedded_contact_form_on_page') {
       result.actualFormUrl = result.contactUrl;
       return result;
     }
-    
+
     return result;
   }
 
@@ -165,7 +165,7 @@ const handleNetworkError = (error: Error | unknown): ContactPageResult => {
  */
 const analyzeHtmlContent = (html: string, baseUrl: string, searchState: SearchState): ContactPageResult | null => {
   const navResult = HtmlUtils.searchInNavigation(html, baseUrl);
-  
+
   if (!navResult.url || navResult.score <= 0) {
     return null;
   }
@@ -197,16 +197,16 @@ const analyzeHtmlContent = (html: string, baseUrl: string, searchState: SearchSt
   }
 
   const candidateHtml = response.getContentText();
-  
+
   if (FormUtils.isValidContactForm(candidateHtml)) {
     return { contactUrl: navResult.url, actualFormUrl: navResult.url, foundKeywords: [...navResult.keywords, 'form_validation_success'], searchMethod: 'homepage_navigation_form' };
   }
-  
+
   const googleFormsResult = FormUtils.detectGoogleForms(candidateHtml);
   if (googleFormsResult.found && googleFormsResult.url) {
     return { contactUrl: navResult.url, actualFormUrl: googleFormsResult.url, foundKeywords: [...navResult.keywords, 'google_forms', googleFormsResult.type], searchMethod: 'homepage_navigation_google_forms' };
   }
-  
+
   if (navResult.score >= 15) {
     return { contactUrl: navResult.url, actualFormUrl: navResult.url, foundKeywords: [...navResult.keywords, 'keyword_based_validation'], searchMethod: 'homepage_navigation_keyword_based' };
   }

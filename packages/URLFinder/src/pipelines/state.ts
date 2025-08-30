@@ -24,7 +24,7 @@ export class SearchState {
    * 200 OK URLリスト（フォールバック用）
    * Step1で200応答したがフォーム検証で失敗したURL群
    */
-  private validUrls: Array<{ 
+  private validUrls: Array<{
     url: string;     // 有効URL
     pattern: string; // マッチしたパターン
   }> = [];
@@ -49,7 +49,7 @@ export class SearchState {
    */
   addCandidate(url: string, reason: string, html: string): void {
     console.log(`Recording potential candidate: ${url} (reason: ${reason})`);
-    
+
     const structuredAnalysis = this.analyzeStructuredForms(html);
     const formAnalysis = this.analyzeFormElements(html);
     const score = this.calculateCandidateScore(url, reason, structuredAnalysis, formAnalysis);
@@ -144,7 +144,7 @@ export class SearchState {
    */
   getFinalResult(): ContactPageResult {
     console.log(`Checking final fallback from ${this.validUrls.length} valid URLs`);
-    
+
     if (this.validUrls.length === 0) {
       console.log('No valid URLs available for final fallback');
       return {
@@ -157,20 +157,20 @@ export class SearchState {
 
     // 高優先度contactパターンを優先的に探す
     const contactPriorityPatterns = [
-      '/contact/', '/contact', '/inquiry/', '/inquiry', 
+      '/contact/', '/contact', '/inquiry/', '/inquiry',
       '/form/', '/form'
     ];
 
     // 高優先度contact patternを探す
     for (const priorityPattern of contactPriorityPatterns) {
-      const matchingUrl = this.validUrls.find(urlInfo => 
+      const matchingUrl = this.validUrls.find(urlInfo =>
         urlInfo.pattern === priorityPattern
       );
-      
+
       if (matchingUrl) {
         console.log(`Priority contact pattern found: ${matchingUrl.url} (${priorityPattern})`);
         const qualityScore = evaluateFallbackUrlQuality(matchingUrl.url, matchingUrl.pattern);
-        
+
         return {
           contactUrl: matchingUrl.url,
           actualFormUrl: matchingUrl.url,
@@ -193,10 +193,10 @@ export class SearchState {
     }
 
     console.log(`Final fallback: Using first valid URL ${firstValidUrl.url} (pattern: ${firstValidUrl.pattern})`);
-    
+
     // URLの品質を評価
     const qualityScore = evaluateFallbackUrlQuality(firstValidUrl.url, firstValidUrl.pattern);
-    
+
     return {
       contactUrl: firstValidUrl.url,
       actualFormUrl: firstValidUrl.url,
@@ -214,8 +214,8 @@ export class SearchState {
    * @returns スコア
    */
   private calculateCandidateScore(
-    url: string, 
-    reason: string, 
+    url: string,
+    reason: string,
     structuredAnalysis: { formCount: number; totalFields: number; hasContactFields: boolean },
     formAnalysis: { isValidForm: boolean; score: number; reasons: string[] }
   ): number {
@@ -259,7 +259,7 @@ export class SearchState {
       const inputMatches = form.match(/<input[^>]*>/gi) || [];
       const textareaMatches = form.match(/<textarea[^>]*>/gi) || [];
       const selectMatches = form.match(/<select[^>]*>/gi) || [];
-      
+
       totalFields += inputMatches.length + textareaMatches.length + selectMatches.length;
 
       const contactPatterns = [
