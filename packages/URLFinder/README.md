@@ -93,14 +93,14 @@ GAS管理画面 > プロジェクトの設定 > スクリプト プロパティ�
 
 | プロパティ名 | 説明 | デフォルト値 | 必須 |
 |-------------|------|-------------|------|
-| SHEET | 対象シート名 | - | 必須 |
-| MAX_COUNT | 最大処理件数 | 制限なし | 任意 |
-| HEADER_ROW | ヘッダー行番号 | 1 | 任意 |
-| BATCH_SIZE | バッチサイズ | 10 | 任意 |
-| TARGET_COLUMN | 対象URL列 | L | 任意 |
-| OUTPUT_COLUMN | 結果出力列 | AP | 任意 |
-| CHECK_COLUMN | チェックボックス列 | AQ | 任意 |
-| MAX_TOTAL_TIME | 最大処理時間(ms) | - | 必須 |
+| SHEET | 対象シート名 | `リスト` | 任意 |
+| MAX_COUNT | 最大処理件数 | `30` (未設定で無制限) | 任意 |
+| HEADER_ROW | ヘッダー行番号 | `3` | 任意 |
+| BATCH_SIZE | バッチサイズ | `10` | 任意 |
+| TARGET_COLUMN | 対象URL列 | `L` | 任意 |
+| OUTPUT_COLUMN | 結果出力列 | `AP` | 任意 |
+| CHECK_COLUMN | チェックボックス列 | `AQ` | 任意 |
+| MAX_TOTAL_TIME | 最大処理時間(ms) | `60000` (60秒) | 任意 |
 
 ### 3. スプレッドシート準備
 
@@ -120,13 +120,10 @@ GAS管理画面 > プロジェクトの設定 > スクリプト プロパティ�
 
 ### 直接実行
 
-```javascript
-// 通常のバッチ処理
-processContactPageFinder();
+GASエディタで以下の関数を直接実行してください。
 
-// テスト実行
-test();
-```
+- `processContactPageFinder()`: 通常のバッチ処理を実行します。
+- `findContactPageWithVisibility()`: デバッグ用の詳細な処理フローを表示しながらテスト実行します。
 
 ## 検出結果の種類
 
