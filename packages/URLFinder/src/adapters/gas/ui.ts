@@ -2,8 +2,8 @@
 
 import type { ContactPageResult } from '../../data/types/interfaces';
 import { processContactPageFinder } from './triggers';
-import { findContactPage } from '../../index';
 import { Environment } from '../../env';
+import { findContactPage } from '../../findContactPage';
 
 /**
  * スプレッドシートUI付きURLFinder実行関数
@@ -182,7 +182,7 @@ function writeResultToSheet(rowNumber: number, result: ContactPageResult): void 
  */
 function getCheckedRows(): number[] {
   const { getCheckColumn } = Environment;
-  
+
   try {
     console.log('SpreadsheetApp.getActiveSheet()実行中...');
     const sheet = SpreadsheetApp.getActiveSheet();

@@ -1,6 +1,5 @@
 
-import type { ContactPageResult } from '../../data/types/interfaces';
-import { findContactPage } from '../../index';
+import { findContactPage } from '../../findContactPage';
 
 /**
  * テスト用関数

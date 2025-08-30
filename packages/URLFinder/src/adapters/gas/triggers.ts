@@ -1,11 +1,11 @@
 
-import type { ContactPageResult } from '../../data/types/interfaces';
-import { findContactPage } from '../../index';
+
 import { Environment } from '../../env';
+import { findContactPage } from '../../findContactPage';
 
 export function processContactPageFinder() {
   const { getSheetName, getMaxCount, getHeaderRow, getTargetColumn, getBatchSize, getOutputColumn } = Environment;
-  
+
   try {
     // スクリプトプロパティから設定値を取得
     const sheetName = getSheetName();
@@ -129,10 +129,10 @@ export function processContactPageFinder() {
           const outputColumn = getOutputColumn();
           const outputRange = sheet.getRange(batchStartRow, outputColumn, results.length, 1);
           outputRange.setValues(results);
-          
+
           processedCount += results.length;
           console.log(`中間出力完了: ${batchStartRow}行目から${results.length}行を出力列に出力（バッチサイズ: ${batchSize}）`);
-          
+
           results.length = 0; // 配列クリア
         }
       }

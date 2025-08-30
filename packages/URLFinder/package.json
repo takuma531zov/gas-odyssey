@@ -1,7 +1,0 @@
-{
-  "name": "urlFinder",
-  "version": "1.0.0",
-  "description": "営業リスト問い合わせフォーム抽出システム",
-  "main": "dist/index.ts"
-
-  }
