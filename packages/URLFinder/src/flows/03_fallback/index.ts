@@ -11,7 +11,7 @@ export const fallbackSearch = (baseUrl: string, searchState: SearchStateData): S
   const fallbackResult = getFinalResult(searchState);
 
   if (fallbackResult.contactUrl && fallbackResult.foundKeywords.length > 0) {
-    const pattern = fallbackResult.foundKeywords.find(k => k.startsWith('/')) || '';
+    const pattern = fallbackResult.foundKeywords.find((k: string) => k.startsWith('/')) || '';
     const qualityScore = evaluateFallbackUrlQuality(fallbackResult.contactUrl, pattern);
 
     fallbackResult.foundKeywords.push(...qualityScore.keywords);

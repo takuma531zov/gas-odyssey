@@ -3,7 +3,7 @@
  * SearchState の関数型実装
  */
 
-import type { ContactPageResult, SearchStateData, CandidateAnalysis, FormAnalysisInternal, CandidatePage } from '../types';
+import type { ContactPageResult, SearchStateData, CandidateAnalysis, FormAnalysisInternal, CandidatePage } from '../types/types';
 
 export type { SearchStateData };
 
@@ -29,7 +29,7 @@ export const addCandidate = (
   html: string
 ): SearchStateData => {
   console.log(`Recording potential candidate: ${url} (reason: ${reason})`);
-  
+
   const structuredAnalysis = analyzeStructuredForms(html);
   const formAnalysis = analyzeFormElements(html);
   const score = calculateCandidateScore(url, reason, structuredAnalysis, formAnalysis);
@@ -43,7 +43,7 @@ export const addCandidate = (
   };
 
   console.log(`Candidate added: score=${score}, structured forms=${structuredAnalysis.formCount}`);
-  
+
   return {
     ...state,
     candidatePages: [...state.candidatePages, newCandidate]
@@ -145,7 +145,7 @@ export const getFinalResult = (state: SearchStateData): ContactPageResult => {
 
   // 高優先度contact patternを探す
   for (const priorityPattern of contactPriorityPatterns) {
-    const matchingUrl = state.validUrls.find(urlInfo =>
+    const matchingUrl = state.validUrls.find((urlInfo: { url: string; pattern: string }) =>
       urlInfo.pattern === priorityPattern
     );
 
@@ -188,8 +188,8 @@ export const getFinalResult = (state: SearchStateData): ContactPageResult => {
  * 候補スコア計算（純粋関数）
  */
 const calculateCandidateScore = (
-  url: string, 
-  reason: string, 
+  url: string,
+  reason: string,
   structuredAnalysis: CandidateAnalysis,
   formAnalysis: FormAnalysisInternal
 ): number => {
@@ -231,7 +231,7 @@ const analyzeStructuredForms = (html: string): CandidateAnalysis => {
     const inputMatches = form.match(/<input[^>]*>/gi) || [];
     const textareaMatches = form.match(/<textarea[^>]*>/gi) || [];
     const selectMatches = form.match(/<select[^>]*>/gi) || [];
-    
+
     totalFields += inputMatches.length + textareaMatches.length + selectMatches.length;
 
     const contactPatterns = [
