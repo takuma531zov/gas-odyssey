@@ -42,23 +42,19 @@ export function findContactPage(baseUrl: string): ContactPageResult {
   let result: ContactPageResult | null = null;
 
   try {
-    // 2-1: URLパターン検索戦略
-    const urlPattern = urlPatternSearch(domainUrl, state);
-    state = urlPattern.newState;
-    result = urlPattern.result;
+    // 検索戦略を配列として定義
+    const strategies = [
+      urlPatternSearch,   // 2-1: URLパターン検索戦略
+      htmlAnalysisSearch, // 2-2: HTML解析戦略
+      fallbackSearch,     // 2-3: フォールバック戦略
+    ];
 
-    // 2-2: HTML解析戦略
-    if (!result) {
-      const htmlAnalysis = htmlAnalysisSearch(domainUrl, state);
-      state = htmlAnalysis.newState;
-      result = htmlAnalysis.result;
-    }
-
-    // 2-3: フォールバック戦略
-    if (!result) {
-      const fallback = fallbackSearch(domainUrl, state);
-      state = fallback.newState;
-      result = fallback.result;
+    // 戦略を順番に実行し、結果が見つかり次第ループを抜ける
+    for (const strategy of strategies) {
+      const strategyResult = strategy(domainUrl, state);
+      state = strategyResult.newState;
+      result = strategyResult.result;
+      if (result) break;
     }
 
     if (result) {
