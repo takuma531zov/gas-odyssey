@@ -25,6 +25,18 @@ export function snsCheck(baseUrl: string): ContactPageResult | null {
   return null;
 }
 
+function getSearchMethod(errorMessage: string): string {
+  const rules: { test: (msg: string) => boolean; value: string }[] = [
+    { test: msg => msg.includes("DNS"), value: "dns_error" },
+    { test: msg => /bot|Bot|403|501/.test(msg), value: "bot_blocked" },
+    { test: msg => msg.includes("timeout") || msg.includes("タイムアウト"), value: "timeout_error" },
+    { test: msg => msg === "サイトが閉鎖されています", value: "site_closed" },
+  ];
+
+  const rule = rules.find(r => r.test(errorMessage));
+  return rule ? rule.value : "error";
+}
+
 /**
  * ドメイン可用性チェック実行
  * @param baseUrl チェック対象URL
@@ -36,19 +48,7 @@ export function domainCheck(baseUrl: string): ContactPageResult | null {
   if (!domainCheckResult.available) {
     const errorMessage = domainCheckResult.error || 'サイトが閉鎖されています';
     
-    // エラー分類ロジック（既存ロジック完全維持）
-    let searchMethod = 'site_closed';
-    if (errorMessage.includes('DNS')) {
-      searchMethod = 'dns_error';
-    } else if (errorMessage.includes('bot') || errorMessage.includes('Bot') || errorMessage.includes('403') || errorMessage.includes('501')) {
-      searchMethod = 'bot_blocked';
-    } else if (errorMessage.includes('timeout') || errorMessage.includes('タイムアウト')) {
-      searchMethod = 'timeout_error';
-    } else if (errorMessage === 'サイトが閉鎖されています') {
-      searchMethod = 'site_closed';
-    } else {
-      searchMethod = 'error';
-    }
+    const searchMethod = getSearchMethod(errorMessage);
     
     return { 
       contactUrl: null, 

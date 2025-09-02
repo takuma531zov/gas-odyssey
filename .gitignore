@@ -1,4 +1,4 @@
 node_modules
 packages/**/.clasp*json
 dist
-pullriquest.md
+pullrequest.md
