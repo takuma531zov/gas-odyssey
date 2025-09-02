@@ -1,12 +1,12 @@
 /**
  * 🔧 前処理フロー統合モジュール
- * 
+ *
  * URLFinderの事前検証処理を統合実行
  * SNS判定とドメイン可用性チェックを一元化
  */
 
 import { isSNSPage, checkDomainAvailability } from '../../common/network/fetch';
-import type { ContactPageResult } from '../../common/types';
+import type { ContactPageResult } from '../../common/types/types';
 
 /**
  * SNSページ判定実行
@@ -15,11 +15,11 @@ import type { ContactPageResult } from '../../common/types';
  */
 export function snsCheck(baseUrl: string): ContactPageResult | null {
   if (isSNSPage(baseUrl)) {
-    return { 
-      contactUrl: null, 
-      actualFormUrl: null, 
-      foundKeywords: ['sns_page'], 
-      searchMethod: 'sns_not_supported' 
+    return {
+      contactUrl: null,
+      actualFormUrl: null,
+      foundKeywords: ['sns_page'],
+      searchMethod: 'sns_not_supported'
     };
   }
   return null;
@@ -57,19 +57,19 @@ function getSearchMethod(errorMessage: string): string {
  */
 export function domainCheck(baseUrl: string): ContactPageResult | null {
   const domainCheckResult = checkDomainAvailability(baseUrl);
-  
+
   if (!domainCheckResult.available) {
     const errorMessage = domainCheckResult.error || 'サイトが閉鎖されています';
-    
+
     const searchMethod = getSearchMethod(errorMessage);
-    
-    return { 
-      contactUrl: null, 
-      actualFormUrl: null, 
-      foundKeywords: [errorMessage], 
-      searchMethod 
+
+    return {
+      contactUrl: null,
+      actualFormUrl: null,
+      foundKeywords: [errorMessage],
+      searchMethod
     };
   }
-  
+
   return null;
 }

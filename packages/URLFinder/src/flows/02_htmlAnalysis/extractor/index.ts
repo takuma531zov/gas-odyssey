@@ -18,7 +18,7 @@ import {
   GOOGLE_FORM_EXCLUDE_KEYWORDS,
   GOOGLE_FORM_CONTACT_KEYWORDS
 } from './constants';
-import type { ExtractorFormAnalysisResult as FormAnalysisResult, StructuredFormResult, ExtractorGoogleFormResult as GoogleFormResult, FormExclusionResult } from '../../../common/types';
+import type { ExtractorFormAnalysisResult as FormAnalysisResult, StructuredFormResult, ExtractorGoogleFormResult as GoogleFormResult, FormExclusionResult } from '../../../common/types/types';
 
 // 純粋関数群
 
@@ -281,7 +281,7 @@ export const validateGoogleFormContent = (html: string, googleFormUrl: string): 
 /**
  * フォーム分析パイプライン生成（高階関数）
  */
-export const createFormAnalysisPipeline = () => 
+export const createFormAnalysisPipeline = () =>
   pipe(
     analyzeStructuredForms as any,
     (structured: any) => ({ structured, elements: analyzeFormElements }),
@@ -295,13 +295,13 @@ export const createFormAnalysisPipeline = () =>
  * フォーム検証フィルタ生成（高階関数）
  */
 export const createFormValidator = (validationRules: Array<(html: string) => boolean>) =>
-  (html: string): boolean => 
+  (html: string): boolean =>
     validationRules.every(rule => rule(html));
 
 /**
  * Google Forms抽出器（カリー化）
  */
-export const createGoogleFormExtractor = (patterns: RegExp[]) => 
+export const createGoogleFormExtractor = (patterns: RegExp[]) =>
   (html: string): GoogleFormResult => {
     for (const pattern of patterns) {
       const matches = html.match(pattern);

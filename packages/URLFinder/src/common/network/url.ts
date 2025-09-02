@@ -3,7 +3,7 @@
  * 副作用なし、入力→出力の関数型実装
  */
 
-import { UrlResolutionResult } from '../types';
+import { UrlResolutionResult } from '../types/types';
 
 /**
  * 相対URLを絶対URLに解決（カリー化対応）
@@ -95,12 +95,12 @@ export const validateUrl = (url: string): UrlResolutionResult => {
  */
 export const normalizeUrl = (url: string): string => {
   if (!url) return '';
-  
+
   // Remove trailing slash except for domain root
   if (url.endsWith('/') && url.match(/^https?:\/\/[^\/]+\/$/)) {
     return url; // Keep trailing slash for domain root
   }
-  
+
   return url.replace(/\/$/, '');
 };
 
@@ -114,7 +114,7 @@ export const isSameDomain = (url1: string) => (url2: string): boolean => {
 };
 
 // 非カリー化版（2引数）
-export const isSameDomainBinary = (url1: string, url2: string): boolean => 
+export const isSameDomainBinary = (url1: string, url2: string): boolean =>
   isSameDomain(url1)(url2);
 
 // 後方互換性のためのクラス（段階的移行用）

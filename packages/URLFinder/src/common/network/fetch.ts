@@ -41,24 +41,26 @@ export const getDetailedNetworkError = (error: Error | unknown): string => {
   if (typeof error === 'object' && error !== null && 'message' in error) {
     const message = (error as { message: string }).message.toLowerCase();
 
-    if (message.includes('timeout')) {
-      return 'Network timeout - サーバーの応答が遅すぎます';
-    } else if (message.includes('dns') || message.includes('name resolution')) {
-      return 'DNS解決失敗: ドメインが存在しません';
-    } else if (message.includes('connection refused') || message.includes('connect')) {
-      return 'Connection refused - サーバーに接続できません';
-    } else if (message.includes('ssl') || message.includes('certificate')) {
-      return 'SSL certificate error - 証明書エラー';
-    } else if (message.includes('host')) {
-      return 'Host unreachable - ホストに到達できません';
-    } else if (message.includes('forbidden') || message.includes('403')) {
-      return 'Access forbidden (403) - アクセスが拒否されました';
-    } else if (message.includes('not found') || message.includes('404')) {
-      return 'Page not found (404) - ページが見つかりません';
-    } else if (message.includes('500')) {
-      return 'Server error (500) - サーバー内部エラー';
+    switch (true) {
+      case message.includes('timeout'):
+        return 'Network timeout - サーバーの応答が遅すぎます';
+      case message.includes('dns') || message.includes('name resolution'):
+        return 'DNS解決失敗: ドメインが存在しません';
+      case message.includes('connection refused') || message.includes('connect'):
+        return 'Connection refused - サーバーに接続できません';
+      case message.includes('ssl') || message.includes('certificate'):
+        return 'SSL certificate error - 証明書エラー';
+      case message.includes('host'):
+        return 'Host unreachable - ホストに到達できません';
+      case message.includes('forbidden') || message.includes('403'):
+        return 'Access forbidden (403) - アクセスが拒否されました';
+      case message.includes('not found') || message.includes('404'):
+        return 'Page not found (404) - ページが見つかりません';
+      case message.includes('500'):
+        return 'Server error (500) - サーバー内部エラー';
+      default:
+        return `GASエラー: アクセスに失敗しました`;
     }
-    return `GASエラー: アクセスに失敗しました`;
   }
 
   // 文字列エラーの場合

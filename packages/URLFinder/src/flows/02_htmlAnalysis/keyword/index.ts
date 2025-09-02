@@ -3,7 +3,7 @@
  * 高階関数とカリー化による関数型実装
  */
 
-import type { PurityResult, KeywordDetectionResult, ContactInfoResult } from '../../../common/types';
+import type { PurityResult, KeywordDetectionResult, ContactInfoResult } from '../../../common/types/types';
 import {
   HIGH_PRIORITY_CONTACT_KEYWORDS,
   CONTACT_KEYWORDS,
@@ -46,8 +46,8 @@ export const createKeywordMatcher = (keywords: string[]) => (text: string): stri
 /**
  * スコア計算関数を生成（高階関数）
  */
-export const createScoreCalculator = (scoreCalculator: ScoreCalculator) => 
-  (keywords: string[], location: 'url' | 'text') => 
+export const createScoreCalculator = (scoreCalculator: ScoreCalculator) =>
+  (keywords: string[], location: 'url' | 'text') =>
     (matches: string[]): { score: number; reasons: string[] } =>
       matches.reduce(
         (acc, keyword) => {
@@ -113,7 +113,7 @@ export const calculateContactPurity = (url: string, linkText: string, context: s
     { pattern: '/inquiry', bonus: 4, label: 'inquiry_path_pattern' },
     { pattern: '/form', bonus: 3, label: 'form_path_pattern' }
   ];
-  
+
   const urlPatternBonus = urlPatterns
     .filter(({ pattern }) => lowerUrl.includes(pattern))
     .reduce((acc, { bonus, label }) => {
@@ -123,7 +123,7 @@ export const calculateContactPurity = (url: string, linkText: string, context: s
   score += urlPatternBonus;
 
   // ネガティブパターンチェック（関数型）
-  const negativeMatches = NEGATIVE_PATTERNS.filter(negative => 
+  const negativeMatches = NEGATIVE_PATTERNS.filter(negative =>
     lowerUrl.includes(negative) || lowerText.includes(negative)
   );
   const negativePenalty = negativeMatches.reduce((acc, negative) => {
@@ -187,7 +187,7 @@ export const extractContactInfo = (content: string): ContactInfoResult => {
  */
 export const calculateDynamicSiteKeywordScore = (html: string): number => {
   const lowerHtml = html.toLowerCase();
-  
+
   // 各種キーワードのスコア計算を関数型で実装
   const scoreCalculators = [
     {
@@ -229,7 +229,7 @@ export class KeywordMatcher {
   static detectKeywords = detectKeywords;
   static extractContactInfo = extractContactInfo;
   static calculateDynamicSiteKeywordScore = calculateDynamicSiteKeywordScore;
-  
+
   static getHighPriorityKeywords(): string[] {
     return [...HIGH_PRIORITY_CONTACT_KEYWORDS];
   }

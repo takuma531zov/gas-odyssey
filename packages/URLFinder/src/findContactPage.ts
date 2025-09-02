@@ -14,7 +14,7 @@
  * @returns 検索結果
  */
 
-import type { ContactPageResult } from './common/types';
+import type { ContactPageResult } from './common/types/types';
 import { createEmptyState } from './common/state';
 import { extractDomain } from './common/network/url';
 import { snsCheck, domainCheck } from './flows/00_preprocessing';
