@@ -25,15 +25,28 @@ export function snsCheck(baseUrl: string): ContactPageResult | null {
   return null;
 }
 
+
+/**
+ * エラーメッセージに基づき、検索エラーの種別を判定する
+ * @param errorMessage ドメイン可用性チェック時のエラーメッセージ
+ * @returns 分類された検索エラー種別
+ */
 function getSearchMethod(errorMessage: string): string {
+  // エラーメッセージとエラー種別の対応ルール
   const rules: { test: (msg: string) => boolean; value: string }[] = [
+    // DNS関連のエラー
     { test: msg => msg.includes("DNS"), value: "dns_error" },
+    // Bot判定によるブロック or 特定のHTTPステータスコード
     { test: msg => /bot|Bot|403|501/.test(msg), value: "bot_blocked" },
+    // タイムアウト関連のエラー
     { test: msg => msg.includes("timeout") || msg.includes("タイムアウト"), value: "timeout_error" },
+    // デフォルトのエラーメッセージ（サイト閉鎖）
     { test: msg => msg === "サイトが閉鎖されています", value: "site_closed" },
   ];
 
+  // マッチするルールを探す
   const rule = rules.find(r => r.test(errorMessage));
+  // マッチすればその値を、しなければ汎用エラーを返す
   return rule ? rule.value : "error";
 }
 
