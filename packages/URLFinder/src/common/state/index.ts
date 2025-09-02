@@ -5,6 +5,8 @@
 
 import type { ContactPageResult, SearchStateData, CandidateAnalysis, FormAnalysisInternal, CandidatePage } from '../types';
 
+export type { SearchStateData };
+
 // 純粋関数群
 
 /**

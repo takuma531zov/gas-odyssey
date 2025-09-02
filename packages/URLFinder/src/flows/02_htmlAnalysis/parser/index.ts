@@ -2,7 +2,7 @@ import type { ContactPageResult, PurityResult, HtmlSearchResult } from '../../..
 import { hashString, isAnchorLink, isValidEncoding } from '../../../common/network/validation';
 import { resolveUrl, isHomepageUrl, fetchWithTimeout } from '../../../common/network/fetch';
 import { FormUtils } from '../extractor';
-import type { SearchStateData } from '../../../common/state';
+import type { SearchStateData } from '../../../common/types';
 import { getHtmlCache, setHtmlCache } from '../../../common/state';
 import {
   FORM_LINK_PATTERNS,
