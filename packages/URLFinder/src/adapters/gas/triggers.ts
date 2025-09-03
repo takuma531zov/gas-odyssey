@@ -24,31 +24,35 @@ function processSingleUrl(url: string | any, currentRow: number, headerRow: numb
 
   try {
     const result = findContactPage(url.toString().trim());
-
     console.log(`Result for ${currentRow}行目: searchMethod=${result.searchMethod}, foundKeywords=${result.foundKeywords ? result.foundKeywords.join(',') : 'none'}`);
 
-    let outputValue = '';
-
-    if (result.searchMethod === 'error' || result.searchMethod === 'dns_error' || result.searchMethod === 'bot_blocked' || result.searchMethod === 'site_closed' || result.searchMethod === 'timeout_error') {
-      if (result.foundKeywords && result.foundKeywords.length > 0) {
-        outputValue = result.foundKeywords[0] || 'エラーが発生しました';
-      } else {
-        outputValue = 'エラーが発生しました';
-      }
-    } else if (result.actualFormUrl) {
-      if (result.actualFormUrl.startsWith('http')) {
-        outputValue = result.actualFormUrl;
-      } else {
-        outputValue = result.contactUrl || url.toString().trim();
-      }
-    } else if (result.contactUrl) {
-      outputValue = result.contactUrl;
-    } else {
-      outputValue = '問い合わせフォームが見つかりませんでした';
+    // エラー条件のチェック
+    const errorMethods = ['error', 'dns_error', 'bot_blocked', 'site_closed', 'timeout_error'];
+    if (errorMethods.includes(result.searchMethod)) {
+      const errorMessage = result.foundKeywords?.[0] || 'エラーが発生しました';
+      console.log(`${currentRow}行目: 完了 - ${errorMessage}`);
+      return [errorMessage];
     }
 
-    console.log(`${currentRow}行目: 完了 - ${outputValue}`);
-    return [outputValue];
+    // actualFormUrl がある場合
+    if (result.actualFormUrl) {
+      const outputValue = result.actualFormUrl.startsWith('http')
+        ? result.actualFormUrl
+        : (result.contactUrl || url.toString().trim());
+      console.log(`${currentRow}行目: 完了 - ${outputValue}`);
+      return [outputValue];
+    }
+
+    // contactUrl がある場合
+    if (result.contactUrl) {
+      console.log(`${currentRow}行目: 完了 - ${result.contactUrl}`);
+      return [result.contactUrl];
+    }
+
+    // 上記いずれにも当てはまらない場合
+    const notFoundMessage = '問い合わせフォームが見つかりませんでした';
+    console.log(`${currentRow}行目: 完了 - ${notFoundMessage}`);
+    return [notFoundMessage];
 
   } catch (error) {
     const errorMessage = `エラー: ${error instanceof Error ? error.message : String(error)}`;
