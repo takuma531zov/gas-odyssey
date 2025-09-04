@@ -64,7 +64,7 @@ export const getDetailedNetworkError = (error: Error | unknown): string => {
       case message.includes('500'):
         return 'Server error (500) - サーバー内部エラー';
       default:
-        return `GASエラー: アクセスに失敗しました`;
+        return 'GASエラー: アクセスに失敗しました';
     }
   }
 
