@@ -1,6 +1,6 @@
 import type { ContactPageResult, PurityResult, HtmlSearchResult } from '../../../common/types';
 import { hashString, isAnchorLink, isValidEncoding } from '../../../common/network/validation';
-import { resolveUrl, isHomepageUrl, fetchWithTimeout } from '../../../common/network/fetch';
+import { resolveUrl, isHomepageUrl, fetchUrl } from '../../../common/network/fetch';
 import { FormUtils } from '../extractor';
 import type { SearchStateData } from '../../../common/types';
 import { getHtmlCache, setHtmlCache } from '../../../common/state';
@@ -311,7 +311,7 @@ export const findSecondStageFormLink = (html: string, contactPageUrl: string): s
 
   for (const candidate of candidateLinks.slice(0, 3)) {
     try {
-      const response = fetchWithTimeout(candidate.url, 3000);
+      const response = fetchUrl(candidate.url);
       if (response instanceof Error) {
         console.log(`Failed to fetch ${candidate.url}: ${response.message}`);
         continue;
