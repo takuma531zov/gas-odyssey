@@ -1,7 +1,7 @@
-import type { ContactPageResult, StrategyResult, SearchStateData } from '../../common/types';
+import type { StrategyResult, SearchStateData } from '../../common/types';
 import { addValidUrl, addSuccessfulFormUrl, addCandidate } from '../../common/state';
 import { Environment } from '../../env';
-import { fetchWithTimeout, getDetailedNetworkError, getDetailedErrorMessage } from '../../common/network/fetch';
+import { fetchUrl, getDetailedNetworkError, getDetailedErrorMessage } from '../../common/network/fetch';
 import { FormUtils } from '../02_htmlAnalysis/extractor';
 import { detectSameHtmlPattern, isValidContactPage, executeSPAAnalysis } from '../02_htmlAnalysis/parser';
 import { HIGH_PRIORITY_PATTERNS } from './constants';
@@ -24,7 +24,7 @@ export const urlPatternSearch = (baseUrl: string, searchState: SearchStateData):
 
     let response;
     try {
-      response = fetchWithTimeout(testUrl, 5000);
+      response = fetchUrl(testUrl);
     } catch (error) {
       const detailedError = getDetailedNetworkError(error);
       if (detailedError.includes('DNS解決失敗')) {

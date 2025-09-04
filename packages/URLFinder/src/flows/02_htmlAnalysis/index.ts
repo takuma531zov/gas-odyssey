@@ -1,7 +1,7 @@
 import type { ContactPageResult, StrategyResult } from '../../common/types';
 import type { SearchStateData } from '../../common/types';
 import { isSuccessfulFormUrl } from '../../common/state';
-import { fetchWithTimeout, getDetailedNetworkError } from '../../common/network/fetch';
+import { fetchUrl, getDetailedNetworkError } from '../../common/network/fetch';
 import { FormUtils } from './extractor';
 import { getContentWithEncoding, searchInNavigation, analyzeAnchorSection, findSecondStageFormLink } from './parser';
 import { isAnchorLink } from '../../common/network/validation';
@@ -12,7 +12,7 @@ import { isAnchorLink } from '../../common/network/validation';
 export const htmlAnalysisSearch = (baseUrl: string, searchState: SearchStateData): StrategyResult => {
   let response;
   try {
-    response = fetchWithTimeout(baseUrl, 7000);
+    response = fetchUrl(baseUrl);
   } catch (homepageError) {
     return { result: handleNetworkError(homepageError), newState: searchState };
   }
@@ -97,7 +97,7 @@ const analyzeHtmlContent = (html: string, baseUrl: string, searchState: SearchSt
 
   let response;
   try {
-    response = fetchWithTimeout(navResult.url, 5000);
+    response = fetchUrl(navResult.url);
   } catch (error) {
     return { result: handleNetworkError(error), newState: searchState };
   }
@@ -133,7 +133,7 @@ const analyzeHtmlContent = (html: string, baseUrl: string, searchState: SearchSt
  */
 const findActualForm = (contactPageUrl: string): string | null => {
   try {
-    const response = fetchWithTimeout(contactPageUrl, 5000);
+    const response = fetchUrl(contactPageUrl);
     if (response instanceof Error) {
       console.error(`Error fetching contact page ${contactPageUrl}:`, response);
       return null;
