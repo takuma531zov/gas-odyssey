@@ -45,10 +45,3 @@ export const hashString = (str: string): string => {
  */
 export const isAnchorLink = (url: string): boolean => url.includes('#');
 
-// 後方互換性のためのクラス（段階的移行用）
-export class StringUtils {
-  static toHexString = toHexString;
-  static isValidEncoding = isValidEncoding;
-  static hashString = hashString;
-  static isAnchorLink = isAnchorLink;
-}
