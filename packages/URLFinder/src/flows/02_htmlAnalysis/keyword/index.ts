@@ -3,7 +3,7 @@
  * 高階関数とカリー化による関数型実装
  */
 
-import type { PurityResult, KeywordDetectionResult, ContactInfoResult } from '../../../common/types/types';
+import type { PurityResult, KeywordDetectionResult, ContactInfoResult } from '../../../common/types';
 import {
   HIGH_PRIORITY_CONTACT_KEYWORDS,
   CONTACT_KEYWORDS,

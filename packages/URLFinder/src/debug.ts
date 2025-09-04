@@ -11,9 +11,9 @@
  * - 新規開発者の学習支援
  */
 
-import type { ContactPageResult } from './common/types/types';
+import type { ContactPageResult } from './common/types';
 import { createEmptyState, getCandidateCount, getValidUrls } from './common/state';
-import type { SearchStateData } from './common/types/types';
+import type { SearchStateData } from './common/types';
 import { extractDomain } from './common/network/url';
 import { snsCheck, domainCheck } from './flows/00_preprocessing';
 import { urlPatternSearch } from './flows/01_urlPattern';

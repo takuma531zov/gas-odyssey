@@ -18,7 +18,7 @@ import {
   GOOGLE_FORM_EXCLUDE_KEYWORDS,
   GOOGLE_FORM_CONTACT_KEYWORDS
 } from './constants';
-import type { ExtractorFormAnalysisResult as FormAnalysisResult, StructuredFormResult, ExtractorGoogleFormResult as GoogleFormResult, FormExclusionResult } from '../../../common/types/types';
+import type { ExtractorFormAnalysisResult as FormAnalysisResult, StructuredFormResult, ExtractorGoogleFormResult as GoogleFormResult, FormExclusionResult } from '../../../common/types';
 
 // 純粋関数群
 

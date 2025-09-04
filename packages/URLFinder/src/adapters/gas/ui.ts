@@ -1,4 +1,4 @@
-import type { ContactPageResult } from '../../common/types/types';
+import type { ContactPageResult } from '../../common/types';
 import { processContactPageFinder } from './triggers';
 import { Environment } from '../../env';
 import { findContactPage } from '../../findContactPage';

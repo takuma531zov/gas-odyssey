@@ -1,5 +1,5 @@
-import type {  StrategyResult } from '../../common/types/types';
-import type { SearchStateData } from '../../common/types/types';
+import type {  StrategyResult } from '../../common/types';
+import type { SearchStateData } from '../../common/types';
 import { getFinalResult } from '../../common/state';
 import { evaluateFallbackUrlQuality } from './utils';
 

@@ -1,5 +1,5 @@
-import type { ContactPageResult, StrategyResult } from '../../common/types/types';
-import type { SearchStateData } from '../../common/types/types';
+import type { ContactPageResult, StrategyResult } from '../../common/types';
+import type { SearchStateData } from '../../common/types';
 import { isSuccessfulFormUrl } from '../../common/state';
 import { fetchWithTimeout, getDetailedNetworkError } from '../../common/network/fetch';
 import { FormUtils } from './extractor';

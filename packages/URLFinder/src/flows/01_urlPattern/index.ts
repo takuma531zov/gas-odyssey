@@ -1,4 +1,4 @@
-import type { ContactPageResult, StrategyResult, SearchStateData } from '../../common/types/types';
+import type { ContactPageResult, StrategyResult, SearchStateData } from '../../common/types';
 import { addValidUrl, addSuccessfulFormUrl, addCandidate } from '../../common/state';
 import { Environment } from '../../env';
 import { fetchWithTimeout, getDetailedNetworkError, getDetailedErrorMessage } from '../../common/network/fetch';

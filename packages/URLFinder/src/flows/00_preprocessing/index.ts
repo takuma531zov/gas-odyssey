@@ -6,7 +6,7 @@
  */
 
 import { isSNSPage, checkDomainAvailability } from '../../common/network/fetch';
-import type { ContactPageResult } from '../../common/types/types';
+import type { ContactPageResult } from '../../common/types';
 
 /**
  * SNSページ判定実行

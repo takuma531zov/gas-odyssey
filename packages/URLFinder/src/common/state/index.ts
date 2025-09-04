@@ -3,7 +3,7 @@
  * SearchState の関数型実装
  */
 
-import type { ContactPageResult, SearchStateData, CandidateAnalysis, FormAnalysisInternal, CandidatePage } from '../types/types';
+import type { ContactPageResult, SearchStateData, CandidateAnalysis, FormAnalysisInternal, CandidatePage } from '../types';
 
 export type { SearchStateData };
 
