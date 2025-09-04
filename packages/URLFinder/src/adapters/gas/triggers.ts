@@ -1,4 +1,3 @@
-
 import { SCRIPT_PROPERTIES, DEFAULT_VALUES } from '../../env';
 import { getScriptPropertyValue, columnNameToNumber } from '../../../../common/src/spreadsheet';
 import { findContactPage } from '../../findContactPage';
@@ -33,7 +32,7 @@ function processSingleUrl(url: string, currentRow: number, headerRow: number): [
   try {
     const result = findContactPage(url.trim());
     console.log(
-      `Result for ${currentRow}行目: searchMethod=${result.searchMethod}, foundKeywords=${result.foundKeywords ? result.foundKeywords.join(',') : 'none'}`
+      `Result for ${currentRow}行目: searchMethod=${result.searchMethod}, foundKeywords=${result.foundKeywords?.join(',') ?? 'none'}`
     );
 
     // エラー条件のチェック
@@ -139,8 +138,7 @@ export function processContactPageFinder() {
       const chunkStartRow = startRow + offset;
 
       const results = chunk.map((urlRow, indexInChunk) => {
-        const urlValue = urlRow && urlRow[0];
-        const url = String(urlValue ?? '');
+        const url = String(urlRow?.[0] ?? '');
         const currentRow = chunkStartRow + indexInChunk;
         return processSingleUrl(url, currentRow, headerRow);
       });
