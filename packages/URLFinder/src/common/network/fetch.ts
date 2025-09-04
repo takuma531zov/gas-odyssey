@@ -37,6 +37,11 @@ export const getDetailedNetworkError = (error: Error | unknown): string => {
     return 'Unknown error';
   }
 
+  // 文字列エラーの場合
+  if (typeof error === 'string') {
+    return error;
+  }
+
   // GASのエラーオブジェクトの場合
   if (typeof error === 'object' && error !== null && 'message' in error) {
     const message = (error as { message: string }).message.toLowerCase();
@@ -61,11 +66,6 @@ export const getDetailedNetworkError = (error: Error | unknown): string => {
       default:
         return `GASエラー: アクセスに失敗しました`;
     }
-  }
-
-  // 文字列エラーの場合
-  if (typeof error === 'string') {
-    return error;
   }
 
   return `Unknown network error: ${error.toString()}`;
