@@ -8,8 +8,8 @@ import { findContactPage } from '../../findContactPage';
  * @param headerRow ヘッダー行の番号
  * @returns スプレッドシートに書き込むための単一要素の配列
  */
-function processSingleUrl(url: string | any, currentRow: number, headerRow: number): [string] {
-  if (!url || url.toString().trim() === '') {
+function processSingleUrl(url: string, currentRow: number, headerRow: number): [string] {
+  if (!url || url.trim() === '') {
     return [''];
   }
   if (currentRow === headerRow) {
@@ -20,11 +20,11 @@ function processSingleUrl(url: string | any, currentRow: number, headerRow: numb
   console.log(`${currentRow}行目: ${url} を処理中...`);
 
   try {
-    const result = findContactPage(url.toString().trim());
+    const result = findContactPage(url.trim());
     console.log(
-      `Result for ${currentRow}行目: searchMethod=${result.searchMethod}, foundKeywords=${
+      `Result for ${currentRow}行目: searchMethod=${result.searchMethod}, foundKeywords=${(
         result.foundKeywords ? result.foundKeywords.join(',') : 'none'
-      }`
+      )}`
     );
 
     // エラー条件のチェック
@@ -39,7 +39,7 @@ function processSingleUrl(url: string | any, currentRow: number, headerRow: numb
     if (result.actualFormUrl) {
       const outputValue = result.actualFormUrl.startsWith('http')
         ? result.actualFormUrl
-        : (result.contactUrl || url.toString().trim());
+        : (result.contactUrl || url.trim());
       console.log(`${currentRow}行目: 完了 - ${outputValue}`);
       return [outputValue];
     }
@@ -125,7 +125,8 @@ export function processContactPageFinder() {
       const chunkStartRow = startRow + offset;
 
       const results = chunk.map((urlRow, indexInChunk) => {
-        const url = urlRow && urlRow[0];
+        const urlValue = urlRow && urlRow[0];
+        const url = String(urlValue || '');
         const currentRow = chunkStartRow + indexInChunk;
         return processSingleUrl(url, currentRow, headerRow);
       });
