@@ -110,33 +110,30 @@ export function processContactPageFinder() {
     const batchSize = getBatchSize();
     console.log(`バッチサイズ設定: ${batchSize}`);
 
-    let results = [];
-    let processedCount = 0;
-
-    // 各URLを処理し、バッチ単位で書き込む
-    for (let i = 0; i < urls.length; i++) {
-      const urlRow = urls[i];
-      const url = urlRow && urlRow[0];
-      const currentRow = startRow + i;
-
-      const resultRow = processSingleUrl(url, currentRow, headerRow);
-      results.push(resultRow);
-
-      // バッチサイズに達したか、最後の要素であれば中間出力
-      if (results.length >= batchSize || i === urls.length - 1) {
-        if (results.length > 0) {
-          const batchStartRow = startRow + processedCount;
-          const outputColumn = getOutputColumn();
-          const outputRange = sheet.getRange(batchStartRow, outputColumn, results.length, 1);
-          outputRange.setValues(results);
-
-          processedCount += results.length;
-          console.log(`中間出力完了: ${batchStartRow}行目から${results.length}行を出力列に出力（バッチサイズ: ${batchSize}）`);
-
-          results = []; // 非破壊的な配列のクリア
-        }
-      }
+    const urlChunks: (string | any)[][] = [];
+    for (let i = 0; i < urls.length; i += batchSize) {
+      urlChunks.push(urls.slice(i, i + batchSize));
     }
+
+    let processedCount = 0;
+    const outputColumn = getOutputColumn();
+
+    urlChunks.forEach((chunk, chunkIndex) => {
+      const chunkStartRow = startRow + (chunkIndex * batchSize);
+      const results = chunk.map((urlRow, indexInChunk) => {
+        const url = urlRow && urlRow[0];
+        const currentRow = chunkStartRow + indexInChunk;
+        return processSingleUrl(url, currentRow, headerRow);
+      });
+
+      if (results.length > 0) {
+        const outputRange = sheet.getRange(chunkStartRow, outputColumn, results.length, 1);
+        outputRange.setValues(results);
+
+        processedCount += results.length;
+        console.log(`中間出力完了: ${chunkStartRow}行目から${results.length}行を出力列に出力（バッチサイズ: ${batchSize}）`);
+      }
+    });
 
     console.log(`処理完了: ${processedCount}行の結果を出力列に出力しました`);
 
