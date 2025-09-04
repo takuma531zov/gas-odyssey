@@ -1,6 +1,3 @@
-
-
-
 import { Environment } from '../../env';
 import { findContactPage } from '../../findContactPage';
 
@@ -24,7 +21,11 @@ function processSingleUrl(url: string | any, currentRow: number, headerRow: numb
 
   try {
     const result = findContactPage(url.toString().trim());
-    console.log(`Result for ${currentRow}行目: searchMethod=${result.searchMethod}, foundKeywords=${result.foundKeywords ? result.foundKeywords.join(',') : 'none'}`);
+    console.log(
+      `Result for ${currentRow}行目: searchMethod=${result.searchMethod}, foundKeywords=${
+        result.foundKeywords ? result.foundKeywords.join(',') : 'none'
+      }`
+    );
 
     // エラー条件のチェック
     const errorMethods = ['error', 'dns_error', 'bot_blocked', 'site_closed', 'timeout_error'];
@@ -78,6 +79,8 @@ export function processContactPageFinder() {
     console.log(`ヘッダー行: ${headerRow}行目（処理対象から除外）`);
 
     const lastRowL = sheet.getLastRow();
+
+    // AP列の最終行を取得（データがある行）
     const apRange = sheet.getRange('AP:AP');
     const apValues = apRange.getValues();
     let lastRowAP = 0;
@@ -89,6 +92,7 @@ export function processContactPageFinder() {
       }
     }
 
+    // 処理対象行の範囲を決定
     const startRow = lastRowAP + 1;
     let endRow = lastRowL;
 
@@ -97,6 +101,7 @@ export function processContactPageFinder() {
       return;
     }
 
+    // MAX_COUNTによる上限制御
     if (maxCount && (endRow - startRow + 1) > maxCount) {
       endRow = startRow + maxCount - 1;
       console.log(`MAX_COUNT制限により処理行数を${maxCount}行に制限します`);
@@ -104,22 +109,21 @@ export function processContactPageFinder() {
 
     console.log(`処理対象行: ${startRow}行目から${endRow}行目まで（${endRow - startRow + 1}行）`);
 
+    // 対象列のURLを一括取得
     const targetColumn = getTargetColumn();
     const urlRange = sheet.getRange(startRow, targetColumn, endRow - startRow + 1, 1);
     const urls = urlRange.getValues();
     const batchSize = getBatchSize();
     console.log(`バッチサイズ設定: ${batchSize}`);
 
-    const urlChunks: (string | any)[][] = [];
-    for (let i = 0; i < urls.length; i += batchSize) {
-      urlChunks.push(urls.slice(i, i + batchSize));
-    }
-
     let processedCount = 0;
     const outputColumn = getOutputColumn();
 
-    urlChunks.forEach((chunk, chunkIndex) => {
-      const chunkStartRow = startRow + (chunkIndex * batchSize);
+    // ★ その場チャンク処理：配列を事前に分割せず、オフセットで区切って処理
+    for (let offset = 0; offset < urls.length; offset += batchSize) {
+      const chunk = urls.slice(offset, offset + batchSize);
+      const chunkStartRow = startRow + offset;
+
       const results = chunk.map((urlRow, indexInChunk) => {
         const url = urlRow && urlRow[0];
         const currentRow = chunkStartRow + indexInChunk;
@@ -133,10 +137,11 @@ export function processContactPageFinder() {
         processedCount += results.length;
         console.log(`中間出力完了: ${chunkStartRow}行目から${results.length}行を出力列に出力（バッチサイズ: ${batchSize}）`);
       }
-    });
+    }
 
     console.log(`処理完了: ${processedCount}行の結果を出力列に出力しました`);
 
+    // MAX_COUNT制限で処理が打ち切られた場合の通知
     if (maxCount && processedCount === maxCount && startRow + maxCount - 1 < lastRowL) {
       console.log(`注意: MAX_COUNT(${maxCount})制限により処理を制限しました。残り${lastRowL - (startRow + maxCount - 1)}行のデータが未処理です。`);
     }
