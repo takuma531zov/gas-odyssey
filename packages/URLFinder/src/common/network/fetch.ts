@@ -9,18 +9,30 @@ import { HOMEPAGE_FILE_PATTERNS } from '../constants/patterns';
 // 型定義
 type NetworkResult<T> = T | Error;
 type HttpResponse = GoogleAppsScript.URL_Fetch.HTTPResponse;
+// ★修正: より汎用的なオプションを受け取れるように型エイリアスを定義
+type FetchOptions = GoogleAppsScript.URL_Fetch.URLFetchRequestOptions;
 
 /**
- * タイムアウト付きHTTP通信（純粋関数）
+ * ★修正: HTTP通信を行う汎用的なラッパー関数に変更
+ *
+ * 修正意図:
+ * 1. 旧関数名 `fetchWithTimeout` は実装と乖離していたため、より実態に即した `fetchUrl` に変更。
+ * 2. GASのUrlFetchAppでは機能しない `timeoutMs` 引数を削除。
+ * 3. `method`や`headers`などUrlFetchAppのオプションを引数で受け取れるようにし、共通関数としての再利用性を向上。
+ *    デフォルトオプションとマージすることで、基本的な挙動（例外を抑制するなど）は維持。
  */
-export const fetchWithTimeout = (url: string, timeoutMs: number = 5000): NetworkResult<HttpResponse> => {
-  try {
-    // GASのfetchは内部的にタイムアウト管理されるため、パラメータは保持するが実装は標準fetch
-    const response = UrlFetchApp.fetch(url, {
-      muteHttpExceptions: true,
-      followRedirects: true
-    });
+export const fetchUrl = (url: string, options?: FetchOptions): NetworkResult<HttpResponse> => {
+  // デフォルトのオプション
+  const defaultOptions: FetchOptions = {
+    muteHttpExceptions: true,
+    followRedirects: true,
+  };
 
+  // デフォルトと指定されたオプションをマージ（指定されたものが優先される）
+  const mergedOptions = { ...defaultOptions, ...options };
+
+  try {
+    const response = UrlFetchApp.fetch(url, mergedOptions);
     return response;
   } catch (error) {
     const detailedError = getDetailedNetworkError(error);
@@ -35,11 +47,6 @@ export const fetchWithTimeout = (url: string, timeoutMs: number = 5000): Network
 export const getDetailedNetworkError = (error: Error | unknown): string => {
   if (!error) {
     return 'Unknown error';
-  }
-
-  // 文字列エラーの場合
-  if (typeof error === 'string') {
-    return error;
   }
 
   // GASのエラーオブジェクトの場合
@@ -64,8 +71,13 @@ export const getDetailedNetworkError = (error: Error | unknown): string => {
       case message.includes('500'):
         return 'Server error (500) - サーバー内部エラー';
       default:
-        return 'GASエラー: アクセスに失敗しました';
+        return `GASエラー: アクセスに失敗しました`;
     }
+  }
+
+  // 文字列エラーの場合
+  if (typeof error === 'string') {
+    return error;
   }
 
   return `Unknown network error: ${error.toString()}`;
@@ -165,7 +177,7 @@ export const isHomepageUrl = (baseUrl: string) => (url: string): boolean => {
 export const checkDomainAvailability = (baseUrl: string): { available: boolean, error?: string } => {
   try {
     console.log(`Testing domain availability: ${baseUrl}`);
-    const response = fetchWithTimeout(baseUrl, 3000); // 3秒タイムアウト
+    const response = fetchUrl(baseUrl);
 
     if (response instanceof Error) {
       const detailedError = getDetailedNetworkError(response);
