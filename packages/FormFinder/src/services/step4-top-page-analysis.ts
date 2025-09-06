@@ -49,11 +49,11 @@ export class Step4TopPageAnalysisService {
         Logger.info(`Step4成功: トップページHTML取得 - ${normalizedUrl} (${html.length}文字)`);
 
         return { success: true, html };
-      } else {
-        const errorDetail = this.getHttpErrorMessage(statusCode);
-        Logger.warn(`Step4失敗: HTTP ${statusCode} - ${normalizedUrl}`);
-        return { success: false, errorDetail };
       }
+      
+      const errorDetail = this.getHttpErrorMessage(statusCode);
+      Logger.warn(`Step4失敗: HTTP ${statusCode} - ${normalizedUrl}`);
+      return { success: false, errorDetail };
     } catch (error) {
       const errorDetail = this.getNetworkErrorMessage(error);
       Logger.error(`Step4エラー: トップページHTML取得失敗 - ${normalizedUrl}`, error);
@@ -98,21 +98,24 @@ export class Step4TopPageAnalysisService {
   /**
    * ネットワークエラーから詳細エラーメッセージを生成
    */
-  private getNetworkErrorMessage(error: any): string {
-    const errorStr = error.toString().toLowerCase();
+  private getNetworkErrorMessage(error: unknown): string {
+    const errorStr = String(error).toLowerCase();
 
     if (errorStr.includes('timeout') || errorStr.includes('timed out')) {
       return "接続タイムアウト: サーバー応答なし";
-    } else if (errorStr.includes('ssl') || errorStr.includes('certificate')) {
-      return "SSL証明書エラー";
-    } else if (errorStr.includes('dns') || errorStr.includes('name resolution')) {
-      return "DNS解決失敗: ドメインが存在しません";
-    } else if (errorStr.includes('connection refused')) {
-      return "接続拒否: サーバーが接続を拒否";
-    } else if (errorStr.includes('host') || errorStr.includes('unreachable')) {
-      return "ホスト到達不可: サーバーに接続できません";
-    } else {
-      return "ネットワークエラー: 接続に失敗";
     }
+    if (errorStr.includes('ssl') || errorStr.includes('certificate')) {
+      return "SSL証明書エラー";
+    }
+    if (errorStr.includes('dns') || errorStr.includes('name resolution')) {
+      return "DNS解決失敗: ドメインが存在しません";
+    }
+    if (errorStr.includes('connection refused')) {
+      return "接続拒否: サーバーが接続を拒否";
+    }
+    if (errorStr.includes('host') || errorStr.includes('unreachable')) {
+      return "ホスト到達不可: サーバーに接続できません";
+    }
+    return "ネットワークエラー: 接続に失敗";
   }
 }
