@@ -3,8 +3,8 @@
  * HTTP通信とエラーハンドリングの関数型実装
  */
 
-import { HTTP_ERROR_MESSAGES, SNS_PATTERNS } from '../constants/network';
-import { HOMEPAGE_FILE_PATTERNS } from '../constants/patterns';
+import { HTTP_ERROR_MESSAGES, SNS_PATTERNS } from "../constants/network";
+import { HOMEPAGE_FILE_PATTERNS } from "../constants/patterns";
 
 // 型定義
 type NetworkResult<T> = T | Error;
@@ -21,7 +21,10 @@ type FetchOptions = GoogleAppsScript.URL_Fetch.URLFetchRequestOptions;
  * 3. `method`や`headers`などUrlFetchAppのオプションを引数で受け取れるようにし、共通関数としての再利用性を向上。
  *    デフォルトオプションとマージすることで、基本的な挙動（例外を抑制するなど）は維持。
  */
-export const fetchUrl = (url: string, options?: FetchOptions): NetworkResult<HttpResponse> => {
+export const fetchUrl = (
+  url: string,
+  options?: FetchOptions,
+): NetworkResult<HttpResponse> => {
   // デフォルトのオプション
   const defaultOptions: FetchOptions = {
     muteHttpExceptions: true,
@@ -46,37 +49,38 @@ export const fetchUrl = (url: string, options?: FetchOptions): NetworkResult<Htt
  */
 export const getDetailedNetworkError = (error: Error | unknown): string => {
   if (!error) {
-    return 'Unknown error';
+    return "Unknown error";
   }
 
   // GASのエラーオブジェクトの場合
-  if (typeof error === 'object' && error !== null && 'message' in error) {
+  if (typeof error === "object" && error !== null && "message" in error) {
     const message = (error as { message: string }).message.toLowerCase();
 
     switch (true) {
-      case message.includes('timeout'):
-        return 'Network timeout - サーバーの応答が遅すぎます';
-      case message.includes('dns') || message.includes('name resolution'):
-        return 'DNS解決失敗: ドメインが存在しません';
-      case message.includes('connection refused') || message.includes('connect'):
-        return 'Connection refused - サーバーに接続できません';
-      case message.includes('ssl') || message.includes('certificate'):
-        return 'SSL certificate error - 証明書エラー';
-      case message.includes('host'):
-        return 'Host unreachable - ホストに到達できません';
-      case message.includes('forbidden') || message.includes('403'):
-        return 'Access forbidden (403) - アクセスが拒否されました';
-      case message.includes('not found') || message.includes('404'):
-        return 'Page not found (404) - ページが見つかりません';
-      case message.includes('500'):
-        return 'Server error (500) - サーバー内部エラー';
+      case message.includes("timeout"):
+        return "Network timeout - サーバーの応答が遅すぎます";
+      case message.includes("dns") || message.includes("name resolution"):
+        return "DNS解決失敗: ドメインが存在しません";
+      case message.includes("connection refused") ||
+        message.includes("connect"):
+        return "Connection refused - サーバーに接続できません";
+      case message.includes("ssl") || message.includes("certificate"):
+        return "SSL certificate error - 証明書エラー";
+      case message.includes("host"):
+        return "Host unreachable - ホストに到達できません";
+      case message.includes("forbidden") || message.includes("403"):
+        return "Access forbidden (403) - アクセスが拒否されました";
+      case message.includes("not found") || message.includes("404"):
+        return "Page not found (404) - ページが見つかりません";
+      case message.includes("500"):
+        return "Server error (500) - サーバー内部エラー";
       default:
-        return `GASエラー: アクセスに失敗しました`;
+        return "GASエラー: アクセスに失敗しました";
     }
   }
 
   // 文字列エラーの場合
-  if (typeof error === 'string') {
+  if (typeof error === "string") {
     return error;
   }
 
@@ -94,7 +98,7 @@ export const getDetailedErrorMessage = (statusCode: number): string =>
  */
 export const isSNSPage = (url: string): boolean => {
   const lowerUrl = url.toLowerCase();
-  return SNS_PATTERNS.some(pattern => lowerUrl.includes(pattern));
+  return SNS_PATTERNS.some((pattern) => lowerUrl.includes(pattern));
 };
 
 /**
@@ -118,63 +122,73 @@ export const extractDomain = (url: string): string => {
 /**
  * 相対URLを絶対URLに変換（カリー化対応）
  */
-export const resolveUrl = (baseUrl: string) => (url: string): string => {
-  // Skip invalid or non-web URLs
-  if (url.startsWith('mailto:') || url.startsWith('javascript:') || url.startsWith('tel:')) {
-    return url; // Return as-is but these should be filtered out in calling code
-  }
+export const resolveUrl =
+  (baseUrl: string) =>
+  (url: string): string => {
+    // Skip invalid or non-web URLs
+    if (
+      url.startsWith("mailto:") ||
+      url.startsWith("javascript:") ||
+      url.startsWith("tel:")
+    ) {
+      return url; // Return as-is but these should be filtered out in calling code
+    }
 
-  if (url.startsWith('http://') || url.startsWith('https://')) {
-    return url;
-  }
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      return url;
+    }
 
-  // Extract protocol and host from baseUrl manually
-  const protocolMatch = baseUrl.match(/^https?:/);
-  const hostMatch = baseUrl.match(/^https?:\/\/([^\/]+)/);
+    // Extract protocol and host from baseUrl manually
+    const protocolMatch = baseUrl.match(/^https?:/);
+    const hostMatch = baseUrl.match(/^https?:\/\/([^\/]+)/);
 
-  if (!protocolMatch || !hostMatch) {
-    return url;
-  }
+    if (!protocolMatch || !hostMatch) {
+      return url;
+    }
 
-  const protocol = protocolMatch[0];
-  const host = hostMatch[1];
+    const protocol = protocolMatch[0];
+    const host = hostMatch[1];
 
-  if (url.startsWith('/')) {
-    return `${protocol}//${host}${url}`;
-  }
+    if (url.startsWith("/")) {
+      return `${protocol}//${host}${url}`;
+    }
 
-  return `${protocol}//${host}/${url}`;
-};
+    return `${protocol}//${host}/${url}`;
+  };
 
 /**
  * トップページURLかどうかを判定（カリー化対応）
  */
-export const isHomepageUrl = (baseUrl: string) => (url: string): boolean => {
-  // 相対URLを絶対URLに変換
-  const fullUrl = resolveUrl(baseUrl)(url);
+export const isHomepageUrl =
+  (baseUrl: string) =>
+  (url: string): boolean => {
+    // 相対URLを絶対URLに変換
+    const fullUrl = resolveUrl(baseUrl)(url);
 
-  // ベースドメインを抽出
-  const baseDomain = extractDomain(baseUrl);
+    // ベースドメインを抽出
+    const baseDomain = extractDomain(baseUrl);
 
-  // トップページパターン
-  const homepagePatterns = [
-    baseDomain,                     // https://example.com/
-    baseDomain.replace(/\/$/, ''),  // https://example.com
-    ...HOMEPAGE_FILE_PATTERNS.map(pattern => baseDomain + pattern)
-  ];
+    // トップページパターン
+    const homepagePatterns = [
+      baseDomain, // https://example.com/
+      baseDomain.replace(/\/$/, ""), // https://example.com
+      ...HOMEPAGE_FILE_PATTERNS.map((pattern) => baseDomain + pattern),
+    ];
 
-  // 完全一致チェック
-  const isHomepage = homepagePatterns.some(pattern =>
-    fullUrl.toLowerCase() === pattern.toLowerCase()
-  );
+    // 完全一致チェック
+    const isHomepage = homepagePatterns.some(
+      (pattern) => fullUrl.toLowerCase() === pattern.toLowerCase(),
+    );
 
-  return isHomepage;
-};
+    return isHomepage;
+  };
 
 /**
  * ドメイン可用性チェック（Either モナド使用）
  */
-export const checkDomainAvailability = (baseUrl: string): { available: boolean, error?: string } => {
+export const checkDomainAvailability = (
+  baseUrl: string,
+): { available: boolean; error?: string } => {
   try {
     console.log(`Testing domain availability: ${baseUrl}`);
     const response = fetchUrl(baseUrl);

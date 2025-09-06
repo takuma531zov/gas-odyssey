@@ -9,9 +9,29 @@ type UnaryFunction<T, R> = (arg: T) => R;
 /**
  * パイプ関数：左から右への関数合成
  */
-export const pipe = <T, R>(...fns: UnaryFunction<unknown, unknown>[]) =>
-  (value: T): R =>
-    fns.reduce((acc, fn) => fn(acc), value as unknown) as R;
+export function pipe<A, B>(fn1: (a: A) => B): (a: A) => B;
+export function pipe<A, B, C>(fn1: (a: A) => B, fn2: (b: B) => C): (a: A) => C;
+export function pipe<A, B, C, D>(
+  fn1: (a: A) => B,
+  fn2: (b: B) => C,
+  fn3: (c: C) => D,
+): (a: A) => D;
+export function pipe<A, B, C, D, E>(
+  fn1: (a: A) => B,
+  fn2: (b: B) => C,
+  fn3: (c: C) => D,
+  fn4: (d: D) => E,
+): (a: A) => E;
+export function pipe<A, B, C, D, E, F>(
+  fn1: (a: A) => B,
+  fn2: (b: B) => C,
+  fn3: (c: C) => D,
+  fn4: (d: D) => E,
+  fn5: (e: E) => F,
+): (a: A) => F;
+export function pipe(...fns: Array<(arg: any) => any>): (arg: any) => any {
+  return (value: any) => fns.reduce((acc, fn) => fn(acc), value);
+}
 
 /**
  * 合成関数：右から左への関数合成

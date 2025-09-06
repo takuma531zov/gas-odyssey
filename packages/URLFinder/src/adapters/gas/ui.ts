@@ -1,14 +1,14 @@
-import type { ContactPageResult } from '../../common/types';
-import { processContactPageFinder } from './triggers';
-import { Environment } from '../../env';
-import { findContactPage } from '../../findContactPage';
+import type { ContactPageResult } from "../../common/types";
+import { processContactPageFinder } from "./triggers";
+import { Environment } from "../../env";
+import { findContactPage } from "../../findContactPage";
 
 /**
  * スプレッドシートUI付きURLFinder実行関数
  * GAS上のスプレッドシートボタンから実行される
  */
 export function executeUrlFinderWithUI(): void {
-  console.log('=== URLFinder UI 開始 ===');
+  console.log("=== URLFinder UI 開始 ===");
 
   try {
     // チェック行数を取得
@@ -16,22 +16,28 @@ export function executeUrlFinderWithUI(): void {
     const maxCount = getMaxCountSetting();
 
     // 実行オプション選択ダイアログを表示
-    const htmlTemplate = HtmlService.createTemplateFromFile('simpleOptions');
+    const htmlTemplate = HtmlService.createTemplateFromFile("simpleOptions");
     htmlTemplate.checkedCount = checkedCount;
     htmlTemplate.maxCount = maxCount;
 
-    const htmlOutput = htmlTemplate.evaluate()
+    const htmlOutput = htmlTemplate
+      .evaluate()
       .setWidth(450)
       .setHeight(320)
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 
-    SpreadsheetApp.getUi()
-      .showModalDialog(htmlOutput, 'URLFinder - 実行オプション');
-
+    SpreadsheetApp.getUi().showModalDialog(
+      htmlOutput,
+      "URLFinder - 実行オプション",
+    );
   } catch (error) {
-    console.error('UI実行エラー:', error);
+    console.error("UI実行エラー:", error);
     const err = error as Error;
-    SpreadsheetApp.getUi().alert('エラー', `実行中にエラーが発生しました: ${err.message}`, SpreadsheetApp.getUi().ButtonSet.OK);
+    SpreadsheetApp.getUi().alert(
+      "エラー",
+      `実行中にエラーが発生しました: ${err.message}`,
+      SpreadsheetApp.getUi().ButtonSet.OK,
+    );
   }
 }
 
@@ -42,9 +48,9 @@ export function executeUrlFinderWithUI(): void {
 export function executeSelectedMode(mode: string): void {
   console.log(`選択されたモード: ${mode}`);
 
-  if (mode === 'normal') {
+  if (mode === "normal") {
     executeNormalProcessing();
-  } else if (mode === 'checked') {
+  } else if (mode === "checked") {
     executeCheckedRowsProcessing();
   } else {
     throw new Error(`不明な実行モード: ${mode}`);
@@ -55,17 +61,20 @@ export function executeSelectedMode(mode: string): void {
  * 通常処理（既存ロジックをそのまま使用）
  */
 function executeNormalProcessing(): void {
-  console.log('=== 通常処理開始 ===');
+  console.log("=== 通常処理開始 ===");
 
   try {
     // 既存のprocessContactPageFinder関数をそのまま呼び出し
     processContactPageFinder();
 
-    console.log('通常処理が完了しました');
-
+    console.log("通常処理が完了しました");
   } catch (error) {
-    console.error('通常処理エラー:', error);
-    SpreadsheetApp.getUi().alert('エラー', `通常処理中にエラーが発生しました: ${error}`, SpreadsheetApp.getUi().ButtonSet.OK);
+    console.error("通常処理エラー:", error);
+    SpreadsheetApp.getUi().alert(
+      "エラー",
+      `通常処理中にエラーが発生しました: ${error}`,
+      SpreadsheetApp.getUi().ButtonSet.OK,
+    );
   }
 }
 
@@ -73,13 +82,13 @@ function executeNormalProcessing(): void {
  * チェック行のみ処理（新機能）
  */
 function executeCheckedRowsProcessing(): void {
-  console.log('=== チェック行処理開始 ===');
+  console.log("=== チェック行処理開始 ===");
 
   try {
     const checkedRows = getCheckedRows();
 
     if (checkedRows.length === 0) {
-      SpreadsheetApp.getUi().alert('チェックされた行がありません。');
+      SpreadsheetApp.getUi().alert("チェックされた行がありません。");
       return;
     }
 
@@ -90,9 +99,9 @@ function executeCheckedRowsProcessing(): void {
     for (const rowNumber of checkedRows) {
       try {
         // 対象列からURL取得
-        const url = getUrlFromRow(rowNumber!);
+        const url = getUrlFromRow(rowNumber);
 
-        if (!url || typeof url !== 'string' || url.trim() === '') {
+        if (!url || typeof url !== "string" || url.trim() === "") {
           console.log(`${rowNumber}行目: URLが空です`);
           continue;
         }
@@ -103,14 +112,13 @@ function executeCheckedRowsProcessing(): void {
         const result: ContactPageResult = findContactPage(url);
 
         // 出力列に結果を書き込み
-        writeResultToSheet(rowNumber!, result);
+        writeResultToSheet(rowNumber, result);
 
         if (result.contactUrl) {
           successCount++;
         } else {
           failureCount++;
         }
-
       } catch (error) {
         console.error(`${rowNumber}行目の処理でエラー:`, error);
         failureCount++;
@@ -118,11 +126,18 @@ function executeCheckedRowsProcessing(): void {
     }
 
     // 完了メッセージ
-    SpreadsheetApp.getUi().alert('処理完了', `チェック行処理が完了しました。成功: ${successCount}件、失敗: ${failureCount}件`, SpreadsheetApp.getUi().ButtonSet.OK);
-
+    SpreadsheetApp.getUi().alert(
+      "処理完了",
+      `チェック行処理が完了しました。成功: ${successCount}件、失敗: ${failureCount}件`,
+      SpreadsheetApp.getUi().ButtonSet.OK,
+    );
   } catch (error) {
-    console.error('チェック行処理エラー:', error);
-    SpreadsheetApp.getUi().alert('エラー', `チェック行処理中にエラーが発生しました: ${error}`, SpreadsheetApp.getUi().ButtonSet.OK);
+    console.error("チェック行処理エラー:", error);
+    SpreadsheetApp.getUi().alert(
+      "エラー",
+      `チェック行処理中にエラーが発生しました: ${error}`,
+      SpreadsheetApp.getUi().ButtonSet.OK,
+    );
   }
 }
 
@@ -135,41 +150,51 @@ function getUrlFromRow(rowNumber: number): string {
   const targetColumn = getTargetColumn();
 
   const cellValue = sheet.getRange(rowNumber, targetColumn).getValue();
-  return cellValue ? cellValue.toString().trim() : '';
+  return cellValue ? cellValue.toString().trim() : "";
 }
 
 /**
  * 結果を出力列に書き込み（既存ロジックと完全に一致）
  */
-function writeResultToSheet(rowNumber: number, result: ContactPageResult): void {
+function writeResultToSheet(
+  rowNumber: number,
+  result: ContactPageResult,
+): void {
   const { getOutputColumn } = Environment;
   const sheet = SpreadsheetApp.getActiveSheet();
   const outputColumn = getOutputColumn();
 
   // 既存のprocessContactPageFinderと完全に同じロジック
-  let outputValue = '';
+  let outputValue = "";
 
   // エラーの場合はエラーメッセージを出力
-  if (result.searchMethod === 'error' || result.searchMethod === 'dns_error' || result.searchMethod === 'bot_blocked' || result.searchMethod === 'site_closed' || result.searchMethod === 'timeout_error') {
+  if (
+    result.searchMethod === "error" ||
+    result.searchMethod === "dns_error" ||
+    result.searchMethod === "bot_blocked" ||
+    result.searchMethod === "site_closed" ||
+    result.searchMethod === "timeout_error"
+  ) {
     if (result.foundKeywords && result.foundKeywords.length > 0) {
-      outputValue = result.foundKeywords[0] || 'エラーが発生しました'; // 詳細エラーメッセージ
+      outputValue = result.foundKeywords[0] || "エラーが発生しました"; // 詳細エラーメッセージ
     } else {
-      outputValue = 'エラーが発生しました';
+      outputValue = "エラーが発生しました";
     }
   } else if (result.actualFormUrl) {
     // 実際のURLの場合はそのURL、識別子の場合はフォームが存在するページのURLを出力
-    if (result.actualFormUrl.startsWith('http')) {
+    if (result.actualFormUrl.startsWith("http")) {
       outputValue = result.actualFormUrl;
     } else {
       // 識別子の場合、フォームが存在するページのURLを出力
-      outputValue = result.contactUrl || '問い合わせフォームが見つかりませんでした';
+      outputValue =
+        result.contactUrl || "問い合わせフォームが見つかりませんでした";
     }
   } else if (result.contactUrl) {
     // actualFormUrlはないが、contactUrlがある場合
     outputValue = result.contactUrl;
   } else {
     // SNSページや見つからない場合
-    outputValue = '問い合わせフォームが見つかりませんでした';
+    outputValue = "問い合わせフォームが見つかりませんでした";
   }
 
   sheet.getRange(rowNumber, outputColumn).setValue(outputValue);
@@ -182,11 +207,11 @@ function getCheckedRows(): number[] {
   const { getCheckColumn } = Environment;
 
   try {
-    console.log('SpreadsheetApp.getActiveSheet()実行中...');
+    console.log("SpreadsheetApp.getActiveSheet()実行中...");
     const sheet = SpreadsheetApp.getActiveSheet();
-    console.log('アクティブシート取得完了');
+    console.log("アクティブシート取得完了");
 
-    console.log('sheet.getLastRow()実行中...');
+    console.log("sheet.getLastRow()実行中...");
     const lastRow = sheet.getLastRow();
     console.log(`最終行: ${lastRow}`);
 
@@ -197,7 +222,7 @@ function getCheckedRows(): number[] {
     const checkColumn = getCheckColumn();
     const checkedRows: number[] = [];
 
-    console.log('チェックボックス値の確認開始...');
+    console.log("チェックボックス値の確認開始...");
     for (let row = 2; row <= maxRowsToCheck; row++) {
       try {
         const checkboxValue = sheet.getRange(row, checkColumn).getValue();
@@ -211,9 +236,9 @@ function getCheckedRows(): number[] {
     }
 
     console.log(`チェック済み行: ${checkedRows.length}行`, checkedRows);
-    return checkedRows.filter((row): row is number => typeof row === 'number');
+    return checkedRows.filter((row): row is number => typeof row === "number");
   } catch (error) {
-    console.error('getCheckedRows()全体エラー:', error);
+    console.error("getCheckedRows()全体エラー:", error);
     return []; // 空配列を返す
   }
 }
@@ -223,12 +248,12 @@ function getCheckedRows(): number[] {
  */
 function getCheckedRowsCount(): number {
   try {
-    console.log('getCheckedRows()実行中...');
+    console.log("getCheckedRows()実行中...");
     const rows = getCheckedRows();
     console.log(`getCheckedRows()完了: ${rows.length}行`);
     return rows.length;
   } catch (error) {
-    console.error('getCheckedRows()エラー:', error);
+    console.error("getCheckedRows()エラー:", error);
     return 0;
   }
 }
@@ -241,7 +266,6 @@ function getMaxCountSetting(): number {
   const maxCount = getMaxCount();
   return maxCount ?? 30; // nullの場合はデフォルト値30を使用
 }
-
 
 // GASのグローバル空間に関数を登録
 declare const global: {

@@ -1,16 +1,29 @@
-import type { ContactPageResult, StrategyResult } from '../../common/types';
-import type { SearchStateData } from '../../common/types';
-import { isSuccessfulFormUrl } from '../../common/state';
-import { fetchUrl, getDetailedNetworkError } from '../../common/network/fetch';
-import { FormUtils } from './extractor';
-import { getContentWithEncoding, searchInNavigation, analyzeAnchorSection, findSecondStageFormLink } from './parser';
-import { isAnchorLink } from '../../common/network/validation';
+import type { ContactPageResult, StrategyResult } from "../../common/types";
+import type { SearchStateData } from "../../common/types";
+import { isSuccessfulFormUrl } from "../../common/state";
+import { fetchUrl, getDetailedNetworkError } from "../../common/network/fetch";
+import {
+  findGoogleFormUrlsOnly,
+  findEmbeddedHTMLForm,
+  isValidContactForm,
+  detectGoogleForms,
+} from "./extractor";
+import {
+  getContentWithEncoding,
+  searchInNavigation,
+  analyzeAnchorSection,
+  findSecondStageFormLink,
+} from "./parser";
+import { isAnchorLink } from "../../common/network/validation";
 
 /**
  * HTML Analysis 検索戦略
  */
-export const htmlAnalysisSearch = (baseUrl: string, searchState: SearchStateData): StrategyResult => {
-  let response;
+export const htmlAnalysisSearch = (
+  baseUrl: string,
+  searchState: SearchStateData,
+): StrategyResult => {
+  let response: ReturnType<typeof fetchUrl>;
   try {
     response = fetchUrl(baseUrl);
   } catch (homepageError) {
@@ -23,22 +36,30 @@ export const htmlAnalysisSearch = (baseUrl: string, searchState: SearchStateData
 
   const html = getContentWithEncoding(response);
 
-  const googleFormUrls = FormUtils.findGoogleFormUrlsOnly(html);
+  const googleFormUrls = findGoogleFormUrlsOnly(html);
   if (googleFormUrls) {
-    return { result: { contactUrl: baseUrl, actualFormUrl: googleFormUrls, foundKeywords: ['homepage_google_form'], searchMethod: 'homepage_google_form_fallback' }, newState: searchState };
+    return {
+      result: {
+        contactUrl: baseUrl,
+        actualFormUrl: googleFormUrls,
+        foundKeywords: ["homepage_google_form"],
+        searchMethod: "homepage_google_form_fallback",
+      },
+      newState: searchState,
+    };
   }
 
   const { result, newState } = analyzeHtmlContent(html, baseUrl, searchState);
-  if (result && result.contactUrl) {
+  if (result?.contactUrl) {
     const formUrl = findActualForm(result.contactUrl);
     result.actualFormUrl = formUrl;
-    result.searchMethod = 'homepage_link_fallback';
+    result.searchMethod = "homepage_link_fallback";
 
-    if (result.actualFormUrl && result.actualFormUrl.startsWith('http')) {
+    if (result.actualFormUrl?.startsWith("http")) {
       return { result, newState };
     }
 
-    if (result.actualFormUrl === 'embedded_contact_form_on_page') {
+    if (result.actualFormUrl === "embedded_contact_form_on_page") {
       result.actualFormUrl = result.contactUrl;
       return { result, newState };
     }
@@ -46,9 +67,17 @@ export const htmlAnalysisSearch = (baseUrl: string, searchState: SearchStateData
     return { result, newState };
   }
 
-  const embeddedFormResult = FormUtils.findEmbeddedHTMLForm(html);
+  const embeddedFormResult = findEmbeddedHTMLForm(html);
   if (embeddedFormResult) {
-    return { result: { contactUrl: baseUrl, actualFormUrl: baseUrl, foundKeywords: ['homepage_embedded_form'], searchMethod: 'homepage_embedded_fallback' }, newState };
+    return {
+      result: {
+        contactUrl: baseUrl,
+        actualFormUrl: baseUrl,
+        foundKeywords: ["homepage_embedded_form"],
+        searchMethod: "homepage_embedded_fallback",
+      },
+      newState,
+    };
   }
 
   return { result: null, newState };
@@ -62,22 +91,35 @@ const handleNetworkError = (error: Error | unknown): ContactPageResult => {
   console.log(`Error in homepage analysis fallback: ${detailedError}`);
 
   let searchMethod: string;
-  if (detailedError.includes('DNS解決失敗')) {
-    searchMethod = 'dns_error';
-  } else if (detailedError.includes('timeout')) {
-    searchMethod = 'timeout_error';
-  } else if (detailedError.includes('403') || detailedError.includes('501') || detailedError.includes('Access forbidden')) {
-    searchMethod = 'bot_blocked';
+  if (detailedError.includes("DNS解決失敗")) {
+    searchMethod = "dns_error";
+  } else if (detailedError.includes("timeout")) {
+    searchMethod = "timeout_error";
+  } else if (
+    detailedError.includes("403") ||
+    detailedError.includes("501") ||
+    detailedError.includes("Access forbidden")
+  ) {
+    searchMethod = "bot_blocked";
   } else {
-    searchMethod = 'error';
+    searchMethod = "error";
   }
-  return { contactUrl: null, actualFormUrl: null, foundKeywords: [detailedError], searchMethod: searchMethod };
+  return {
+    contactUrl: null,
+    actualFormUrl: null,
+    foundKeywords: [detailedError],
+    searchMethod: searchMethod,
+  };
 };
 
 /**
  * HTMLコンテンツ分析
  */
-const analyzeHtmlContent = (html: string, baseUrl: string, searchState: SearchStateData): StrategyResult => {
+const analyzeHtmlContent = (
+  html: string,
+  baseUrl: string,
+  searchState: SearchStateData,
+): StrategyResult => {
   const navResult = searchInNavigation(html, baseUrl);
 
   if (!navResult.url || navResult.score <= 0) {
@@ -89,13 +131,17 @@ const analyzeHtmlContent = (html: string, baseUrl: string, searchState: SearchSt
   }
 
   if (isAnchorLink(navResult.url)) {
-    const anchorSectionResult = analyzeAnchorSection(html, navResult.url, baseUrl);
+    const anchorSectionResult = analyzeAnchorSection(
+      html,
+      navResult.url,
+      baseUrl,
+    );
     if (anchorSectionResult.contactUrl) {
       return { result: anchorSectionResult, newState: searchState };
     }
   }
 
-  let response;
+  let response: ReturnType<typeof fetchUrl>;
   try {
     response = fetchUrl(navResult.url);
   } catch (error) {
@@ -112,17 +158,45 @@ const analyzeHtmlContent = (html: string, baseUrl: string, searchState: SearchSt
 
   const candidateHtml = response.getContentText();
 
-  if (FormUtils.isValidContactForm(candidateHtml)) {
-    return { result: { contactUrl: navResult.url, actualFormUrl: navResult.url, foundKeywords: [...navResult.keywords, 'form_validation_success'], searchMethod: 'homepage_navigation_form' }, newState: searchState };
+  if (isValidContactForm(candidateHtml)) {
+    return {
+      result: {
+        contactUrl: navResult.url,
+        actualFormUrl: navResult.url,
+        foundKeywords: [...navResult.keywords, "form_validation_success"],
+        searchMethod: "homepage_navigation_form",
+      },
+      newState: searchState,
+    };
   }
 
-  const googleFormsResult = FormUtils.detectGoogleForms(candidateHtml);
+  const googleFormsResult = detectGoogleForms(candidateHtml);
   if (googleFormsResult.found && googleFormsResult.url) {
-    return { result: { contactUrl: navResult.url, actualFormUrl: googleFormsResult.url, foundKeywords: [...navResult.keywords, 'google_forms', googleFormsResult.type], searchMethod: 'homepage_navigation_google_forms' }, newState: searchState };
+    return {
+      result: {
+        contactUrl: navResult.url,
+        actualFormUrl: googleFormsResult.url,
+        foundKeywords: [
+          ...navResult.keywords,
+          "google_forms",
+          googleFormsResult.type,
+        ],
+        searchMethod: "homepage_navigation_google_forms",
+      },
+      newState: searchState,
+    };
   }
 
   if (navResult.score >= 15) {
-    return { result: { contactUrl: navResult.url, actualFormUrl: navResult.url, foundKeywords: [...navResult.keywords, 'keyword_based_validation'], searchMethod: 'homepage_navigation_keyword_based' }, newState: searchState };
+    return {
+      result: {
+        contactUrl: navResult.url,
+        actualFormUrl: navResult.url,
+        foundKeywords: [...navResult.keywords, "keyword_based_validation"],
+        searchMethod: "homepage_navigation_keyword_based",
+      },
+      newState: searchState,
+    };
   }
 
   return { result: null, newState: searchState };
@@ -140,11 +214,11 @@ const findActualForm = (contactPageUrl: string): string | null => {
     }
 
     const html = response.getContentText();
-    const googleFormUrl = FormUtils.findGoogleFormUrlsOnly(html);
-    if (googleFormUrl && googleFormUrl.startsWith('http')) {
+    const googleFormUrl = findGoogleFormUrlsOnly(html);
+    if (googleFormUrl?.startsWith("http")) {
       return googleFormUrl;
     }
-    if (FormUtils.findEmbeddedHTMLForm(html)) {
+    if (findEmbeddedHTMLForm(html)) {
       return contactPageUrl;
     }
     return findSecondStageFormLink(html, contactPageUrl);
