@@ -58,7 +58,7 @@ export const CONTACT_FIELD_PATTERNS = [
   'name="(?:.*(?:email|メール))"',
   'name="(?:.*(?:phone|電話|tel))"',
   'name="(?:.*(?:message|メッセージ|質問|問い合わせ|inquiry))"',
-];
+] as const;
 
 // 送信ボタンパターン
 export const SUBMIT_BUTTON_PATTERNS = [
@@ -66,20 +66,20 @@ export const SUBMIT_BUTTON_PATTERNS = [
   /<input[^>]*type=["|']image["|'][^>]*>/gis,
   /<button[^>]*type=["|']submit["|'][\s\S]*?<\/button>/gis,
   /<button(?![^>]*type=)[^>]*>[\s\S]*?<\/button>/gis,
-];
+] as const;
 
 // Googleフォームパターン(HTMLタグ（a/iframe）レベルで「Googleフォームが埋め込まれている or リンクされているか」を検出・分類するための正規表現)
 export const GOOGLE_FORMS_PATTERNS = [
   /<a[^>]*href=["|']([^\"]*docs\.google\.com\/forms\/d\/[a-zA-Z0-9-_]+\/?[^"'\s\)]*)["|'][^>]*>/gi,
   /<iframe[^>]*src=["|']([^\"]*docs\.google\.com\/forms\/d\/[a-zA-Z0-9-_]+\/?[^"'\s\)]*)["|'][^>]*>/gi,
-];
+] as const;
 
 // GoogleフォームURLパターン(HTMLテキスト全体から「GoogleフォームのURL文字列そのもの」を抽出するための正規表現)
 export const GOOGLE_FORM_URL_PATTERNS = [
   /https?:\/\/docs\.google\.com\/forms\/d\/[a-zA-Z0-9-_]+\/?[^"'\s\)]+/gi,
   /https?:\/\/forms\.gle\/[^"'\s\)]+/gi,
   /https?:\/\/goo\.gl\/forms\/[^"'\s\)]+/gi,
-];
+] as const;
 
 // 埋め込みフォーム連絡先フィールドキーワード（form_keywords.tsから移動）
 export const EMBEDDED_FORM_CONTACT_FIELD_KEYWORDS = [
