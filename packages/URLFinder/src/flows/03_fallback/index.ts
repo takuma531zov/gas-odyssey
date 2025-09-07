@@ -1,23 +1,35 @@
-import type {  StrategyResult } from '../../common/types';
-import type { SearchStateData } from '../../common/types';
-import { getFinalResult } from '../../common/state';
-import { evaluateFallbackUrlQuality } from './utils';
+import type { StrategyResult } from "../../common/types";
+import type { SearchStateData } from "../../common/types";
+import { getFinalResult } from "../../common/state";
+import { evaluateFallbackUrlQuality } from "./utils";
 
 /**
  * Fallback検索戦略
  * SearchStateに蓄積された情報を利用してフォールバック結果を提供
  */
-export const fallbackSearch = (baseUrl: string, searchState: SearchStateData): StrategyResult => {
+export const fallbackSearch = (
+  baseUrl: string,
+  searchState: SearchStateData,
+): StrategyResult => {
   void baseUrl;
+
   const fallbackResult = getFinalResult(searchState);
+  const { contactUrl, foundKeywords, searchMethod } = fallbackResult;
 
-  if (fallbackResult.contactUrl && fallbackResult.foundKeywords.length > 0) {
-    const pattern = fallbackResult.foundKeywords.find((k: string) => k.startsWith('/')) || '';
-    const qualityScore = evaluateFallbackUrlQuality(fallbackResult.contactUrl, pattern);
+  if (contactUrl && foundKeywords.length > 0) {
+    const pattern = foundKeywords.find((k: string) => k.startsWith("/")) || "";
 
-    fallbackResult.foundKeywords.push(...qualityScore.keywords);
-    if (fallbackResult.searchMethod === 'final_fallback') {
-        fallbackResult.searchMethod = qualityScore.confidence >= 0.7 ? 'final_fallback_high_confidence' : 'final_fallback_low_confidence';
+    const { keywords, confidence } = evaluateFallbackUrlQuality(
+      contactUrl,
+      pattern,
+    );
+    foundKeywords.push(...keywords);
+
+    if (searchMethod === "final_fallback") {
+      fallbackResult.searchMethod =
+        confidence >= 0.7
+          ? "final_fallback_high_confidence"
+          : "final_fallback_low_confidence";
     }
 
     return { result: fallbackResult, newState: searchState };
