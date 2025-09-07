@@ -284,10 +284,8 @@ export const extractAllContactLinks = (
 ): HtmlSearchResult[] => {
   const candidates: HtmlSearchResult[] = [];
   const linkRegex = /<a[^>]*href=['"]([^'"\\]*?)['"][^>]*>([\s\S]*?)<\/a>/gi;
-  let match: RegExpExecArray | null = linkRegex.exec(content);
-
   // aタグを逐次走査して候補を積み上げる
-  while (match !== null) {
+  for (let match = linkRegex.exec(content); match !== null; match = linkRegex.exec(content)) {
     const url = match[1];
     const linkText = match[2];
 
@@ -334,8 +332,6 @@ export const extractAllContactLinks = (
         context,
       });
     }
-    // 次の一致へ進む
-    match = linkRegex.exec(content);
   }
 
   // スコア降順（より問い合わせらしいものを先頭へ）
@@ -476,12 +472,10 @@ export const findSecondStageFormLink = (
   contactPageUrl: string,
 ): string | null => {
   const linkRegex = /<a[^>]*href=['"]([^'"\\]*?)['"][^>]*>([\s\S]*?)<\/a>/gi;
-  let match: RegExpExecArray | null;
   const candidateLinks: Array<{ url: string; score: number }> = [];
 
   // aタグを走査し、フォームに繋がりやすいパターン/文言を加点して候補化
-  match = linkRegex.exec(html);
-  while (match !== null) {
+  for (let match = linkRegex.exec(html); match !== null; match = linkRegex.exec(html)) {
     const url = match[1];
     const linkText = match[2];
     if (!url || !linkText) continue;
@@ -520,8 +514,6 @@ export const findSecondStageFormLink = (
       // 相対URLを絶対URLへ解決し、候補として保存
       candidateLinks.push({ url: resolveUrl(contactPageUrl)(url), score });
     }
-    // 次の一致へ進む
-    match = linkRegex.exec(html);
   }
 
   // 候補ゼロなら導線なし
