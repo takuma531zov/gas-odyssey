@@ -14,13 +14,13 @@
  * @returns 検索結果
  */
 
-import type { ContactPageResult } from './common/types';
-import { createEmptyState } from './common/state';
-import { extractDomain } from './common/network/url';
-import { snsCheck, domainCheck } from './flows/00_preprocessing';
-import { urlPatternSearch } from './flows/01_urlPattern';
-import { htmlAnalysisSearch } from './flows/02_htmlAnalysis';
-import { fallbackSearch } from './flows/03_fallback';
+import type { ContactPageResult } from "./common/types";
+import { createEmptyState } from "./common/state";
+import { extractDomain } from "./common/network/url";
+import { snsCheck, domainCheck } from "./flows/00_preprocessing";
+import { urlPatternSearch } from "./flows/01_urlPattern";
+import { htmlAnalysisSearch } from "./flows/02_htmlAnalysis";
+import { fallbackSearch } from "./flows/03_fallback";
 
 export function findContactPage(baseUrl: string): ContactPageResult {
   // ============================================
@@ -44,9 +44,9 @@ export function findContactPage(baseUrl: string): ContactPageResult {
   try {
     // 検索戦略を配列として定義
     const strategies = [
-      urlPatternSearch,   // 2-1: URLパターン検索戦略
+      urlPatternSearch, // 2-1: URLパターン検索戦略
       htmlAnalysisSearch, // 2-2: HTML解析戦略
-      fallbackSearch,     // 2-3: フォールバック戦略
+      fallbackSearch, // 2-3: フォールバック戦略
     ];
 
     // 戦略を順番に実行し、結果が見つかり次第ループを抜ける
@@ -56,22 +56,25 @@ export function findContactPage(baseUrl: string): ContactPageResult {
       result = strategyResult.result;
       if (result) break;
     }
-
     if (result) {
-        if (result.contactUrl) {
-            console.log(`✅ Found contact form: ${result.contactUrl}`);
-        } else {
-            console.log(`Search completed with result: ${result.searchMethod}`);
-        }
-        return result;
-    }
+      const message = result.contactUrl
+        ? `✅ Found contact form: ${result.contactUrl}`
+        : `Search completed with result: ${result.searchMethod}`;
+      console.log(message);
 
+      return result;
+    }
   } catch (error) {
-    console.error('Error in search strategies:', error);
+    console.error("Error in search strategies:", error);
   }
 
   // ============================================
   // Step 3: 全戦略失敗時の最終処理
   // ============================================
-  return { contactUrl: null, actualFormUrl: null, foundKeywords: [], searchMethod: 'not_found' };
+  return {
+    contactUrl: null,
+    actualFormUrl: null,
+    foundKeywords: [],
+    searchMethod: "not_found",
+  };
 }
