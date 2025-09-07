@@ -8,6 +8,7 @@ import { evaluateFallbackUrlQuality } from './utils';
  * SearchStateに蓄積された情報を利用してフォールバック結果を提供
  */
 export const fallbackSearch = (baseUrl: string, searchState: SearchStateData): StrategyResult => {
+  void baseUrl;
   const fallbackResult = getFinalResult(searchState);
 
   if (fallbackResult.contactUrl && fallbackResult.foundKeywords.length > 0) {
