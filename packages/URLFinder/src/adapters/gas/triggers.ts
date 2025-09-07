@@ -43,14 +43,18 @@ function processSingleUrl(
     );
 
     // エラー条件のチェック
-    const errorMethods = [
+    const ERROR_METHODS = [
       "error",
       "dns_error",
       "bot_blocked",
       "site_closed",
       "timeout_error",
     ] as const;
-    if (errorMethods.includes(result.searchMethod as typeof errorMethods[number])) {
+    if (
+      ERROR_METHODS.includes(
+        result.searchMethod as (typeof ERROR_METHODS)[number],
+      )
+    ) {
       const errorMessage = result.foundKeywords?.[0] || "エラーが発生しました";
       console.log(`${currentRow}行目: 完了 - ${errorMessage}`);
       return [errorMessage];
