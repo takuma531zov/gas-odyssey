@@ -33,7 +33,7 @@ export const INVALID_PAGE_PATTERNS = [
   "工事中",
   "site under construction",
   "coming soon",
-];
+] as const;
 
 // アンカーセクション分析用パターン
 export const ANCHOR_SECTION_PATTERNS = [
@@ -50,7 +50,7 @@ export const ANCHOR_SECTION_PATTERNS = [
   (anchorId: string) =>
     new RegExp(`<section[^>]*>[\s\S]*?${anchorId}[\s\S]*?<\/section>`, "i"),
   (anchorId: string) => /<div[^>]*contact[^>]*>[\s\S]*?<\/div>/i,
-];
+] as const;
 
 // フォームリンクパターン
 export const FORM_LINK_PATTERNS = [
@@ -62,7 +62,7 @@ export const FORM_LINK_PATTERNS = [
   "fc2",
   "google.com/forms",
   "forms.gle",
-];
+] as const;
 
 // フォームテキストパターン
 export const FORM_TEXT_PATTERNS = [
@@ -74,7 +74,7 @@ export const FORM_TEXT_PATTERNS = [
   "form here",
   "click here",
   "go to form",
-];
+] as const;
 
 // HTML解析用高優先度問い合わせキーワード
 export const HTML_HIGH_PRIORITY_CONTACT_KEYWORDS = [
@@ -103,7 +103,7 @@ export const HTML_HIGH_PRIORITY_CONTACT_KEYWORDS = [
   "%E5%95%8F%E5%90%88%E3%81%9B",
   "%E3%81%8A%E5%95%8F%E5%90%88%E3%81%9B",
   "%E5%95%8F%E5%90%88%E3%81%9B",
-];
+] as const;
 
 // HTML解析用中優先度問い合わせキーワード
 export const HTML_MEDIUM_PRIORITY_CONTACT_KEYWORDS = [
@@ -113,7 +113,7 @@ export const HTML_MEDIUM_PRIORITY_CONTACT_KEYWORDS = [
   "send",
   "mail form",
   "feedback",
-];
+] as const;
 
 // HTML解析用除外キーワード
 export const HTML_EXCLUDED_KEYWORDS = ["download", "recruit", "career"];
@@ -123,7 +123,7 @@ export const ANCHOR_SECTION_CONTACT_KEYWORDS = [
   "contact",
   "お問い合わせ",
   "問い合わせ",
-];
+] as const;
 
 // フォームリンクのネガティブキーワード
 export const FORM_LINK_NEGATIVE_KEYWORDS = [
@@ -140,4 +140,4 @@ export const FORM_LINK_NEGATIVE_KEYWORDS = [
   "資料",
   "資料請求",
   "brochure",
-];
+] as const;
