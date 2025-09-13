@@ -67,14 +67,6 @@ function getNumberProperty(
   );
 }
 
-/**
- * 列番号取得（デフォルト値対応）
- */
-function getColumnNumber(key: string, defaultValue: number): number {
-  const value = getScriptPropertyValue(key);
-  return value ? columnNameToNumber(value) : defaultValue;
-}
-
 // ----------------------
 // 環境設定オブジェクト
 // ----------------------
@@ -100,19 +92,16 @@ export const Environment = {
     ),
 
   // 列番号系
-  getTargetColumn: () =>
-    getColumnNumber(
-      SCRIPT_PROPERTIES.TARGET_COLUMN,
-      DEFAULT_VALUES.TARGET_COLUMN,
-    ),
-  getOutputColumn: () =>
-    getColumnNumber(
-      SCRIPT_PROPERTIES.OUTPUT_COLUMN,
-      DEFAULT_VALUES.OUTPUT_COLUMN,
-    ),
-  getCheckColumn: () =>
-    getColumnNumber(
-      SCRIPT_PROPERTIES.CHECK_COLUMN,
-      DEFAULT_VALUES.CHECK_COLUMN,
-    ),
+  getTargetColumn: () => {
+    const value = getScriptPropertyValue(SCRIPT_PROPERTIES.TARGET_COLUMN);
+    return value ? columnNameToNumber(value) : DEFAULT_VALUES.TARGET_COLUMN;
+  },
+  getOutputColumn: () => {
+    const value = getScriptPropertyValue(SCRIPT_PROPERTIES.OUTPUT_COLUMN);
+    return value ? columnNameToNumber(value) : DEFAULT_VALUES.OUTPUT_COLUMN;
+  },
+  getCheckColumn: () => {
+    const value = getScriptPropertyValue(SCRIPT_PROPERTIES.CHECK_COLUMN);
+    return value ? columnNameToNumber(value) : DEFAULT_VALUES.CHECK_COLUMN;
+  },
 } as const;
