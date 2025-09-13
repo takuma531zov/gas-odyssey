@@ -439,28 +439,34 @@ export const analyzeAnchorSection = (
     }
 
     // セクション内にHTMLフォームまたはGoogleフォームが存在するか検出
-    if (sectionContent) {
-      const hasForm = FormUtils.isValidContactForm(sectionContent);
-      const googleForms = FormUtils.detectGoogleForms(sectionContent);
-      if (hasForm || googleForms.found) {
-        return {
-          contactUrl: baseUrl,
-          actualFormUrl: googleForms.found ? googleForms.url : baseUrl,
-          foundKeywords: [
-            "anchor_section_detected",
-            hasForm ? "html_form_found" : "google_forms_found",
-          ],
-          searchMethod: "anchor_section_analysis",
-        };
-      }
+    if (!sectionContent) {
+      return {
+        contactUrl: null,
+        actualFormUrl: null,
+        foundKeywords: [],
+        searchMethod: "anchor_section_insufficient",
+      };
     }
 
-    // セクション抽出は成功/失敗いずれも、ここでの検出結果に従って返却
+    const hasForm = FormUtils.isValidContactForm(sectionContent);
+    const googleForms = FormUtils.detectGoogleForms(sectionContent);
+    if (!hasForm && !googleForms.found) {
+      return {
+        contactUrl: null,
+        actualFormUrl: null,
+        foundKeywords: [],
+        searchMethod: "anchor_section_insufficient",
+      };
+    }
+
     return {
-      contactUrl: null,
-      actualFormUrl: null,
-      foundKeywords: [],
-      searchMethod: "anchor_section_insufficient",
+      contactUrl: baseUrl,
+      actualFormUrl: googleForms.found ? googleForms.url : baseUrl,
+      foundKeywords: [
+        "anchor_section_detected",
+        hasForm ? "html_form_found" : "google_forms_found",
+      ],
+      searchMethod: "anchor_section_analysis",
     };
   } catch (error) {
     // 解析途中の例外は「エラー」として扱い、後続戦略の継続を優先
