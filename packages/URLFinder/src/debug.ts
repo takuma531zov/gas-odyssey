@@ -208,7 +208,7 @@ export function findContactPageWithVisibility(): ContactPageResult {
   console.log("      └─ ベスト候補の最終選択");
 
   const fallbackStartTime = Date.now();
-  const fallback = fallbackSearch(domainUrl, state);
+  const fallback = fallbackSearch(state);
   state = fallback.newState;
   const fallbackResult = fallback.result;
   const fallbackTime = Date.now() - fallbackStartTime;

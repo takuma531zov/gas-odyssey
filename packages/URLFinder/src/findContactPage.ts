@@ -46,7 +46,6 @@ export function findContactPage(baseUrl: string): ContactPageResult {
     const strategies = [
       urlPatternSearch, // 2-1: URLパターン検索戦略
       htmlAnalysisSearch, // 2-2: HTML解析戦略
-      fallbackSearch, // 2-3: フォールバック戦略
     ];
 
     // 戦略を順番に実行し、結果が見つかり次第ループを抜ける
@@ -55,6 +54,13 @@ export function findContactPage(baseUrl: string): ContactPageResult {
       state = strategyResult.newState;
       result = strategyResult.result;
       if (result) break;
+    }
+
+    // 上記戦略で結果が見つからない場合、フォールバック戦略を実行
+    if (!result) {
+      const fallbackResult = fallbackSearch(state);
+      state = fallbackResult.newState;
+      result = fallbackResult.result;
     }
     if (result) {
       const message = result.contactUrl
