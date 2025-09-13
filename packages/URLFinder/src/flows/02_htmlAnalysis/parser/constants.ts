@@ -1,4 +1,4 @@
-// 問い合わせURLパターン
+/** 問い合わせURLパターン */
 export const CONTACT_URL_PATTERNS = [
   "/contact/",
   "/inquiry/",
@@ -11,7 +11,7 @@ export const CONTACT_URL_PATTERNS = [
   "/お問い合わせ/",
 ] as const;
 
-// ナビゲーションセレクタパターン
+/** ナビゲーションセレクタパターン */
 export const NAVIGATION_SELECTORS = [
   /<nav[\s\S]*?<\/nav>/gi,
   /<[^>]*id=["']menu["'][^>]*>[\s\S]*?<[^>]+>/gi,
@@ -24,7 +24,7 @@ export const NAVIGATION_SELECTORS = [
   /<ul[^>]*class=["'][^'"\\]*\bmenu\b[^\"]*["'][^>]*>[\s\S]*<\/ul>/gi,
 ] as const;
 
-// 無効なページコンテンツパターン
+/** 無効なページコンテンツパターン */
 export const INVALID_PAGE_PATTERNS = [
   "page not found",
   "ページが見つかりません",
@@ -35,7 +35,7 @@ export const INVALID_PAGE_PATTERNS = [
   "coming soon",
 ] as const;
 
-// アンカーセクション分析用パターン
+/** アンカーセクション分析用パターン */
 export const ANCHOR_SECTION_PATTERNS = [
   (anchorId: string) =>
     new RegExp(
@@ -52,7 +52,7 @@ export const ANCHOR_SECTION_PATTERNS = [
   (anchorId: string) => /<div[^>]*contact[^>]*>[\s\S]*?<\/div>/i,
 ] as const;
 
-// フォームリンクパターン
+/** フォームリンクパターン */
 export const FORM_LINK_PATTERNS = [
   "form",
   "フォーム",
@@ -64,7 +64,7 @@ export const FORM_LINK_PATTERNS = [
   "forms.gle",
 ] as const;
 
-// フォームテキストパターン
+/** フォームテキストパターン */
 export const FORM_TEXT_PATTERNS = [
   "フォームはこちら",
   "フォームへ",
@@ -76,7 +76,7 @@ export const FORM_TEXT_PATTERNS = [
   "go to form",
 ] as const;
 
-// HTML解析用高優先度問い合わせキーワード
+/** HTML解析用高優先度問い合わせキーワード */
 export const HTML_HIGH_PRIORITY_CONTACT_KEYWORDS = [
   "contact",
   "contact us",
@@ -105,7 +105,7 @@ export const HTML_HIGH_PRIORITY_CONTACT_KEYWORDS = [
   "%E5%95%8F%E5%90%88%E3%81%9B",
 ] as const;
 
-// HTML解析用中優先度問い合わせキーワード
+/** HTML解析用中優先度問い合わせキーワード */
 export const HTML_MEDIUM_PRIORITY_CONTACT_KEYWORDS = [
   "form",
   "フォーム",
@@ -115,17 +115,17 @@ export const HTML_MEDIUM_PRIORITY_CONTACT_KEYWORDS = [
   "feedback",
 ] as const;
 
-// HTML解析用除外キーワード
+/** HTML解析用除外キーワード */
 export const HTML_EXCLUDED_KEYWORDS = ["download", "recruit", "career"];
 
-// アンカーセクション分析用問い合わせキーワード
+/** アンカーセクション分析用問い合わせキーワード */
 export const ANCHOR_SECTION_CONTACT_KEYWORDS = [
   "contact",
   "お問い合わせ",
   "問い合わせ",
 ] as const;
 
-// フォームリンクのネガティブキーワード
+/** フォームリンクのネガティブキーワード */
 export const FORM_LINK_NEGATIVE_KEYWORDS = [
   "recruit",
   "career",

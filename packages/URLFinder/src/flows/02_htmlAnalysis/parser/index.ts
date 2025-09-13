@@ -1,14 +1,16 @@
-// HTML解析（パーサ）層
-// 目的: トップページや候補HTMLから「問い合わせ導線/フォームの有無」を判定し、
-//       信頼度スコア付きの候補や実フォームURLを抽出する。
-// 構成:
-//   1) 重複HTML検出（SPA検出補助）
-//   2) SPAナビゲーション探索（アンカー導線）
-//   3) アンカーセクション解析（#id 近傍のフォーム検出）
-//   4) 問い合わせ純度スコアリング（URL/文言の重みづけ）
-//   5) ナビゲーション内リンク抽出（候補列挙→スコア）
-//   6) 2段階導線（遷移先）探索（問い合わせページ→実フォーム）
-//   7) 文字コードに応じた本文取得（UTF-8/SJIS/EUC-JP）
+/**
+ HTML解析（パーサ）層
+ 目的: トップページや候補HTMLから「問い合わせ導線/フォームの有無」を判定し、
+       信頼度スコア付きの候補や実フォームURLを抽出する。
+  構成:
+    1) 重複HTML検出（SPA検出補助）
+    2) SPAナビゲーション探索（アンカー導線）
+    3) アンカーセクション解析（#id 近傍のフォーム検出）
+    4) 問い合わせ純度スコアリング（URL/文言の重みづけ）
+    5) ナビゲーション内リンク抽出（候補列挙→スコア）
+    6) 2段階導線（遷移先）探索（問い合わせページ→実フォーム）
+    7) 文字コードに応じた本文取得（UTF-8/SJIS/EUC-JP）
+ */
 import type {
   ContactPageResult,
   PurityResult,
@@ -41,16 +43,17 @@ import {
   FORM_LINK_NEGATIVE_KEYWORDS,
 } from "./constants";
 
-// ================================
-// 1) 重複HTML検出（関数型）
-// -------------------------------
-// 目的: 直近に取得した複数URLのHTMLハッシュを比較し、同一/類似HTMLが連続していないかを判定。
-//       同一が一定回数以上なら「SPA的にコンテンツが動的切替されている」可能性を示唆。
-// 入力: urls        - 比較対象のURL配列
-//       htmlContent - 現在解析中HTML
-//       searchState - HTMLハッシュのキャッシュを含む状態
-// 出力: { isSame, newState } - isSame=trueで「同一パターン頻発」、newStateはキャッシュ更新後の状態
-// 備考: 状態（キャッシュ）は不変性維持のため newState として返す。
+/**
+ 1) 重複HTML検出（関数型）
+
+ 目的: 直近に取得した複数URLのHTMLハッシュを比較し、同一/類似HTMLが連続していないかを判定。
+       同一が一定回数以上なら「SPA的にコンテンツが動的切替されている」可能性を示唆。
+ 入力: urls        - 比較対象のURL配列
+       htmlContent - 現在解析中HTML
+       searchState - HTMLハッシュのキャッシュを含む状態
+ 出力: { isSame, newState } - isSame=trueで「同一パターン頻発」、newStateはキャッシュ更新後の状態
+ 備考: 状態（キャッシュ）は不変性維持のため newState として返す。
+ */
 export const detectSameHtmlPattern = (
   urls: string[],
   htmlContent: string,
@@ -74,14 +77,15 @@ export const detectSameHtmlPattern = (
   return { isSame: sameCount >= 2, newState };
 };
 
-// ================================
-// 2) SPAナビゲーション解析（関数型）
-// -------------------------------
-// 目的: ナビゲーションからアンカー（#id）導線を検出し、該当セクションにフォーム/埋め込みがあるかを即判定。
-// 入力: html     - トップページHTML
-//       baseUrl - 基準URL
-// 出力: ContactPageResult - 成功: contactUrl/actualFormUrl 等をセット、失敗: null相当の結果
-// 備考: 例外時も ContactPageResult を返し、検索を継続可能にする。
+/**
+ 2) SPAナビゲーション解析（関数型）
+
+ 目的: ナビゲーションからアンカー（#id）導線を検出し、該当セクションにフォーム/埋め込みがあるかを即判定。
+ 入力: html     - トップページHTML
+       baseUrl - 基準URL
+ 出力: ContactPageResult - 成功: contactUrl/actualFormUrl 等をセット、失敗: null相当の結果
+ 備考: 例外時も ContactPageResult を返し、検索を継続可能にする。
+ */
 export const executeSPAAnalysis = (
   html: string,
   baseUrl: string,
@@ -119,18 +123,19 @@ export const executeSPAAnalysis = (
   }
 };
 
-// ================================
-// 3) 問い合わせ純度スコアリング（関数型）
-// -------------------------------
-// 目的: URL と リンク文面から「問い合わせらしさ」を加点/減点ルールで数値化し、根拠を記録。
-// 入力: url, linkText
-// 出力: PurityResult { score, reasons[] } - 理由はデバッグ/透明性のため文字列で残す。
-// ルール例:
-//   - 高優先度キーワード（/contact, お問い合わせ, etc.）: +8〜+10
-//   - 中優先度キーワード: +2〜+3
-//   - 除外キーワード（採用/お知らせ等）: 大幅減点
-//   - URL構造ボーナス（/contact 等）: +15
-//   - 純度低下URL（/about, /company 等）: -5
+/**
+ 3) 問い合わせ純度スコアリング（関数型）
+
+ 目的: URL と リンク文面から「問い合わせらしさ」を加点/減点ルールで数値化し、根拠を記録。
+ 入力: url, linkText
+ 出力: PurityResult { score, reasons[] } - 理由はデバッグ/透明性のため文字列で残す。
+ ルール例:
+   - 高優先度キーワード（/contact, お問い合わせ, etc.）: +8〜+10
+   - 中優先度キーワード: +2〜+3
+   - 除外キーワード（採用/お知らせ等）: 大幅減点
+   - URL構造ボーナス（/contact 等）: +15
+   - 純度低下URL（/about, /company 等）: -5
+ */
 export const calculateContactPurity = (
   url: string,
   linkText: string,
@@ -218,13 +223,14 @@ export const calculateContactPurity = (
   return { score, reasons };
 };
 
-// ================================
-// 4) ナビゲーション探索（関数型）
-// -------------------------------
-// 目的: ヘッダ/メニュー領域から問い合わせ候補リンクを抽出し、最良候補を返す。
-// 入力: html, baseUrl
-// 出力: HtmlSearchResult - 最良候補（url/keywords/score/reasons）
-// 備考: 高優先度キーワードを含む候補を優先し、スコア最大のものを返却。
+/**
+ 4) ナビゲーション探索（関数型）
+
+ 目的: ヘッダ/メニュー領域から問い合わせ候補リンクを抽出し、最良候補を返す。
+ 入力: html, baseUrl
+ 出力: HtmlSearchResult - 最良候補（url/keywords/score/reasons）
+ 備考: 高優先度キーワードを含む候補を優先し、スコア最大のものを返却。
+ */
 export const searchInNavigation = (
   html: string,
   baseUrl: string,
@@ -268,15 +274,16 @@ export const searchInNavigation = (
   };
 };
 
-// ================================
-// 5) 問い合わせリンク抽出（関数型）
-// -------------------------------
-// 目的: aタグから問い合わせに該当し得るリンクを列挙し、スコア順に返却。
-// 入力: content - HTML部分片（ナビ領域等）
-//       baseUrl - 基準URL
-//       context - 'navigation' 等、候補検出の文脈
-// 出力: HtmlSearchResult[] - スコア降順に整列
-// 備考: navigation文脈では軽いボーナス（+5）を付与。
+/**
+ 5) 問い合わせリンク抽出（関数型）
+
+ 目的: aタグから問い合わせに該当し得るリンクを列挙し、スコア順に返却。
+ 入力: content - HTML部分片（ナビ領域等）
+       baseUrl - 基準URL
+       context - 'navigation' 等、候補検出の文脈
+ 出力: HtmlSearchResult[] - スコア降順に整列
+ 備考: navigation文脈では軽いボーナス（+5）を付与。
+ */
 export const extractAllContactLinks = (
   content: string,
   baseUrl: string,
@@ -285,7 +292,11 @@ export const extractAllContactLinks = (
   const candidates: HtmlSearchResult[] = [];
   const linkRegex = /<a[^>]*href=['"]([^'"\\]*?)['"][^>]*>([\s\S]*?)<\/a>/gi;
   // aタグを逐次走査して候補を積み上げる
-  for (let match = linkRegex.exec(content); match !== null; match = linkRegex.exec(content)) {
+  for (
+    let match = linkRegex.exec(content);
+    match !== null;
+    match = linkRegex.exec(content)
+  ) {
     const url = match[1];
     const linkText = match[2];
 
@@ -338,11 +349,12 @@ export const extractAllContactLinks = (
   return candidates.sort((a, b) => b.score - a.score);
 };
 
-// ================================
-// 6) 問い合わせページ妥当性（関数型）
-// -------------------------------
-// 目的: 明確な除外パターンを含まず、最低限のボリューム（>500文字）があるかを判定。
-// 備考: 軽量な「ページ品質」フィルタとして利用。
+/**
+ 6) 問い合わせページ妥当性（関数型）
+
+ 目的: 明確な除外パターンを含まず、最低限のボリューム（>500文字）があるかを判定。
+ 備考: 軽量な「ページ品質」フィルタとして利用。
+ */
 export const isValidContactPage = (html: string): boolean => {
   const hasInvalidContent = INVALID_PAGE_PATTERNS.some((pattern) =>
     html.toLowerCase().includes(pattern.toLowerCase()),
@@ -350,12 +362,13 @@ export const isValidContactPage = (html: string): boolean => {
   return !hasInvalidContent && html.length > 500;
 };
 
-// ================================
-// 7) 文字コード考慮付き本文取得（関数型）
-// -------------------------------
-// 目的: レスポンス本文を UTF-8 / Shift_JIS / EUC-JP の順に試行し、
-//       妥当と判定できる文字列を返す。全滅の場合はデフォルトの getContentText()。
-// 備考: サイト側のエンコーディング混在に耐性を持たせるためのフォールバック。
+/**
+ 7) 文字コード考慮付き本文取得（関数型）
+
+ 目的: レスポンス本文を UTF-8 / Shift_JIS / EUC-JP の順に試行し、
+       妥当と判定できる文字列を返す。全滅の場合はデフォルトの getContentText()。
+ 備考: サイト側のエンコーディング混在に耐性を持たせるためのフォールバック。
+ */
 export const getContentWithEncoding = (
   response: GoogleAppsScript.URL_Fetch.HTTPResponse,
 ): string => {
@@ -373,14 +386,15 @@ export const getContentWithEncoding = (
   return response.getContentText();
 };
 
-// ================================
-// アンカーセクション解析（関数型）
-// -------------------------------
-// 目的: #id で示されるセクション近傍からフォーム/Googleフォームの埋め込みを検出。
-// 入力: html      - 全体HTML
-//       anchorUrl - #id を含むURL
-//       baseUrl   - 基準URL（結果の contactUrl/actualFormUrl 用）
-// 出力: ContactPageResult - 見つかった場合は contactUrl/baseUrl 等を返す。
+/**
+ アンカーセクション解析（関数型）
+
+ 目的: #id で示されるセクション近傍からフォーム/Googleフォームの埋め込みを検出。
+ 入力: html      - 全体HTML
+       anchorUrl - #id を含むURL
+       baseUrl   - 基準URL（結果の contactUrl/actualFormUrl 用）
+ 出力: ContactPageResult - 見つかった場合は contactUrl/baseUrl 等を返す。
+ */
 export const analyzeAnchorSection = (
   html: string,
   anchorUrl: string,
@@ -459,14 +473,15 @@ export const analyzeAnchorSection = (
   }
 };
 
-// ================================
-// 2段階導線探索（関数型）
-// -------------------------------
-// 目的: 問い合わせページ内のリンクから、実フォーム（別ページ/別サービス）への導線を探索。
-// 入力: html            - 問い合わせページHTML
-//       contactPageUrl  - 現在の問い合わせページURL（相対→絶対解決の基準）
-// 出力: string | null   - 実フォームURL（GoogleForm/同ページ埋め込み/2段階遷移先）
-// 備考: 上位スコアの候補から最大3件を検証し、HTTP 200 で内容を確認する。
+/**
+ 2段階導線探索（関数型）
+
+ 目的: 問い合わせページ内のリンクから、実フォーム（別ページ/別サービス）への導線を探索。
+ 入力: html            - 問い合わせページHTML
+       contactPageUrl  - 現在の問い合わせページURL（相対→絶対解決の基準）
+ 出力: string | null   - 実フォームURL（GoogleForm/同ページ埋め込み/2段階遷移先）
+ 備考: 上位スコアの候補から最大3件を検証し、HTTP 200 で内容を確認する。
+ */
 export const findSecondStageFormLink = (
   html: string,
   contactPageUrl: string,
@@ -475,7 +490,11 @@ export const findSecondStageFormLink = (
   const candidateLinks: Array<{ url: string; score: number }> = [];
 
   // aタグを走査し、フォームに繋がりやすいパターン/文言を加点して候補化
-  for (let match = linkRegex.exec(html); match !== null; match = linkRegex.exec(html)) {
+  for (
+    let match = linkRegex.exec(html);
+    match !== null;
+    match = linkRegex.exec(html)
+  ) {
     const url = match[1];
     const linkText = match[2];
     if (!url || !linkText) continue;
