@@ -168,13 +168,14 @@ function writeResultToSheet(
   let outputValue = "";
 
   // エラーの場合はエラーメッセージを出力
-  if (
-    result.searchMethod === "error" ||
-    result.searchMethod === "dns_error" ||
-    result.searchMethod === "bot_blocked" ||
-    result.searchMethod === "site_closed" ||
-    result.searchMethod === "timeout_error"
-  ) {
+  const errorConditions = [
+    "error",
+    "dns_error",
+    "bot_blocked",
+    "site_closed",
+    "timeout_error",
+  ];
+  if (errorConditions.includes(result.searchMethod)) {
     if (result.foundKeywords && result.foundKeywords.length > 0) {
       outputValue = result.foundKeywords[0] || "エラーが発生しました"; // 詳細エラーメッセージ
     } else {
