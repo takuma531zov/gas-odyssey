@@ -49,7 +49,6 @@ export const ANCHOR_SECTION_PATTERNS = [
     ),
   (anchorId: string) =>
     new RegExp(`<section[^>]*>[\s\S]*?${anchorId}[\s\S]*?<\/section>`, "i"),
-  (anchorId: string) => /<div[^>]*contact[^>]*>[\s\S]*?<\/div>/i,
 ] as const;
 
 /** フォームリンクパターン */
