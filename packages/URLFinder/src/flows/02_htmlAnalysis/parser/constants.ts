@@ -9,7 +9,7 @@ export const CONTACT_URL_PATTERNS = [
   "/reach-out/",
   "/問い合わせ/",
   "/お問い合わせ/",
-];
+] as const;
 
 // ナビゲーションセレクタパターン
 export const NAVIGATION_SELECTORS = [
@@ -22,7 +22,7 @@ export const NAVIGATION_SELECTORS = [
   /<div[^>]*class=["'][^'"\\]*\bnav\b[^\"]*["'][^>]*>[\s\S]*<\/div>/gi,
   /<nav[^>]*class=["'][^'"\\]*\bnavigation\b[^\"]*["'][^>]*>[\s\S]*<\/nav>/gi,
   /<ul[^>]*class=["'][^'"\\]*\bmenu\b[^\"]*["'][^>]*>[\s\S]*<\/ul>/gi,
-];
+] as const;
 
 // 無効なページコンテンツパターン
 export const INVALID_PAGE_PATTERNS = [
