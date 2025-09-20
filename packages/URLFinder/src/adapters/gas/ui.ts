@@ -1,6 +1,6 @@
 import type { ContactPageResult } from "../../common/types";
 import { processContactPageFinder } from "./triggers";
-import { Environment } from "../../env";
+import { targetColumn, outputColumn, checkColumn, maxCount } from "../../env";
 import { findContactPage } from "../../findContactPage";
 
 /**
@@ -13,12 +13,12 @@ export function executeUrlFinderWithUI(): void {
   try {
     // チェック行数を取得
     const checkedCount = getCheckedRowsCount();
-    const maxCount = getMaxCountSetting();
+    const maxCountValue = maxCount;
 
     // 実行オプション選択ダイアログを表示
     const htmlTemplate = HtmlService.createTemplateFromFile("simpleOptions");
     htmlTemplate.checkedCount = checkedCount;
-    htmlTemplate.maxCount = maxCount;
+    htmlTemplate.maxCount = maxCountValue;
 
     const htmlOutput = htmlTemplate
       .evaluate()
@@ -145,9 +145,7 @@ function executeCheckedRowsProcessing(): void {
  * 指定行の対象列からURLを取得
  */
 function getUrlFromRow(rowNumber: number): string {
-  const { getTargetColumn } = Environment;
   const sheet = SpreadsheetApp.getActiveSheet();
-  const targetColumn = getTargetColumn();
 
   const cellValue = sheet.getRange(rowNumber, targetColumn).getValue();
   return cellValue ? cellValue.toString().trim() : "";
@@ -160,9 +158,7 @@ function writeResultToSheet(
   rowNumber: number,
   result: ContactPageResult,
 ): void {
-  const { getOutputColumn } = Environment;
   const sheet = SpreadsheetApp.getActiveSheet();
-  const outputColumn = getOutputColumn();
 
   // 既存のprocessContactPageFinderと完全に同じロジック
   let outputValue = "";
@@ -205,8 +201,6 @@ function writeResultToSheet(
  * チェック列でチェックされた行番号一覧を取得
  */
 function getCheckedRows(): number[] {
-  const { getCheckColumn } = Environment;
-
   try {
     console.log("SpreadsheetApp.getActiveSheet()実行中...");
     const sheet = SpreadsheetApp.getActiveSheet();
@@ -220,7 +214,6 @@ function getCheckedRows(): number[] {
     const maxRowsToCheck = Math.min(lastRow, 1000);
     console.log(`チェック対象行数: ${maxRowsToCheck}`);
 
-    const checkColumn = getCheckColumn();
     const checkedRows: number[] = [];
 
     console.log("チェックボックス値の確認開始...");
@@ -259,14 +252,6 @@ function getCheckedRowsCount(): number {
   }
 }
 
-/**
- * MAX_COUNT設定値を取得
- */
-function getMaxCountSetting(): number {
-  const { getMaxCount } = Environment;
-  const maxCount = getMaxCount();
-  return maxCount ?? 30; // nullの場合はデフォルト値30を使用
-}
 
 // GASのグローバル空間に関数を登録
 declare const global: {
