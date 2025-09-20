@@ -67,3 +67,20 @@ export const setValueSheet = (
 ) => {
   sheet.getRange(rowNum, colNum).setValue(post);
 };
+
+/**
+ * 列名（A, B, C, ... Z, AA, AB, ...）を列番号（1, 2, 3, ...）に変換
+ * @param columnName 列名（例: "A", "Z", "AA", "AP"）
+ * @returns 列番号（1から始まる）
+ */
+export const columnNameToNumber = (columnName: string): number => {
+  const upperColumnName = columnName.toUpperCase();
+  let result = 0;
+  
+  for (let i = 0; i < upperColumnName.length; i++) {
+    const charCode = upperColumnName.charCodeAt(i) - 'A'.charCodeAt(0) + 1;
+    result = result * 26 + charCode;
+  }
+  
+  return result;
+};
