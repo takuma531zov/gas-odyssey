@@ -1,20 +1,12 @@
-import { SCRIPT_PROPERTIES, DEFAULT_VALUES } from "../../env";
 import {
-  getScriptPropertyValue,
-  columnNameToNumber,
-} from "../../../../common/src/spreadsheet";
+  sheetName,
+  maxCount,
+  headerRow,
+  batchSize,
+  targetColumn,
+  outputColumn,
+} from "../../env";
 import { findContactPage } from "../../findContactPage";
-
-/** 数値: NaN/未設定は default にフォールバック（非nullable） */
-function numOrDefault(raw: string | null, def: number): number {
-  const n = raw == null || raw === "" ? Number.NaN : Number(raw);
-  return Number.isFinite(n) ? n : def;
-}
-/** 数値: NaN/未設定は null（nullable用途: 例 MAX_COUNT） */
-function numOrNull(raw: string | null): number | null {
-  const n = raw == null || raw === "" ? Number.NaN : Number(raw);
-  return Number.isFinite(n) ? n : null;
-}
 
 /**
  * 1つのURLを処理し、スプレッドシートに出力する文字列を生成する
@@ -88,27 +80,8 @@ function processSingleUrl(
 
 export function processContactPageFinder() {
   try {
-    // ---- プロパティを一括取得（重複呼び出しを避ける） ----
-    const props = {
-      sheet: getScriptPropertyValue(SCRIPT_PROPERTIES.SHEET),
-      maxCount: getScriptPropertyValue(SCRIPT_PROPERTIES.MAX_COUNT),
-      headerRow: getScriptPropertyValue(SCRIPT_PROPERTIES.HEADER_ROW),
-      targetCol: getScriptPropertyValue(SCRIPT_PROPERTIES.TARGET_COLUMN),
-      batchSize: getScriptPropertyValue(SCRIPT_PROPERTIES.BATCH_SIZE),
-      outputCol: getScriptPropertyValue(SCRIPT_PROPERTIES.OUTPUT_COLUMN),
-    };
-
-    // ---- プロパティの解決（数値は安全にフォールバック） ----
-    const sheetName = props.sheet || DEFAULT_VALUES.SHEET;
-    const maxCount = numOrNull(props.maxCount);
-    const headerRow = numOrDefault(props.headerRow, DEFAULT_VALUES.HEADER_ROW);
-    const batchSize = numOrDefault(props.batchSize, DEFAULT_VALUES.BATCH_SIZE);
-    const targetColumn = props.targetCol
-      ? columnNameToNumber(props.targetCol)
-      : DEFAULT_VALUES.TARGET_COLUMN;
-    const outputColumn = props.outputCol
-      ? columnNameToNumber(props.outputCol)
-      : DEFAULT_VALUES.OUTPUT_COLUMN;
+    // ---- env.tsから設定値を使用 ----
+    // 注: env.tsで既にスクリプトプロパティの取得とデフォルト値の処理が完了している
 
     // ---- シート取得 ----
     const sheet =
