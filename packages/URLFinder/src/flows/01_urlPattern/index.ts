@@ -9,7 +9,7 @@
 //   5) 未確定なら候補として状態に蓄積（次戦略・フォールバックで活用）
 import type { StrategyResult, SearchStateData } from '../../common/types';
 import { addValidUrl, addSuccessfulFormUrl, addCandidate } from '../../common/state';
-import { Environment, DEFAULT_VALUES } from '../../env';
+import { maxTotalTime } from '../../env';
 import { fetchUrl, getDetailedNetworkError, getDetailedErrorMessage } from '../../common/network/fetch';
 import { isValidContactForm, detectGoogleForms } from '../02_htmlAnalysis/extractor';
 import { detectSameHtmlPattern, isValidContactPage, executeSPAAnalysis } from '../02_htmlAnalysis/parser';
@@ -17,9 +17,7 @@ import { HIGH_PRIORITY_PATTERNS } from './constants';
 
 // メイン: URLパターン検索戦略を実行
 export const urlPatternSearch = (baseUrl: string, searchState: SearchStateData): StrategyResult => {
-  const { getMaxTotalTime } = Environment;
   const startTime = Date.now();
-  const maxTotalTime = getMaxTotalTime() ?? DEFAULT_VALUES.MAX_TOTAL_TIME;
   const testedUrls: string[] = [];
   let currentState = searchState;
 
