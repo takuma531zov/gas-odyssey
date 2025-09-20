@@ -6,7 +6,7 @@
  */
 
 // 前処理フロー（preprocessing/index.ts）
-export { snsCheck, domainCheck } from './00_preprocessing';
+export { snsCheck, isDomainValid, createDomainErrorResult } from './00_preprocessing';
 
 // 検索戦略フロー（各フォルダ/index.ts）
 export { urlPatternSearch } from './01_urlPattern';

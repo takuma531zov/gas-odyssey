@@ -17,7 +17,7 @@
 import type { ContactPageResult } from "./common/types";
 import { createEmptyState } from "./common/state";
 import { extractDomain } from "./common/network/url";
-import { snsCheck, domainCheck } from "./flows/00_preprocessing";
+import { snsCheck, isDomainValid, createDomainErrorResult } from "./flows/00_preprocessing";
 import { urlPatternSearch } from "./flows/01_urlPattern";
 import { htmlAnalysisSearch } from "./flows/02_htmlAnalysis";
 import { fallbackSearch } from "./flows/03_fallback";
@@ -30,8 +30,9 @@ export function findContactPage(baseUrl: string): ContactPageResult {
   const snsResult = snsCheck(baseUrl);
   if (snsResult) return snsResult;
 
-  const domainResult = domainCheck(baseUrl);
-  if (domainResult) return domainResult;
+  if (!isDomainValid(baseUrl)) {
+    return createDomainErrorResult(baseUrl);
+  }
 
   // ============================================
   // Step 2: 検索戦略フロー（3段階戦略実行）

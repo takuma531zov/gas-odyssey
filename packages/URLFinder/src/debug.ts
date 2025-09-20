@@ -19,7 +19,7 @@ import {
 } from "./common/state";
 import type { SearchStateData } from "./common/types";
 import { extractDomain } from "./common/network/url";
-import { snsCheck, domainCheck } from "./flows/00_preprocessing";
+import { snsCheck, isDomainValid, createDomainErrorResult } from "./flows/00_preprocessing";
 import { urlPatternSearch } from "./flows/01_urlPattern";
 import { htmlAnalysisSearch } from "./flows/02_htmlAnalysis";
 import { fallbackSearch } from "./flows/03_fallback";
@@ -92,9 +92,8 @@ export function findContactPageWithVisibility(): ContactPageResult {
   console.log("      ├─ DNS解決可能性チェック");
   console.log("      ├─ 基本的なHTTP接続テスト");
   console.log("      └─ Bot検出・アクセス拒否の確認");
-  const domainCheckResult = domainCheck(baseUrl);
-
-  if (domainCheckResult) {
+  if (!isDomainValid(baseUrl)) {
+    const domainCheckResult = createDomainErrorResult(baseUrl);
     const errorMessage =
       domainCheckResult.foundKeywords[0] || "サイトが閉鎖されています";
     console.log(`  ❌ ドメインアクセスエラー: ${errorMessage}`);

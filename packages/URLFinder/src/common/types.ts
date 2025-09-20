@@ -57,7 +57,6 @@ export interface ValidUrlInfo {
   pattern: string;
 }
 
-
 // ===============================================================================
 // HTML Analysis & Form Extraction Types
 // ===============================================================================
@@ -68,7 +67,7 @@ export interface ValidUrlInfo {
 export interface FormDetectionResult {
   found: boolean;
   formUrl?: string;
-  formType: 'html' | 'google_forms' | 'recaptcha' | 'embedded';
+  formType: "html" | "google_forms" | "recaptcha" | "embedded";
   confidence: number;
 }
 
@@ -79,7 +78,7 @@ export interface HtmlSearchResult {
   url: string | null;
   keywords: string[];
   score: number;
-  context: 'navigation' | 'footer' | 'sidebar' | 'mobile_menu' | 'general';
+  context: "navigation" | "footer" | "sidebar" | "mobile_menu" | "general";
   reasons: string[];
   linkText: string;
 }
@@ -138,7 +137,6 @@ export type FormExclusionResult = {
   priority: string;
 };
 
-
 // ===============================================================================
 // Keyword & Content Analysis Types
 // ===============================================================================
@@ -168,7 +166,6 @@ export interface PurityResult {
   score: number;
   reasons: string[];
 }
-
 
 // ===============================================================================
 // URL & Network Types
