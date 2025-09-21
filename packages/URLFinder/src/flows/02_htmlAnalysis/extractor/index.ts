@@ -28,7 +28,7 @@ import type {
 // 純粋関数群
 
 /**
- * ボタンHTMLが送信キーワードを含むかチェック（純粋関数）
+ * ボタンHTMLが送信キーワードを含むかチェック
  */
 export const containsSubmitKeyword = (buttonHTML: string): boolean => {
   const lowerHTML = buttonHTML.toLowerCase();
