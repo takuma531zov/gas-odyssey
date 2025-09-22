@@ -13,12 +13,11 @@ export function executeUrlFinderWithUI(): void {
   try {
     // チェック行数を取得
     const checkedCount = getCheckedRowsCount();
-    const maxCountValue = maxCount;
 
     // 実行オプション選択ダイアログを表示
     const htmlTemplate = HtmlService.createTemplateFromFile("simpleOptions");
     htmlTemplate.checkedCount = checkedCount;
-    htmlTemplate.maxCount = maxCountValue;
+    htmlTemplate.maxCount = maxCount;
 
     const htmlOutput = htmlTemplate
       .evaluate()
@@ -251,7 +250,6 @@ function getCheckedRowsCount(): number {
     return 0;
   }
 }
-
 
 // GASのグローバル空間に関数を登録
 declare const global: {
