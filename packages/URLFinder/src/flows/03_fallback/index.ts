@@ -3,6 +3,9 @@ import type { SearchStateData } from "../../common/types";
 import { getFinalResult } from "../../common/state";
 import { evaluateFallbackUrlQuality } from "./utils";
 
+// 信頼度の閾値
+const HIGH_CONFIDENCE_THRESHOLD = 0.7;
+
 /**
  * Fallback検索戦略
  * SearchStateに蓄積された情報を利用してフォールバック結果を提供
@@ -25,7 +28,7 @@ export const fallbackSearch = (
 
     if (searchMethod === "final_fallback") {
       fallbackResult.searchMethod =
-        confidence >= 0.7
+        confidence >= HIGH_CONFIDENCE_THRESHOLD
           ? "final_fallback_high_confidence"
           : "final_fallback_low_confidence";
     }

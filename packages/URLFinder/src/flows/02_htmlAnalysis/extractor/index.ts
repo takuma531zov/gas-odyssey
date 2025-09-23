@@ -28,7 +28,7 @@ import type {
 // 純粋関数群
 
 /**
- * ボタンHTMLが送信キーワードを含むかチェック（純粋関数）
+ * ボタンHTMLが送信キーワードを含むかチェック
  */
 export const containsSubmitKeyword = (buttonHTML: string): boolean => {
   const lowerHTML = buttonHTML.toLowerCase();
@@ -52,6 +52,8 @@ export const hasScriptAndRecaptcha = (html: string): boolean => {
 /**
  * 構造化フォーム分析（純粋関数）
  */
+const EXCLUDED_INPUT_TYPES = ["hidden", "button", "submit"] as const;
+
 export const analyzeStructuredForms = (html: string): StructuredFormResult => {
   let formCount = 0;
   let totalFields = 0;
@@ -71,14 +73,18 @@ export const analyzeStructuredForms = (html: string): StructuredFormResult => {
 
       for (const input of inputs) {
         const lowerInput = input.toLowerCase();
+
+        // 除外タイプに一致したらスキップ
         if (
-          lowerInput.includes('type="hidden"') ||
-          lowerInput.includes('type="button"') ||
-          lowerInput.includes('type="submit"')
+          EXCLUDED_INPUT_TYPES.some((type) =>
+            lowerInput.includes(`type="${type}"`),
+          )
         ) {
           continue;
         }
+
         formFieldCount++;
+
         if (
           CONTACT_FIELD_PATTERNS.some((pattern) =>
             lowerInput.match(new RegExp(pattern)),
@@ -87,6 +93,7 @@ export const analyzeStructuredForms = (html: string): StructuredFormResult => {
           hasContactSpecificFieldsInForm = true;
         }
       }
+
       totalFields += formFieldCount;
       if (hasContactSpecificFieldsInForm) {
         hasContactFields = true;
@@ -94,6 +101,7 @@ export const analyzeStructuredForms = (html: string): StructuredFormResult => {
     }
     formMatch = formRegex.exec(html);
   }
+
   return { formCount, totalFields, hasContactFields };
 };
 

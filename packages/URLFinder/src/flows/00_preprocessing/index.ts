@@ -5,8 +5,8 @@
  * SNS判定とドメイン可用性チェックを一元化
  */
 
-import { isSNSPage, checkDomainAvailability } from '../../common/network/fetch';
-import type { ContactPageResult } from '../../common/types';
+import { isSNSPage, checkDomainAvailability } from "../../common/network/fetch";
+import type { ContactPageResult } from "../../common/types";
 
 /**
  * SNSページ判定実行
@@ -18,13 +18,12 @@ export function snsCheck(baseUrl: string): ContactPageResult | null {
     return {
       contactUrl: null,
       actualFormUrl: null,
-      foundKeywords: ['sns_page'],
-      searchMethod: 'sns_not_supported'
+      foundKeywords: ["sns_page"],
+      searchMethod: "sns_not_supported",
     };
   }
   return null;
 }
-
 
 /**
  * エラーメッセージに基づき、検索エラーの種別を判定する
@@ -35,41 +34,48 @@ function getSearchMethod(errorMessage: string): string {
   // エラーメッセージとエラー種別の対応ルール
   const rules: { test: (msg: string) => boolean; value: string }[] = [
     // DNS関連のエラー
-    { test: msg => msg.includes("DNS"), value: "dns_error" },
+    { test: (msg) => msg.includes("DNS"), value: "dns_error" },
     // Bot判定によるブロック or 特定のHTTPステータスコード
-    { test: msg => /bot|Bot|403|501/.test(msg), value: "bot_blocked" },
+    { test: (msg) => /bot|Bot|403|501/.test(msg), value: "bot_blocked" },
     // タイムアウト関連のエラー
-    { test: msg => msg.includes("timeout") || msg.includes("タイムアウト"), value: "timeout_error" },
+    {
+      test: (msg) => msg.includes("timeout") || msg.includes("タイムアウト"),
+      value: "timeout_error",
+    },
     // デフォルトのエラーメッセージ（サイト閉鎖）
-    { test: msg => msg === "サイトが閉鎖されています", value: "site_closed" },
+    { test: (msg) => msg === "サイトが閉鎖されています", value: "site_closed" },
   ];
 
   // マッチするルールを探す
-  const rule = rules.find(r => r.test(errorMessage));
+  const rule = rules.find((r) => r.test(errorMessage));
   // マッチすればその値を、しなければ汎用エラーを返す
   return rule ? rule.value : "error";
 }
 
 /**
- * ドメイン可用性チェック実行
+ * ドメインが有効かどうかをチェック
  * @param baseUrl チェック対象URL
- * @returns アクセス不可の場合は結果オブジェクト、正常アクセス可能の場合はnull
+ * @returns true: アクセス可能, false: 不可
  */
-export function domainCheck(baseUrl: string): ContactPageResult | null {
+export function isDomainValid(baseUrl: string): boolean {
   const domainCheckResult = checkDomainAvailability(baseUrl);
+  return domainCheckResult.available;
+}
 
-  if (!domainCheckResult.available) {
-    const errorMessage = domainCheckResult.error || 'サイトが閉鎖されています';
+/**
+ * ドメインエラー時の結果オブジェクトを作成
+ * @param baseUrl チェック対象URL
+ * @returns ドメインエラーの結果オブジェクト
+ */
+export function createDomainErrorResult(baseUrl: string): ContactPageResult {
+  const domainCheckResult = checkDomainAvailability(baseUrl);
+  const errorMessage = domainCheckResult.error || "サイトが閉鎖されています";
+  const searchMethod = getSearchMethod(errorMessage);
 
-    const searchMethod = getSearchMethod(errorMessage);
-
-    return {
-      contactUrl: null,
-      actualFormUrl: null,
-      foundKeywords: [errorMessage],
-      searchMethod
-    };
-  }
-
-  return null;
+  return {
+    contactUrl: null,
+    actualFormUrl: null,
+    foundKeywords: [errorMessage],
+    searchMethod,
+  };
 }
