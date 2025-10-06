@@ -11,8 +11,11 @@
     "build:DWH": "node ./scripts/build.js DWH",
     "build:EneOneSW": "node ./scripts/build.js EneOneSW",
     "build:sample": "node ./scripts/build.js sample",
-    "build:invoice":"node ./scripts/build.js invoiceSystem",
-    "build:url":"node ./scripts/build.js URLFinder",
+    "build:invoice": "node ./scripts/build.js invoiceSystem",
+    "build:url": "node ./scripts/build.js URLFinder",
+    "build:aar": "node ./scripts/build.js autoAgencyReport",
+    "deploy:dev:aar": "node ./scripts/deploy.js dev autoAgencyReport",
+    "deploy:prod:aar": "node ./scripts/deploy.js prod autoAgencyReport",
     "deploy:dev:invoice": "node ./scripts/deploy.js dev invoiceSystem",
     "deploy:prod:invoice": "node ./scripts/deploy.js prod invoiceSystem",
     "deploy:dev:url": "node ./scripts/deploy.js dev URLFinder",
@@ -40,9 +43,7 @@
     "lefthook": "^1.7.22",
     "typescript": "^5.6.3"
   },
-  "workspaces": [
-    "packages/*"
-  ],
+  "workspaces": ["packages/*"],
   "dependencies": {
     "fs-extra": "^11.3.0",
     "opencv4nodejs": "^5.6.0"
