@@ -1,5 +1,9 @@
 import type { AttachmentFile, FileDiff } from "../types";
-import { PARENT_FOLDER_ID, MAIL_BODY_SOURCE_COLUMN } from "../env";
+import {
+  PARENT_FOLDER_ID,
+  MAIL_BODY_SOURCE_COLUMN,
+  REPORT_HEADER_ROW,
+} from "../env";
 import { SENT_FOLDER_NAME } from "../config/constants";
 
 /**
@@ -88,24 +92,27 @@ const getSpreadsheetData = (
  * 2つのスプレッドシートのデータを比較して差分を抽出
  * @param oldData 旧データ
  * @param newData 新データ
- * @param targetColumn 比較対象の列番号（1始まり）
+ * @param targetColumn MAIL_BODY_SOURCE_COLUMN列番号（1始まり）
+ * @param headerRow ヘッダー行の配列
  * @returns 差分情報の配列
  */
 const compareSpreadsheetData = (
   oldData: string[][],
   newData: string[][],
   targetColumn: number,
+  headerRow: string[],
 ): FileDiff[] => {
   const diffs: FileDiff[] = [];
 
   // 旧データをMap化（行番号 -> データ）
   const oldDataMap = new Map<number, string[]>();
-  oldData.forEach((row, index) => {
-    oldDataMap.set(index, row);
-  });
+  for (let i = 0; i < oldData.length; i++) {
+    oldDataMap.set(i, oldData[i]);
+  }
 
   // 新データと比較
-  newData.forEach((newRow, rowIndex) => {
+  for (let rowIndex = 0; rowIndex < newData.length; rowIndex++) {
+    const newRow = newData[rowIndex];
     const oldRow = oldDataMap.get(rowIndex);
 
     // 新規追加行の場合
@@ -113,22 +120,34 @@ const compareSpreadsheetData = (
       diffs.push({
         rowNumber: rowIndex + 1, // 1始まりに変換
         value: newRow[targetColumn - 1] || "", // 0始まりに変換
+        changeType: "new",
       });
-      return;
+      continue;
     }
 
-    // 行データが異なる場合
-    const isChanged = newRow.some((cell, colIndex) => {
-      return cell !== oldRow[colIndex];
-    });
+    // 変更された列を特定
+    const changedColumnIndices: number[] = [];
+    for (let colIndex = 0; colIndex < newRow.length; colIndex++) {
+      if (newRow[colIndex] !== oldRow[colIndex]) {
+        changedColumnIndices.push(colIndex);
+      }
+    }
 
-    if (isChanged) {
+    // 変更がある場合
+    if (changedColumnIndices.length > 0) {
+      // 変更列のヘッダー名を取得
+      const changedColumnNames = changedColumnIndices
+        .map((colIndex) => headerRow[colIndex] || "")
+        .filter((name) => name !== "");
+
       diffs.push({
         rowNumber: rowIndex + 1,
         value: newRow[targetColumn - 1] || "",
+        changeType: "updated",
+        changedColumnNames,
       });
     }
-  });
+  }
 
   return diffs;
 };
@@ -151,10 +170,10 @@ const getLatestSentFile = (
 
   while (files.hasNext()) {
     const file = files.next();
-    const lastUpdated = file.getLastUpdated();
+    const lastUpdated = file.getLastUpdated().getTime();
 
-    if (lastUpdated > latestDate) {
-      latestDate = lastUpdated;
+    if (lastUpdated > latestDate.getTime()) {
+      latestDate = new Date(lastUpdated);
       latestFile = file;
     }
   }
@@ -202,18 +221,29 @@ export const getAttachmentFile = (
   // 最新の送信済みファイルを取得
   const latestSentFile = getLatestSentFile(agencyFolder);
 
+  // 新データを取得
+  const newData = getSpreadsheetData(attachmentFile);
+
+  // ヘッダー行を取得（REPORT_HEADER_ROWで指定された行）
+  const headerRowIndex = Number.parseInt(REPORT_HEADER_ROW, 10) - 1; // 0始まりに変換
+  const headerRow = newData[headerRowIndex] || [];
+
   // 差分を計算
   let diffs: FileDiff[] = [];
   if (latestSentFile) {
     const oldData = getSpreadsheetData(latestSentFile);
-    const newData = getSpreadsheetData(attachmentFile);
-    diffs = compareSpreadsheetData(oldData, newData, MAIL_BODY_SOURCE_COLUMN);
+    diffs = compareSpreadsheetData(
+      oldData,
+      newData,
+      MAIL_BODY_SOURCE_COLUMN,
+      headerRow,
+    );
   } else {
-    // 送信済みファイルがない場合は全行を差分として扱う
-    const newData = getSpreadsheetData(attachmentFile);
+    // 送信済みファイルがない場合は全行を新規追加として扱う
     diffs = newData.map((row, index) => ({
       rowNumber: index + 1,
       value: row[MAIL_BODY_SOURCE_COLUMN - 1] || "",
+      changeType: "new" as const,
     }));
   }
 
@@ -246,7 +276,7 @@ export const moveFileToSentFolder = (
   const monthFolder = getMonthFolder(yearFolder);
 
   // ファイルをコピーして移動
-  const copiedFile = file.makeCopy(file.getName(), monthFolder);
+  file.makeCopy(file.getName(), monthFolder);
 
   // 元のファイルを削除
   file.setTrashed(true);

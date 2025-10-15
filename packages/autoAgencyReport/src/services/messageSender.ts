@@ -12,7 +12,18 @@ const formatDiffSummary = (diffs: AttachmentFile["diffs"]): string => {
   }
 
   return diffs
-    .map((diff) => `${diff.rowNumber}行: ${diff.value}`)
+    .map((diff) => {
+      if (diff.changeType === "new") {
+        // 新規追加の場合
+        return `新規追加 ${diff.rowNumber}行: ${diff.value}`;
+      }
+      // 更新の場合
+      const changedColumns =
+        diff.changedColumnNames && diff.changedColumnNames.length > 0
+          ? `　更新列: ${diff.changedColumnNames.join(", ")}`
+          : "";
+      return `更新 ${diff.rowNumber}行: ${diff.value}${changedColumns}`;
+    })
     .join("\n");
 };
 
@@ -43,7 +54,12 @@ const sendViaGmail = (
       options.cc = agency.ccAddresses.join(",");
     }
 
-    GmailApp.sendEmail(agency.toAddresses.join(","), subject, fullBody, options);
+    GmailApp.sendEmail(
+      agency.toAddresses.join(","),
+      subject,
+      fullBody,
+      options,
+    );
 
     return {
       success: true,
@@ -82,7 +98,7 @@ const sendViaLINE = (
     }
 
     const diffSummary = formatDiffSummary(attachment.diffs);
-    const message = `【${subject}】\n\n${body}\n\n【添付ファイル】\n${attachment.url}\n\n【更新内容】\n${diffSummary}`;
+    const message = `【${subject}】\n\n${body}\n\n【進捗報告書URL】\n${attachment.url}\n\n【更新内容】\n${diffSummary}`;
 
     // LINE Messaging APIを使用して送信
     // 注: 事前にLINE Bot TokenをスクリプトプロパティにLINE_BOT_TOKENとして設定する必要があります

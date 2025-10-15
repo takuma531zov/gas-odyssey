@@ -1,6 +1,10 @@
 import { getSheet } from "../../../common/src/spreadsheet";
 import type { Template, TemplateVariables, Agency } from "../types";
 import { parseTemplate } from "../utils/templateParser";
+import {
+  MAIL_SUBJECT_TEMPLATE_CELL,
+  MAIL_BODY_TEMPLATE_CELL,
+} from "../env";
 
 /**
  * テンプレートシートからテンプレート情報を取得
@@ -14,11 +18,15 @@ export const getTemplate = (templateName: string): Template => {
     throw new Error(`テンプレートシート "${templateName}" が見つかりません`);
   }
 
-  // A1セル: 件名
-  const subject = templateSheet.getRange(1, 1).getValue() as string;
+  // 件名を取得（MAIL_SUBJECT_TEMPLATE_CELLで指定されたセル）
+  const subject = templateSheet
+    .getRange(MAIL_SUBJECT_TEMPLATE_CELL)
+    .getValue() as string;
 
-  // A2セル: 本文
-  const body = templateSheet.getRange(2, 1).getValue() as string;
+  // 本文を取得（MAIL_BODY_TEMPLATE_CELLで指定されたセル）
+  const body = templateSheet
+    .getRange(MAIL_BODY_TEMPLATE_CELL)
+    .getValue() as string;
 
   return {
     subject,

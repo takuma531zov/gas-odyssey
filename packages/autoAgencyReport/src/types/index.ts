@@ -28,7 +28,9 @@ export type TemplateVariables = {
 // ファイル差分情報の型
 export type FileDiff = {
   rowNumber: number; // 行番号
-  value: string; // 指定列の値
+  value: string; // MAIL_BODY_SOURCE_COLUMN列の値
+  changeType: "new" | "updated"; // 変更種別（新規追加 or 更新）
+  changedColumnNames?: string[]; // 変更列のヘッダー名（更新時のみ）
 };
 
 // 送信結果の型
