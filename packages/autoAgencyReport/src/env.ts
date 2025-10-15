@@ -13,6 +13,7 @@ export const SCRIPT_PROPERTIES = {
   REPORT_HEADER_ROW: "REPORT_HEADER_ROW", //進捗報告書ヘッダー行
   MAIL_SUBJECT_TEMPLATE_CELL: "MAIL_SUBJECT_TEMPLATE_CELL", //メール件名テンプレートセル
   MAIL_BODY_TEMPLATE_CELL: "MAIL_BODY_TEMPLATE_CELL", //メール本文テンプレートセル
+  LINE_BOT_TOKEN: "LINE_BOT_TOKEN", //LINE Bot Token
 } as const;
 
 // スクリプトプロパティの値を取得
@@ -39,4 +40,7 @@ export const MAIL_SUBJECT_TEMPLATE_CELL = getScriptPropertyValue(
 );
 export const MAIL_BODY_TEMPLATE_CELL = getScriptPropertyValue(
   SCRIPT_PROPERTIES.MAIL_BODY_TEMPLATE_CELL,
+);
+export const LINE_BOT_TOKEN = getScriptPropertyValue(
+  SCRIPT_PROPERTIES.LINE_BOT_TOKEN,
 );

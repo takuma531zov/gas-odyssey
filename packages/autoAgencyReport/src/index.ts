@@ -54,7 +54,8 @@ function dailySendReport() {
 
         // 送信成功時は添付ファイルを送信済みフォルダに移動
         if (result.success) {
-          moveFileToSentFolder(agency.companyName, attachment.file);
+          // テスト用にファイル移動をコメントアウト
+          // moveFileToSentFolder(agency.companyName, attachment.file);
           Logger.log(`[${agency.companyName}] 送信成功`);
         } else {
           Logger.log(

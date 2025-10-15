@@ -18,7 +18,7 @@
 ### 対応プラットフォーム
 - **Gmail**: TOアドレス、CCアドレス対応
 - **LINE**: LINE Messaging API使用
-- **Google Chat**: Webhook URL使用
+- **Google Chat**: Webhook URL使用（要GoogleWorkSpaceアカウント）
 
 ## システム構成
 
