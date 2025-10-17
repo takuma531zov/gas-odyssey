@@ -5,6 +5,10 @@
 日次で行っている代理店への進捗報告をGASで自動化するシステムです。
 曜日ベースで送信対象を判定し、Gmail/LINE/GoogleChatの3つのプラットフォームに対応しています。
 
+## スプシURL
+メイン：https://docs.google.com/spreadsheets/d/1d6hBteMfpNiAm5AGBs6OvXjgWHjgq8sfPW7I7iZSQfk/edit?gid=0#gid=0
+
+LINEルームID取得用：https://docs.google.com/spreadsheets/d/1gFiWcdETYph1SWNDriH8CsRmcc9JJTT1JdUVzzSyP7Q/edit?gid=1030954051#gid=1030954051
 ## 機能
 
 ### コア機能
@@ -81,6 +85,23 @@ src/
 ```
 
 ## セットアップ手順
+
+## セットアップ
+
+### GASへのデプロイ
+
+```bash
+# ビルド
+pnpm build:aar
+
+# デプロイ
+# 開発環境
+pnpm build:dev:aar
+# 本番環境
+pnpm build:prod:aar
+
+```
+
 
 ### 1. スクリプトプロパティの設定
 
