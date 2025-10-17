@@ -73,9 +73,7 @@ const getMonthFolder = (
  * @param file スプレッドシートファイル
  * @returns 2次元配列データ
  */
-const getSpreadsheetData = (
-  file: GoogleAppsScript.Drive.File,
-): string[][] => {
+const getSpreadsheetData = (file: GoogleAppsScript.Drive.File): string[][] => {
   const spreadsheet = SpreadsheetApp.open(file);
   const sheet = spreadsheet.getSheets()[0]; // 最初のシートを取得
   const lastRow = sheet.getLastRow();
@@ -204,7 +202,7 @@ export const getAttachmentFile = (
 
   while (files.hasNext()) {
     const file = files.next();
-    // スプレッドシートのみを対象
+    // 「スプレッドシート形式」かつ「隠しファイルではない（ドットで始まらない）」ものを探す。
     if (
       file.getMimeType() === "application/vnd.google-apps.spreadsheet" &&
       !file.getName().startsWith(".")
@@ -221,7 +219,7 @@ export const getAttachmentFile = (
   // 最新の送信済みファイルを取得
   const latestSentFile = getLatestSentFile(agencyFolder);
 
-  // 新データを取得
+  // 新データ（添付ファイル）を取得
   const newData = getSpreadsheetData(attachmentFile);
 
   // ヘッダー行を取得（REPORT_HEADER_ROWで指定された行）
