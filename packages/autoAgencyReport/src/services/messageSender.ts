@@ -105,7 +105,7 @@ const sendViaLINE = (
       throw new Error("LINE_BOT_TOKENが設定されていません");
     }
 
-    const url = "https://api.line.me/v2/bot/message/push";
+    const url = "https://api.line.me/v2/bot/message/push"; //Botが指定のユーザー／グループにメッセージを送信するための公式URL。
     const payload = {
       to: agency.roomId,
       messages: [
