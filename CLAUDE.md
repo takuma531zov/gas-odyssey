@@ -13,7 +13,8 @@ claspを用いてtypeScriptでローカル開発して、GASにbuild&deployし�
 packagesディレクトリ内でアプリケーションを開発します。
 
 ## 開発ルール
-- biomeエラーに注意
+- biomeエラーを放置しない
+- @ts-ignore や握りつぶし try-catch は禁止。
 - 極力モダンな記法を採用
 - 関数型プログラミング
 - 深いネストは避ける
@@ -25,6 +26,7 @@ packagesディレクトリ内でアプリケーションを開発します。
 - スプレッドシート操作に関する関数は積極的にpackages/common/src/spreadsheet.tsをimport利用すること（spreadsheet.tsの編集はしないこと）
 - １ファイルの行数は原則200行までとする。
 - index.tsに直接ロジックは定義せず、関数呼び出しのみを行う純粋なGASエントリーポイントとする（極力処理フロー順に呼び出し全体の処理フローが一目でわかるようにすること）
+- コード更新時はREADME.mdに該当箇所の記載があれば必ず併せて更新すること
 
 ## 現行プロジェクト
 packages/autoAgencyReport
