@@ -4,11 +4,10 @@
 
 日次で行っている代理店への進捗報告をGASで自動化するシステムです。
 曜日ベースで送信対象を判定し、Gmail/LINE/GoogleChatの3つのプラットフォームに対応しています。
+また、LINE Webhook経由でグループID/ルームID/ユーザーIDを取得する機能も統合されています。
 
 ## スプシURL
 メイン：https://docs.google.com/spreadsheets/d/1d6hBteMfpNiAm5AGBs6OvXjgWHjgq8sfPW7I7iZSQfk/edit?gid=0#gid=0
-
-LINEルームID取得用：https://docs.google.com/spreadsheets/d/1gFiWcdETYph1SWNDriH8CsRmcc9JJTT1JdUVzzSyP7Q/edit?gid=1030954051#gid=1030954051
 ## 機能
 
 ### コア機能
@@ -18,6 +17,8 @@ LINEルームID取得用：https://docs.google.com/spreadsheets/d/1gFiWcdETYph1S
 - テンプレート変数置換（`{{会社名}}`、`{{担当者}}`）
 - 包括的なログ記録
 - 送信済みファイルの自動アーカイブ（年/月フォルダ）
+- LINE Webhook経由でのID取得（グループID/ルームID/ユーザーID）
+- LINEグループ情報取得
 
 ### 対応プラットフォーム
 - **Gmail**: TOアドレス、CCアドレス対応
@@ -28,7 +29,7 @@ LINEルームID取得用：https://docs.google.com/spreadsheets/d/1gFiWcdETYph1S
 
 ```
 src/
-├── index.ts                    # メイン処理（トリガー関数）
+├── index.ts                    # メイン処理（トリガー関数、Webhook受信）
 ├── env.ts                      # 環境変数定義
 ├── types/
 │   └── index.ts               # 型定義
@@ -38,7 +39,11 @@ src/
 │   ├── agencyService.ts       # 代理店情報取得
 │   ├── templateService.ts     # テンプレート処理
 │   ├── fileService.ts         # Drive操作・ファイル比較
-│   └── messageSender.ts       # メッセージ送信
+│   ├── messageSender.ts       # メッセージ送信
+│   ├── reportProcessor.ts     # 日次レポート処理
+│   ├── lineWebhookService.ts  # LINE Webhookイベント処理
+│   ├── lineApiService.ts      # LINE API（グループ情報取得）
+│   └── lineSheetService.ts    # LINE_IDシート操作
 └── utils/
     ├── dateUtils.ts           # 曜日判定
     ├── logUtils.ts            # ログ出力
@@ -72,6 +77,12 @@ src/
 ### 送信ログシート
 
 送信結果、エラー、差分サマリーを自動記録
+
+### LINE_IDシート
+
+LINE Webhook経由で受信したグループID/ルームID/ユーザーIDを記録
+- 列A: タイムスタンプ
+- 列B: メッセージ（イベント情報、ID情報）
 
 ## Drive構成
 
@@ -119,11 +130,36 @@ pnpm build:prod:aar
 GASエディタで `setupDailyTrigger()` を実行
 - 毎日午前9時に自動実行されます
 
-### 3. スプレッドシート・Driveフォルダの準備
+### 3. LINE Webhook設定（LINE使用時のみ）
 
-1. 代理店リスト、テンプレートシート、送信ログシートを作成
+1. GASをWebアプリとしてデプロイ
+   - 実行者: 自分
+   - アクセスできるユーザー: 全員
+2. LINE Developers ConsoleでWebhook URLを設定
+   - Webhook URL: デプロイしたWebアプリのURL
+3. LINEグループにBotを招待してメッセージを送信
+4. スプレッドシートの「LINE_ID」シートにグループIDが記録される
+5. 記録されたIDを代理店リストのE列に設定
+
+### 4. スプレッドシート・Driveフォルダの準備
+
+1. 代理店リスト、テンプレートシート、送信ログシート、LINE_IDシートを作成
 2. ルートフォルダと各代理店フォルダを作成（会社名と一致）
 3. 各代理店フォルダに添付対象のスプレッドシートを配置
+
+## 公開関数
+
+### dailySendReport()
+日次実行のメイン処理。本日対象の代理店に進捗報告を送信
+
+### setupDailyTrigger()
+トリガー設定用の関数。毎日午前9時に`dailySendReport`を実行するトリガーを設定
+
+### doPost(e)
+LINE WebhookからのPOSTリクエストを受け取り、グループID/ルームID/ユーザーIDを取得してLINE_IDシートに記録
+
+### getGroupInfo(groupId)
+指定したLINEグループの詳細情報（グループ名、画像URL等）を取得
 
 ## トリガー設定
 - 実行する関数：`dailySendReport`
