@@ -19,14 +19,18 @@ export const getTemplate = (templateName: string): Template => {
   }
 
   // 件名を取得（MAIL_SUBJECT_TEMPLATE_CELLで指定されたセル）
-  const subject = templateSheet
+  const subjectValue = templateSheet
     .getRange(MAIL_SUBJECT_TEMPLATE_CELL)
-    .getValue() as string;
+    .getValue();
+  const subject =
+    typeof subjectValue === "string"
+      ? subjectValue
+      : String(subjectValue || "");
 
   // 本文を取得（MAIL_BODY_TEMPLATE_CELLで指定されたセル）
-  const body = templateSheet
-    .getRange(MAIL_BODY_TEMPLATE_CELL)
-    .getValue() as string;
+  const bodyValue = templateSheet.getRange(MAIL_BODY_TEMPLATE_CELL).getValue();
+  const body =
+    typeof bodyValue === "string" ? bodyValue : String(bodyValue || "");
 
   return {
     subject,
