@@ -3,6 +3,7 @@ import type { SendResult } from "../types";
 import { SHEET_LOG_NAME } from "../env";
 import { formatDate } from "./dateUtils";
 import { LOG_DATE_FORMAT } from "../config/constants";
+import { getCurrentDate } from "../../../common/src/utils";
 
 /**
  * 送信ログをスプレッドシートに出力
@@ -37,7 +38,7 @@ export const writeErrorLog = (
   const logSheet = getSheet(SHEET_LOG_NAME);
 
   const logRow = [
-    formatDate(new Date(), LOG_DATE_FORMAT), // 送信日時
+    getCurrentDate(), // 送信日時
     companyName, // 会社名
     "", // 送信媒体
     "エラー", // ステータス
