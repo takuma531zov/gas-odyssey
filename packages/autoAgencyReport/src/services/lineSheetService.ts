@@ -3,20 +3,17 @@
  * @returns 初期化されたシート
  */
 export const initSheet = (): GoogleAppsScript.Spreadsheet.Sheet => {
+  const GET_LINE_ID_SHEET = "LINE_ID";
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sheet = ss.getSheetByName("LINE_ID");
-
-  // シートが存在しない場合は作成
-  if (!sheet) {
-    sheet = ss.insertSheet("LINE_ID");
-  }
+  const sheet =
+    ss.getSheetByName(GET_LINE_ID_SHEET) ?? ss.insertSheet(GET_LINE_ID_SHEET);
 
   // シート全体をクリア
   sheet.clear();
 
   // ヘッダー行を追加
   sheet.appendRow(["タイムスタンプ", "メッセージ"]);
-  sheet.getRange(1, 1, 1, 2).setFontWeight("bold");
+  sheet.getRange("A1:B1").setFontWeight("bold");
 
   return sheet;
 };
