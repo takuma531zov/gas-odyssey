@@ -1,3 +1,5 @@
+import { getCurrentDate } from "../../../common/src/utils";
+
 /**
  * シートを初期化してヘッダーを設定
  * @returns 初期化されたシート
@@ -29,7 +31,7 @@ export const writeToSheet = (
 ): void => {
   try {
     // ログを追記
-    sheet.appendRow([new Date(), message]);
+    sheet.appendRow([getCurrentDate(), message]);
   } catch (error) {
     // スプレッドシート書き込みに失敗してもエラーにしない
     Logger.log(`シート書き込みエラー: ${error}`);
