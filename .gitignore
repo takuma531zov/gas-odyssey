@@ -1,4 +1,6 @@
 node_modules
 packages/**/.clasp*json
 dist
+.DS_Store
 pullrequest.md
+packages/autoAgencyReport/代理店進捗報告自動化.md
