@@ -36,7 +36,7 @@ export const getTagIds = (tagSlugs: string[]): string[] => {
 
   if (statusCode !== 200) {
     const errorBody = response.getContentText();
-    logError(`タグマスタ取得失敗`, { statusCode, errorBody });
+    logError("タグマスタ取得失敗", { statusCode, errorBody });
     throw new Error(`タグマスタを取得できませんでした (HTTP ${statusCode})`);
   }
 
@@ -47,7 +47,7 @@ export const getTagIds = (tagSlugs: string[]): string[] => {
   const tagIds: string[] = [];
 
   // 各タグslugで検索
-  tagSlugs.forEach((slug) => {
+  for (const slug of tagSlugs) {
     const tag = data.contents.find((t) => t.slug === slug);
 
     if (tag) {
@@ -58,7 +58,7 @@ export const getTagIds = (tagSlugs: string[]): string[] => {
         availableTags: data.contents.map((t) => t.slug),
       });
     }
-  });
+  }
 
   if (tagIds.length === 0) {
     logWarn("有効なタグが1つも見つかりませんでした");

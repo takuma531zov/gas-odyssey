@@ -1,3 +1,8 @@
+/**
+ * 環境変数取得
+ * スクリプトプロパティから環境変数を取得
+ */
+
 import {
   getScriptPropertyValue,
   columnNameToNumber,
@@ -5,23 +10,20 @@ import {
 
 // スクリプトプロパティ名
 export const SCRIPT_PROPERTIES = {
-  POSTING_DATE_COLUMN: "POSTING_DATE_COLUMN", //掲載日列
-  AUTHOR_COLUMN: "AUTHOR_COLUMN", //著者列
-  ARTICLE_TITLE_COLUMN: "ARTICLE_TITLE_COLUMN", //記事タイトル列
-  PLATFORM_COLUMN: "PLATFORM_COLUMN", //媒体名列
-  STATUS_COLUMN: "STATUS_COLUMN", //ステータス列
-  BLOG_ARTICLE_LIST_SHEET_NAME: "BLOG_ARTICLE_LIST_SHEET_NAME", //ブログ記事リストシート名
-  GITHUB_REPO_URL: "GITHUB_REPO_URL", //GitHubリポジトリURL
-  GITHUB_BRANCH_NAME: "GITHUB_BRANCH_NAME", //GitHubブランチ名
-  GITHUB_ARTICLE_PATH: "GITHUB_ARTICLE_PATH", //GitHub記事パス
-  GITHUB_ACCESS_TOKEN: "GITHUB_ACCESS_TOKEN", //GitHubトークン
-  MICRO_CMS_ENDPOINT_URL: "MICRO_CMS_ENDPOINT_URL", //microCMSエンドポイントURL
-  MICRO_CMS_API_KEY: "MICRO_CMS_API_KEY", //microCMS APIキー
-  DIFY_ENDPOINT_URL: "DIFY_ENDPOINT_URL", //Dify Webhook URL
-  DIFY_API_KEY: "DIFY_API_KEY", //Dify APIキー
+  // スプレッドシート列設定
+  POSTING_DATE_COLUMN: "POSTING_DATE_COLUMN",
+  AUTHOR_COLUMN: "AUTHOR_COLUMN",
+  ARTICLE_TITLE_COLUMN: "ARTICLE_TITLE_COLUMN",
+  PLATFORM_COLUMN: "PLATFORM_COLUMN",
+  STATUS_COLUMN: "STATUS_COLUMN",
+  BLOG_ARTICLE_LIST_SHEET_NAME: "BLOG_ARTICLE_LIST_SHEET_NAME",
+
+  // microCMS設定（全ユーザー共通）
+  MICRO_CMS_ENDPOINT_URL: "MICRO_CMS_ENDPOINT_URL",
+  MICRO_CMS_API_KEY: "MICRO_CMS_API_KEY",
 } as const;
 
-// スクリプトプロパティの値を取得
+// スプレッドシート列設定
 export const POSTING_DATE_COLUMN = columnNameToNumber(
   getScriptPropertyValue(SCRIPT_PROPERTIES.POSTING_DATE_COLUMN),
 );
@@ -40,27 +42,79 @@ export const STATUS_COLUMN = columnNameToNumber(
 export const BLOG_ARTICLE_LIST_SHEET_NAME = getScriptPropertyValue(
   SCRIPT_PROPERTIES.BLOG_ARTICLE_LIST_SHEET_NAME,
 );
-export const GITHUB_REPO_URL = getScriptPropertyValue(
-  SCRIPT_PROPERTIES.GITHUB_REPO_URL,
-);
-export const GITHUB_BRANCH_NAME = getScriptPropertyValue(
-  SCRIPT_PROPERTIES.GITHUB_BRANCH_NAME,
-);
-export const GITHUB_ARTICLE_PATH = getScriptPropertyValue(
-  SCRIPT_PROPERTIES.GITHUB_ARTICLE_PATH,
-);
-export const GITHUB_ACCESS_TOKEN = getScriptPropertyValue(
-  SCRIPT_PROPERTIES.GITHUB_ACCESS_TOKEN,
-);
+
+// microCMS設定（全ユーザー共通）
 export const MICRO_CMS_ENDPOINT_URL = getScriptPropertyValue(
   SCRIPT_PROPERTIES.MICRO_CMS_ENDPOINT_URL,
 );
 export const MICRO_CMS_API_KEY = getScriptPropertyValue(
   SCRIPT_PROPERTIES.MICRO_CMS_API_KEY,
 );
-export const DIFY_ENDPOINT_URL = getScriptPropertyValue(
-  SCRIPT_PROPERTIES.DIFY_ENDPOINT_URL,
-);
-export const DIFY_API_KEY = getScriptPropertyValue(
-  SCRIPT_PROPERTIES.DIFY_API_KEY,
-);
+
+/**
+ * 著者名からユーザー番号（サフィックス）を取得
+ * @param authorName 著者名（スプレッドシートの値）
+ * @returns ユーザー番号（例: "1", "2", "3"）
+ * @throws 著者名が見つからない場合はエラー
+ */
+export const getAuthorUserNumber = (authorName: string): string => {
+  // USER_1, USER_2, USER_3... と順に確認（最大10ユーザーまで対応）
+  for (let i = 1; i <= 10; i++) {
+    const userKey = `USER_${i}`;
+    try {
+      const userName = getScriptPropertyValue(userKey);
+      if (userName === authorName) {
+        return String(i);
+      }
+    } catch {
+      // スクリプトプロパティが存在しない場合は終了
+      break;
+    }
+  }
+
+  throw new Error(
+    `著者「${authorName}」に対応するユーザー設定が見つかりません。スクリプトプロパティでUSER_Xを設定してください。`,
+  );
+};
+
+/**
+ * 著者別のGitHub設定を取得
+ * @param authorName 著者名
+ * @returns GitHub設定
+ */
+export const getGitHubConfig = (
+  authorName: string,
+): {
+  repoUrl: string;
+  articlePath: string;
+  branchName: string;
+  accessToken: string;
+} => {
+  const userNumber = getAuthorUserNumber(authorName);
+
+  return {
+    repoUrl: getScriptPropertyValue(`GITHUB_REPO_URL_${userNumber}`),
+    articlePath: getScriptPropertyValue(`GITHUB_ARTICLE_PATH_${userNumber}`),
+    branchName: getScriptPropertyValue(`GITHUB_BRANCH_NAME_${userNumber}`),
+    accessToken: getScriptPropertyValue(`GITHUB_ACCESS_TOKEN_${userNumber}`),
+  };
+};
+
+/**
+ * 著者別のDify設定を取得
+ * @param authorName 著者名
+ * @returns Dify設定
+ */
+export const getDifyConfig = (
+  authorName: string,
+): {
+  endpointUrl: string;
+  apiKey: string;
+} => {
+  const userNumber = getAuthorUserNumber(authorName);
+
+  return {
+    endpointUrl: getScriptPropertyValue(`DIFY_ENDPOINT_URL_${userNumber}`),
+    apiKey: getScriptPropertyValue(`DIFY_API_KEY_${userNumber}`),
+  };
+};

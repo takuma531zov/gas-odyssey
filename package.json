@@ -14,6 +14,7 @@
     "build:invoice": "node ./scripts/build.js invoiceSystem",
     "build:url": "node ./scripts/build.js URLFinder",
     "build:aar": "node ./scripts/build.js autoAgencyReport",
+    "build:apsis": "node ./scripts/build.js apsisArticlePublisher",
     "build:LINE": "node ./scripts/build.js getLINEID",
     "deploy:dev:LINE": "node ./scripts/deploy.js dev getLINEID",
     "deploy:prod:LINE": "node ./scripts/deploy.js prod getLINEID",
@@ -23,6 +24,8 @@
     "deploy:prod:invoice": "node ./scripts/deploy.js prod invoiceSystem",
     "deploy:dev:url": "node ./scripts/deploy.js dev URLFinder",
     "deploy:prod:url": "node ./scripts/deploy.js prod URLFinder",
+    "deploy:dev:apsis": "node ./scripts/deploy.js dev apsisArticlePublisher",
+    "deploy:prod:apsis": "node ./scripts/deploy.js prod apsisArticlePublisher",
     "deploy:dev:piyo": "node ./scripts/deploy.js dev piyo",
     "deploy:dev:noa": "node ./scripts/deploy.js dev Noa",
     "deploy:dev:EneOneSW": "node ./scripts/deploy.js dev EneOneSW",
@@ -46,7 +49,9 @@
     "lefthook": "^1.7.22",
     "typescript": "^5.6.3"
   },
-  "workspaces": ["packages/*"],
+  "workspaces": [
+    "packages/*"
+  ],
   "dependencies": {
     "fs-extra": "^11.3.0",
     "opencv4nodejs": "^5.6.0"

@@ -2,12 +2,7 @@
  * GitHubから画像ファイルを取得
  */
 
-import {
-  GITHUB_REPO_URL,
-  GITHUB_BRANCH_NAME,
-  GITHUB_ARTICLE_PATH,
-  GITHUB_ACCESS_TOKEN,
-} from "../env";
+import { getGitHubConfig } from "../env";
 import { logInfo, logWarn, logError } from "../utils/logger";
 import type { GitHubFile, ImageFile } from "../types";
 
@@ -26,21 +21,23 @@ const parseRepoUrl = (repoUrl: string): string => {
  * GitHubから画像ファイルを取得
  * パス: /{GITHUB_ARTICLE_PATH}/{title}/images/
  * @param title 記事タイトル
+ * @param authorName 著者名（環境変数の振り分けに使用）
  * @returns 画像ファイルの配列
  */
-export const getImages = (title: string): ImageFile[] => {
-  const ownerRepo = parseRepoUrl(GITHUB_REPO_URL);
-  const dirPath = `${GITHUB_ARTICLE_PATH}/${title}/images`;
+export const getImages = (title: string, authorName: string): ImageFile[] => {
+  const githubConfig = getGitHubConfig(authorName);
+  const ownerRepo = parseRepoUrl(githubConfig.repoUrl);
+  const dirPath = `${githubConfig.articlePath}/${title}/images`;
 
   // GitHub Contents API URL（ディレクトリ取得）
-  const apiUrl = `https://api.github.com/repos/${ownerRepo}/contents/${dirPath}?ref=${GITHUB_BRANCH_NAME}`;
+  const apiUrl = `https://api.github.com/repos/${ownerRepo}/contents/${dirPath}?ref=${githubConfig.branchName}`;
 
   logInfo(`GitHubから画像フォルダを取得中: ${dirPath}`);
 
   const options: GoogleAppsScript.URL_Fetch.URLFetchRequestOptions = {
     method: "get",
     headers: {
-      Authorization: `Bearer ${GITHUB_ACCESS_TOKEN}`,
+      Authorization: `Bearer ${githubConfig.accessToken}`,
       Accept: "application/vnd.github.v3+json",
     },
     muteHttpExceptions: true,

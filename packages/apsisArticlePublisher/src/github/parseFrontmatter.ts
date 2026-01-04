@@ -61,17 +61,17 @@ const parseFrontmatterText = (text: string): FrontMatter => {
   let currentKey: string | null = null;
   let arrayValues: string[] = [];
 
-  lines.forEach((line) => {
+  for (const line of lines) {
     const trimmed = line.trim();
 
     // 空行はスキップ
-    if (!trimmed) return;
+    if (!trimmed) continue;
 
     // 配列要素（- item）
     if (trimmed.startsWith("- ")) {
       const value = trimmed.substring(2).trim();
       arrayValues.push(value);
-      return;
+      continue;
     }
 
     // キー: 値 形式
@@ -129,7 +129,7 @@ const parseFrontmatterText = (text: string): FrontMatter => {
         }
       }
     }
-  });
+  }
 
   // 最後の配列を保存
   if (currentKey && arrayValues.length > 0) {

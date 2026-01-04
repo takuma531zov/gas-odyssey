@@ -49,8 +49,8 @@ export const getTargetArticles = (): Article[] => {
 
     // 投稿日をフォーマット（Date型の場合を考慮）
     const postingDate =
-      postingDateValue instanceof Date
-        ? formatDate(postingDateValue)
+      (postingDateValue as unknown) instanceof Date
+        ? formatDate(postingDateValue as unknown as Date)
         : String(postingDateValue);
 
     // 条件チェック

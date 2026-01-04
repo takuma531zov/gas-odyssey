@@ -31,7 +31,7 @@ export const getAuthorId = (authorName: string): string => {
 
   if (statusCode !== 200) {
     const errorBody = response.getContentText();
-    logError(`著者マスタ取得失敗`, { statusCode, errorBody });
+    logError("著者マスタ取得失敗", { statusCode, errorBody });
     throw new Error(
       `著者マスタを取得できませんでした (HTTP ${statusCode})`,
     );

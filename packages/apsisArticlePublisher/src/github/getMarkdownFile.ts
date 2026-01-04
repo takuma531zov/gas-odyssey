@@ -2,12 +2,7 @@
  * GitHubからマークダウンファイルを取得
  */
 
-import {
-  GITHUB_REPO_URL,
-  GITHUB_BRANCH_NAME,
-  GITHUB_ARTICLE_PATH,
-  GITHUB_ACCESS_TOKEN,
-} from "../env";
+import { getGitHubConfig } from "../env";
 import { logInfo, logError } from "../utils/logger";
 import type { GitHubFile } from "../types";
 
@@ -29,21 +24,23 @@ const parseRepoUrl = (repoUrl: string): string => {
  * GitHubからマークダウンファイルを取得
  * パス: /{GITHUB_ARTICLE_PATH}/{title}/{title}.md
  * @param title 記事タイトル
+ * @param authorName 著者名（環境変数の振り分けに使用）
  * @returns マークダウン文字列
  */
-export const getMarkdownFile = (title: string): string => {
-  const ownerRepo = parseRepoUrl(GITHUB_REPO_URL);
-  const filePath = `${GITHUB_ARTICLE_PATH}/${title}/${title}.md`;
+export const getMarkdownFile = (title: string, authorName: string): string => {
+  const githubConfig = getGitHubConfig(authorName);
+  const ownerRepo = parseRepoUrl(githubConfig.repoUrl);
+  const filePath = `${githubConfig.articlePath}/${title}/${title}.md`;
 
   // GitHub Contents API URL
-  const apiUrl = `https://api.github.com/repos/${ownerRepo}/contents/${filePath}?ref=${GITHUB_BRANCH_NAME}`;
+  const apiUrl = `https://api.github.com/repos/${ownerRepo}/contents/${filePath}?ref=${githubConfig.branchName}`;
 
   logInfo(`GitHubからマークダウンファイルを取得中: ${filePath}`);
 
   const options: GoogleAppsScript.URL_Fetch.URLFetchRequestOptions = {
     method: "get",
     headers: {
-      Authorization: `Bearer ${GITHUB_ACCESS_TOKEN}`,
+      Authorization: `Bearer ${githubConfig.accessToken}`,
       Accept: "application/vnd.github.v3+json",
     },
     muteHttpExceptions: true,

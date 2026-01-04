@@ -26,7 +26,7 @@ const uploadSingleImage = (
   logInfo(`画像をアップロード中: ${imageFile.filename}`);
 
   // FormDataの作成（GASではURLFetchAppのpayloadで代用）
-  const boundary = "----GASBoundary" + Math.random().toString(36).substring(2);
+  const boundary = `----GASBoundary${Math.random().toString(36).substring(2)}`;
   const payload = Utilities.newBlob(
     `--${boundary}\r\n` +
       `Content-Disposition: form-data; name="file"; filename="${imageFile.filename}"\r\n` +

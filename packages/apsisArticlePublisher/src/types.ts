@@ -132,13 +132,18 @@ export type MicroCMSBlogPostRequest = {
 };
 
 /**
- * Dify通知リクエストボディ（後で実装）
+ * 記事処理結果
+ */
+export type ArticleProcessResult = {
+  title: string; // 記事タイトル
+  author: string; // 著者名
+  status: "success" | "failed"; // 処理結果
+  error?: string; // エラー理由（失敗時のみ）
+};
+
+/**
+ * Dify通知リクエストボディ
  */
 export type DifyNotifyRequest = {
-  article: Record<string, unknown>; // 取得したマークダウンタイトル
-  article_item: Record<string, unknown>; // ARTICLE_TITLE_COLUMNの値（github取得失敗時用）
-  success: boolean; // 論理的成功フラグ
-  error: string; // エラーメッセージ
-  status_code: number; // HTTPステータス
-  response_body: string; // HTTPレスポンス
+  results: ArticleProcessResult[]; // 全記事の処理結果
 };
