@@ -1,0 +1,15 @@
+{
+  "timeZone": "Asia/Tokyo",
+  "dependencies": {
+    "libraries": [
+      {
+        "userSymbol": "MD2html",
+        "libraryId": "1tJwBPELEMAtIhts4YIp4h8VvCbj68SkmLYHwW71pSMz1EWTB1CRtYL_g",
+        "version": "14",
+        "developmentMode": false
+      }
+    ]
+  },
+  "exceptionLogging": "STACKDRIVER",
+  "runtimeVersion": "V8"
+}
