@@ -1,5 +1,5 @@
 // index.ts は純粋なGASエントリーポイント: ロジックは呼び出しのみ
-// 機能: Instagram Webhook 検証およびイベント転送
+// 機能: Instagram Webhook 検証およびDM処理
 
 import { handleDoGet } from "./modules/verify";
 import { handleDoPost } from "./modules/forward";
@@ -13,8 +13,8 @@ function doGet(e: GoogleAppsScript.Events.DoGet) {
 }
 
 /**
- * POSTエンドポイント: Instagram WebhookイベントをDifyへ転送
- * - フロー: リクエスト受領 -> 転送ハンドラ呼び出し -> JSONレスポンス返却
+ * POSTエンドポイント: Instagram DMをSlackへ通知
+ * - フロー: リクエスト受領 -> DM処理ハンドラ呼び出し -> JSONレスポンス返却
  */
 function doPost(e: GoogleAppsScript.Events.DoPost) {
   return handleDoPost(e);
