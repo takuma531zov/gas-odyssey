@@ -6,30 +6,7 @@ import { getCurrentDate } from "../../../../common/src/utils";
 import { logError, logInfo } from "../../../../common/src/logger";
 import { LOG_SHEET_NAME } from "../../env";
 import type { ProcessResult } from "../../types";
-
-/**
- * ProcessStatusをステータス文字列に変換
- */
-const formatStatus = (status: ProcessResult["status"]): string => {
-	switch (status) {
-		case "success":
-			return "成功";
-		case "skipped_echo":
-			return "スキップ（エコー）";
-		case "skipped_read":
-			return "スキップ（既読）";
-		case "error_parse":
-			return "エラー（解析失敗）";
-		case "error_api":
-			return "エラー（API失敗）";
-		case "error_slack":
-			return "エラー（Slack送信失敗）";
-		case "error_log":
-			return "エラー（ログ出力失敗）";
-		default:
-			return "不明";
-	}
-};
+import { formatProcessStatus } from "../../utils/statusMessages";
 
 /**
  * スプレッドシートにログを出力
@@ -57,7 +34,7 @@ export const writeLog = (result: ProcessResult): void => {
 		const senderName = result.senderName || "";
 		const username = result.username || "";
 		const messageText = result.messageText || "";
-		const status = formatStatus(result.status);
+		const status = formatProcessStatus(result.status);
 		const details = result.details || result.error || "";
 
 		// スプレッドシートに追記
