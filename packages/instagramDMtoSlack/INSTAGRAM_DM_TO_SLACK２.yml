@@ -1,0 +1,432 @@
+app:
+  description: Instagram DMをSlackに通知
+  icon: 🤖
+  icon_background: '#FFEAD5'
+  mode: workflow
+  name: INSTAGRAM_DM_TO_SLACK２
+  use_icon_as_answer_icon: false
+dependencies:
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: langgenius/slack:0.0.4@8eccd2e5360bd287d887738750ae420d57d0c26d1e1a1ced4f59963005f1c163
+    version: null
+kind: app
+version: 0.5.0
+workflow:
+  conversation_variables: []
+  environment_variables:
+  - description: Slack Incoming Webhook URL for Instagram DM notifications
+    id: 9a6da6a1-4874-46c0-a27a-9873a0d85f7e
+    name: SLACK_WEBHOOK_URL
+    selector:
+    - env
+    - SLACK_WEBHOOK_URL
+    value: ''
+    value_type: secret
+  - description: Instagram Graph API Access Token
+    id: 1b3d1a10-2f4d-4b6e-9f2d-8a9b1c2d3e4f
+    name: INSTAGRAM_ACCESS_TOKEN
+    selector:
+    - env
+    - INSTAGRAM_ACCESS_TOKEN
+    value: ''
+    value_type: secret
+  features:
+    file_upload:
+      allowed_file_extensions:
+      - .JPG
+      - .JPEG
+      - .PNG
+      - .GIF
+      - .WEBP
+      - .SVG
+      allowed_file_types:
+      - image
+      allowed_file_upload_methods:
+      - local_file
+      - remote_url
+      enabled: false
+      fileUploadConfig:
+        audio_file_size_limit: 50
+        batch_count_limit: 5
+        file_size_limit: 15
+        image_file_batch_limit: 10
+        image_file_size_limit: 10
+        single_chunk_attachment_limit: 10
+        video_file_size_limit: 100
+        workflow_file_upload_limit: 10
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+      number_limits: 3
+    opening_statement: ''
+    retriever_resource:
+      enabled: true
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        isInLoop: false
+        sourceType: trigger-webhook
+        targetType: code
+      id: 1768000000001-source-1768000000002-target
+      source: '1768000000001'
+      sourceHandle: source
+      target: '1768000000002'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: code
+        targetType: http-request
+      id: 1768000000002-source-1768000000002A-target
+      source: '1768000000002'
+      sourceHandle: source
+      target: 1768000000002A
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: http-request
+        targetType: code
+      id: 1768000000002A-source-1768000000003-target
+      source: 1768000000002A
+      sourceHandle: source
+      target: '1768000000003'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: code
+        targetType: tool
+      id: 1768000000003-source-1768000000004-target
+      source: '1768000000003'
+      sourceHandle: source
+      target: '1768000000004'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    nodes:
+    - data:
+        async_mode: true
+        body: []
+        content_type: application/json
+        headers: []
+        method: POST
+        params: []
+        response_body: ''
+        selected: false
+        status_code: 200
+        title: Instagram DM Webhook
+        type: trigger-webhook
+        variables:
+        - label: raw
+          required: true
+          value_selector: []
+          value_type: object
+          variable: _webhook_raw
+        webhook_debug_url: ''
+        webhook_url: ''
+      height: 130
+      id: '1768000000001'
+      position:
+        x: 80
+        y: 200
+      positionAbsolute:
+        x: 80
+        y: 200
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        code: "import json\n\n\ndef main(webhook_data: dict):\n    \"\"\"\n    Instagram\
+          \ Webhookからメッセージ情報を抽出\n\n    - _webhook_raw.body または webhook_data.body からentry取得\n\
+          \    - is_echo: true（自分の送信）はスキップ\n    - readイベント（既読）はスキップ\n    - 受信メッセージのみ処理\n\
+          \    \"\"\"\n    try:\n        data = None\n\n        # パターン1: _webhook_raw.body\n\
+          \        if '_webhook_raw' in webhook_data and isinstance(webhook_data['_webhook_raw'],\
+          \ dict):\n            if 'body' in webhook_data['_webhook_raw']:\n     \
+          \           data = webhook_data['_webhook_raw']['body']\n\n        # パターン2:\
+          \ webhook_data.body\n        elif 'webhook_data' in webhook_data and isinstance(webhook_data['webhook_data'],\
+          \ dict):\n            if 'body' in webhook_data['webhook_data']:\n     \
+          \           data = webhook_data['webhook_data']['body']\n\n        # パターン3:\
+          \ 直接bodyがある\n        elif 'body' in webhook_data:\n            data = webhook_data['body']\n\
+          \n        # パターン4: 最上位にentryがある（従来の想定）\n        elif 'entry' in webhook_data:\n\
+          \            data = webhook_data\n\n        if not data:\n            return\
+          \ {\n                \"sender_id\": \"\",\n                \"message_text\"\
+          : \"\",\n                \"timestamp\": \"\",\n                \"error\"\
+          : \"Cannot find data structure\"\n            }\n\n        # entry配列を取得\n\
+          \        entries = data.get('entry', [])\n        if not entries:\n    \
+          \        return {\n                \"sender_id\": \"\",\n              \
+          \  \"message_text\": \"\",\n                \"timestamp\": \"\",\n     \
+          \           \"error\": \"No entries in webhook\"\n            }\n\n    \
+          \    # 最初のentryからmessaging配列を取得\n        messaging = entries[0].get('messaging',\
+          \ [])\n        if not messaging:\n            return {\n               \
+          \ \"sender_id\": \"\",\n                \"message_text\": \"\",\n      \
+          \          \"timestamp\": \"\",\n                \"error\": \"No messaging\
+          \ data\"\n            }\n\n        # 最初のメッセージを取得\n        msg = messaging[0]\n\
+          \n        # readイベント（既読）はスキップ\n        if 'read' in msg:\n            return\
+          \ {\n                \"sender_id\": \"\",\n                \"message_text\"\
+          : \"\",\n                \"timestamp\": \"\",\n                \"error\"\
+          : \"Read event (skip)\"\n            }\n\n        # messageがない場合はスキップ\n\
+          \        message = msg.get('message', {})\n        if not message:\n   \
+          \         return {\n                \"sender_id\": \"\",\n             \
+          \   \"message_text\": \"\",\n                \"timestamp\": \"\",\n    \
+          \            \"error\": \"No message field\"\n            }\n\n        #\
+          \ is_echo: true（自分の送信）はスキップ\n        if message.get('is_echo'):\n      \
+          \      return {\n                \"sender_id\": \"\",\n                \"\
+          message_text\": \"\",\n                \"timestamp\": \"\",\n          \
+          \      \"error\": \"Echo message (skip)\"\n            }\n\n        # メッセージ情報を抽出\n\
+          \        sender = msg.get('sender', {})\n        sender_id = sender.get('id',\
+          \ '')\n        message_text = message.get('text', '')\n        timestamp\
+          \ = str(msg.get('timestamp', ''))\n\n        return {\n            \"sender_id\"\
+          : sender_id,\n            \"message_text\": message_text,\n            \"\
+          timestamp\": timestamp,\n            \"error\": \"\"\n        }\n\n    except\
+          \ Exception as e:\n        return {\n            \"sender_id\": \"\",\n\
+          \            \"message_text\": \"\",\n            \"timestamp\": \"\",\n\
+          \            \"error\": f\"Parse error: {str(e)}\"\n        }"
+        code_language: python3
+        desc: Instagram Webhookからメッセージ情報を抽出
+        outputs:
+          error:
+            children: null
+            type: string
+          message_text:
+            children: null
+            type: string
+          sender_id:
+            children: null
+            type: string
+          timestamp:
+            children: null
+            type: string
+        selected: false
+        title: Parse Instagram Webhook
+        type: code
+        variables:
+        - value_selector:
+          - '1768000000001'
+          - _webhook_raw
+          value_type: object
+          variable: webhook_data
+      height: 96
+      id: '1768000000002'
+      position:
+        x: 430
+        y: 200
+      positionAbsolute:
+        x: 430
+        y: 200
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        authorization:
+          config:
+            api_key: '{{#env.INSTAGRAM_ACCESS_TOKEN#}}'
+            type: bearer
+          type: api-key
+        body:
+          data: []
+          type: none
+        headers: ''
+        method: get
+        params: ''
+        retry_config:
+          max_retries: 2
+          retry_enabled: true
+          retry_interval: 1000
+        selected: true
+        ssl_verify: true
+        timeout:
+          max_connect_timeout: 10000
+          max_read_timeout: 10000
+          max_write_timeout: 10000
+        title: Get User Info
+        type: http-request
+        url: https://graph.instagram.com/v24.0/{{#1768000000002.sender_id#}}?fields=name,username
+        variables: []
+      height: 172
+      id: 1768000000002A
+      position:
+        x: 780
+        y: 200
+      positionAbsolute:
+        x: 780
+        y: 200
+      selected: true
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        code: "from datetime import datetime\nimport json\n\n\ndef main(sender_id:\
+          \ str, message_text: str, timestamp: str, user_info_response: str):\n  \
+          \  \"\"\"\n    Slack通知メッセージを整形（ユーザー名付き）\n    \"\"\"\n    # タイムスタンプをUNIXミリ秒から人間が読める形式に変換\n\
+          \    try:\n        if timestamp:\n            ts_int = int(timestamp) //\
+          \ 1000  # ミリ秒を秒に\n            dt = datetime.fromtimestamp(ts_int)\n    \
+          \        formatted_time = dt.strftime('%Y-%m-%d %H:%M:%S')\n        else:\n\
+          \            formatted_time = 'Unknown'\n    except:\n        formatted_time\
+          \ = timestamp\n\n    # ユーザー情報を解析\n    username = 'Unknown'\n    name = 'Unknown'\n\
+          \    try:\n        user_info = json.loads(user_info_response)\n        username\
+          \ = user_info.get('username', 'Unknown')\n        name = user_info.get('name',\
+          \ 'Unknown')\n    except:\n        pass\n\n    # Slackメッセージを整形\n    message\
+          \ = f\"\"\"\U0001F4E9 *Instagram DM受信*\n\n*送信者:* {name} (@{username})\n\
+          *送信者ID:* {sender_id}\n*時刻:* {formatted_time}\n*メッセージ:*\n{message_text}\"\
+          \"\"\n\n    return {\n        \"slack_message\": message\n    }"
+        code_language: python3
+        desc: Slack通知用メッセージを整形（ユーザー名付き）
+        outputs:
+          slack_message:
+            children: null
+            type: string
+        selected: false
+        title: Format Slack Message
+        type: code
+        variables:
+        - value_selector:
+          - '1768000000002'
+          - sender_id
+          value_type: string
+          variable: sender_id
+        - value_selector:
+          - '1768000000002'
+          - message_text
+          value_type: string
+          variable: message_text
+        - value_selector:
+          - '1768000000002'
+          - timestamp
+          value_type: string
+          variable: timestamp
+        - value_selector:
+          - 1768000000002A
+          - body
+          value_type: string
+          variable: user_info_response
+      height: 96
+      id: '1768000000003'
+      position:
+        x: 1130
+        y: 200
+      positionAbsolute:
+        x: 1130
+        y: 200
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        is_team_authorization: false
+        paramSchemas:
+        - auto_generate: null
+          default: null
+          form: form
+          human_description:
+            en_US: Slack Incoming Webhook url
+            ja_JP: Slack Incoming Webhook url
+            pt_BR: Slack Incoming Webhook url
+            zh_Hans: Slack 入站 Webhook 的 url
+          label:
+            en_US: Slack Incoming Webhook url
+            ja_JP: Slack Incoming Webhook url
+            pt_BR: Slack Incoming Webhook url
+            zh_Hans: Slack 入站 Webhook 的 url
+          llm_description: ''
+          max: null
+          min: null
+          name: webhook_url
+          options: []
+          placeholder: null
+          precision: null
+          required: true
+          scope: null
+          template: null
+          type: string
+        - auto_generate: null
+          default: null
+          form: llm
+          human_description:
+            en_US: Content to sent to the channel or person.
+            ja_JP: Content to sent to the channel or person.
+            pt_BR: Content to sent to the channel or person.
+            zh_Hans: 消息内容文本
+          label:
+            en_US: content
+            ja_JP: content
+            pt_BR: content
+            zh_Hans: 消息内容
+          llm_description: Content of the message
+          max: null
+          min: null
+          name: content
+          options: []
+          placeholder: null
+          precision: null
+          required: true
+          scope: null
+          template: null
+          type: string
+        params:
+          content: ''
+          webhook_url: ''
+        plugin_id: langgenius/slack
+        plugin_unique_identifier: langgenius/slack:0.0.4@8eccd2e5360bd287d887738750ae420d57d0c26d1e1a1ced4f59963005f1c163
+        provider_icon: https://dify.t-zov.xyz/console/api/workspaces/current/plugin/icon?tenant_id=60ae341d-96f0-432e-9c79-422bd002694d&filename=96f032a223a6e7db0335b001fe32b4c790bc2c0135adf67acf831b3b588d18bc.svg
+        provider_id: langgenius/slack/slack
+        provider_name: langgenius/slack/slack
+        provider_type: builtin
+        selected: false
+        title: Send to Slack
+        tool_configurations:
+          webhook_url:
+            type: mixed
+            value: '{{#env.SLACK_WEBHOOK_URL#}}'
+        tool_description: Sending a message on Slack via the Incoming Webhook
+        tool_label: Incoming Webhook to send message
+        tool_name: slack_webhook
+        tool_node_version: '2'
+        tool_parameters:
+          content:
+            type: mixed
+            value: '{{#1768000000003.slack_message#}}'
+        type: tool
+      height: 88
+      id: '1768000000004'
+      position:
+        x: 1480
+        y: 200
+      positionAbsolute:
+        x: 1480
+        y: 200
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    viewport:
+      x: -217
+      y: -48
+      zoom: 1
+  rag_pipeline_variables: []
