@@ -6,6 +6,7 @@ import type { ProcessStatus, ReplyStatus } from "../types";
 // DM受信処理（forward）のステータスメッセージ
 export const PROCESS_STATUS_MESSAGES: Record<ProcessStatus, string> = {
 	success: "成功",
+	partial_success: "部分成功（一部メディア失敗）",
 	skipped_echo: "スキップ（エコー）",
 	skipped_read: "スキップ（既読）",
 	error_parse: "エラー（解析失敗）",
@@ -17,6 +18,7 @@ export const PROCESS_STATUS_MESSAGES: Record<ProcessStatus, string> = {
 // DM返信処理（reply）のステータスメッセージ
 export const REPLY_STATUS_MESSAGES: Record<ReplyStatus, string> = {
 	success: "成功",
+	partial_success: "部分成功（一部メディア失敗）",
 	skipped_not_thread: "スキップ（スレッド返信でない）",
 	skipped_bot_message: "スキップ（ボットメッセージ）",
 	error_parse: "エラー（解析失敗）",

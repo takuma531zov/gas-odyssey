@@ -1,5 +1,5 @@
 // Instagram Webhook解析モジュール
-// Webhookペイロードの解析とエコー・既読イベントのスキップ判定
+// Webhookペイロードの解析とエコー・既読イベントのスキップ判定、添付ファイル抽出
 
 import type {
 	InstagramWebhookPayload,
@@ -8,6 +8,7 @@ import type {
 
 /**
  * Instagram Webhookペイロードを解析
+ * テキストまたは添付ファイル（画像/動画）のいずれかがあれば成功
  * @param payload JSON文字列
  * @returns 成功時はParsedMessage、スキップまたは失敗時はエラー
  */
@@ -75,11 +76,22 @@ export const parseWebhook = (
 		const senderId = msg.sender?.id;
 		const messageText = message.text;
 		const timestamp = msg.timestamp;
+		const attachments = message.attachments;
 
-		if (!senderId || !messageText || !timestamp) {
+		// senderId と timestamp は必須
+		if (!senderId || !timestamp) {
 			return {
 				success: false,
-				error: "Missing required fields (senderId, messageText, or timestamp)",
+				error: "Missing required fields (senderId or timestamp)",
+				reason: "error",
+			};
+		}
+
+		// テキストも添付ファイルもない場合はエラー
+		if (!messageText && (!attachments || attachments.length === 0)) {
+			return {
+				success: false,
+				error: "No text or attachments in message",
 				reason: "error",
 			};
 		}
@@ -90,6 +102,7 @@ export const parseWebhook = (
 				senderId,
 				messageText,
 				timestamp,
+				attachments,
 			},
 		};
 	} catch (error) {

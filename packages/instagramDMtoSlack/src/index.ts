@@ -7,6 +7,7 @@ import { handleDoPost as handleInstagramPost } from "./modules/forward";
 import { handleSlackReply } from "./modules/reply";
 import { handleChallenge } from "./modules/reply/slackVerify";
 import { detectRequestType } from "./router";
+import { triggerAuthorizeScopes } from "./utils/authorize";
 
 type TextOutput = GoogleAppsScript.Content.TextOutput;
 
@@ -53,3 +54,4 @@ function doPost(e: GoogleAppsScript.Events.DoPost) {
 declare const global: { [k: string]: unknown };
 global.doGet = doGet;
 global.doPost = doPost;
+global.authorizeScopes = triggerAuthorizeScopes;

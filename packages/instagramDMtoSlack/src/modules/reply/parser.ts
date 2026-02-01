@@ -1,8 +1,8 @@
 // Slack Eventペイロード解析モジュール
-// Slackイベントからスレッド返信情報を抽出
+// Slackイベントからスレッド返信情報を抽出（ファイル添付対応）
 
 import { logInfo, logWarn } from "../../../../common/src/logger";
-import type { SlackEventPayload } from "../../types";
+import type { SlackEventPayload, SlackFile } from "../../types";
 
 interface ParseSuccessResult {
 	success: true;
@@ -12,6 +12,7 @@ interface ParseSuccessResult {
 		messageTs: string;
 		replyText: string;
 		userId: string;
+		files?: SlackFile[];
 	};
 }
 
@@ -25,6 +26,7 @@ type ParseResult = ParseSuccessResult | ParseFailureResult;
 
 /**
  * Slack Eventペイロードを解析
+ * テキストまたはファイルのいずれかがあれば成功
  * @param payload リクエストペイロード（JSON文字列）
  * @returns 解析結果
  */
@@ -40,7 +42,8 @@ export const parseSlackEvent = (payload: string): ParseResult => {
 		}
 
 		// subtypeがある場合（bot_message、message_changed等）はスキップ
-		if (event.subtype) {
+		// ただし file_share は許可（ファイル添付）
+		if (event.subtype && event.subtype !== "file_share") {
 			logWarn("Event skipped: has subtype", { subtype: event.subtype });
 			return { success: false, reason: "skip", error: `Message has subtype: ${event.subtype}` };
 		}
@@ -57,9 +60,18 @@ export const parseSlackEvent = (payload: string): ParseResult => {
 			return { success: false, reason: "skip", error: "Thread parent message" };
 		}
 
+		// テキストもファイルもない場合はスキップ
+		const hasText = event.text && event.text.trim().length > 0;
+		const hasFiles = event.files && event.files.length > 0;
+		if (!hasText && !hasFiles) {
+			logWarn("Event skipped: no text or files");
+			return { success: false, reason: "skip", error: "No text or files in message" };
+		}
+
 		logInfo("Slack event parsed successfully", {
 			channel: event.channel,
 			threadTs: event.thread_ts,
+			hasFiles: hasFiles,
 		});
 
 		return {
@@ -70,6 +82,7 @@ export const parseSlackEvent = (payload: string): ParseResult => {
 				messageTs: event.ts,
 				replyText: event.text,
 				userId: event.user,
+				files: event.files,
 			},
 		};
 	} catch (error) {

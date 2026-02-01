@@ -1,6 +1,8 @@
 // 型定義ファイル
 // Instagram Webhook、API、処理結果などの型を定義
 
+import type { InstagramAttachment, SlackFile, ProcessedMedia } from "./modules/media/types";
+
 // Instagram Webhook関連
 export interface InstagramWebhookPayload {
 	entry: InstagramEntry[];
@@ -18,8 +20,9 @@ export interface InstagramMessage {
 	timestamp: number;
 	message?: {
 		mid: string;
-		text: string;
+		text?: string;
 		is_echo?: boolean;
+		attachments?: InstagramAttachment[];
 	};
 	read?: {
 		mid: string;
@@ -43,8 +46,9 @@ export interface InstagramTokenResponse {
 // 処理結果関連
 export interface ParsedMessage {
 	senderId: string;
-	messageText: string;
+	messageText?: string;
 	timestamp: number;
+	attachments?: InstagramAttachment[];
 }
 
 export interface ProcessResult {
@@ -57,10 +61,12 @@ export interface ProcessResult {
 	status: ProcessStatus;
 	error?: string;
 	details?: string;
+	mediaUrls?: string[];
 }
 
 export type ProcessStatus =
 	| "success"
+	| "partial_success"
 	| "skipped_echo"
 	| "skipped_read"
 	| "error_parse"
@@ -100,6 +106,7 @@ export interface SlackMessageEvent {
 	thread_ts?: string;
 	event_ts: string;
 	channel_type: string;
+	files?: SlackFile[];
 }
 
 export interface SlackUrlVerificationPayload {
@@ -138,13 +145,18 @@ export interface ReplyResult {
 	status: ReplyStatus;
 	error?: string;
 	details?: string;
+	mediaUrls?: string[];
 }
 
 export type ReplyStatus =
 	| "success"
+	| "partial_success"
 	| "skipped_not_thread"
 	| "skipped_bot_message"
 	| "error_parse"
 	| "error_slack_api"
 	| "error_instagram_api"
 	| "error_log";
+
+// 型の再エクスポート（利便性のため）
+export type { InstagramAttachment, SlackFile, ProcessedMedia } from "./modules/media/types";

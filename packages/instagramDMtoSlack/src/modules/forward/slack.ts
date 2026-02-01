@@ -1,16 +1,28 @@
 // Slack送信モジュール
-// Slack Incoming Webhookへのメッセージ送信
+// Slack Incoming Webhookへのメッセージ送信（Block Kit対応）
 
 import { logError, logInfo } from "../../../../common/src/logger";
 import { SLACK_WEBHOOK_URL } from "../../env";
+import type { SlackPayload } from "./formatter";
 
 /**
- * Slackにメッセージを送信
+ * Slackにメッセージを送信（テキストのみ、後方互換用）
  * @param message 送信するメッセージ
  * @returns 成功時true、失敗時false
  */
 export const sendToSlack = (
 	message: string,
+): { success: boolean; error?: string } => {
+	return sendToSlackWithPayload({ text: message });
+};
+
+/**
+ * Slackにペイロードを送信（Block Kit対応）
+ * @param payload Slackペイロード（text, blocks含む）
+ * @returns 成功時true、失敗時false
+ */
+export const sendToSlackWithPayload = (
+	payload: SlackPayload,
 ): { success: boolean; error?: string } => {
 	try {
 		logInfo("Sending message to Slack");
@@ -26,7 +38,7 @@ export const sendToSlack = (
 		const options: GoogleAppsScript.URL_Fetch.URLFetchRequestOptions = {
 			method: "post",
 			contentType: "application/json",
-			payload: JSON.stringify({ text: message }),
+			payload: JSON.stringify(payload),
 			muteHttpExceptions: true,
 		};
 

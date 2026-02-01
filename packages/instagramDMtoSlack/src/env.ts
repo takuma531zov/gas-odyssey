@@ -15,6 +15,8 @@ export const SCRIPT_PROPERTIES = {
   SLACK_CHANNEL_ID: "SLACK_CHANNEL_ID", // 通知先チャンネル
   INSTAGRAM_PAGE_ID: "INSTAGRAM_PAGE_ID", // Instagram DM送信元ID
   REPLY_LOG_SHEET_NAME: "REPLY_LOG_SHEET_NAME", // 返信ログシート名
+  //画像保存用GoogleドライブフォルダID
+  IMAGE_TEMP_FOLDER_ID: "IMAGE_TEMP_FOLDER_ID",
 } as const;
 
 export const INSTAGRAM_VERIFY_TOKEN = getScriptPropertyValue(
@@ -48,4 +50,8 @@ export const INSTAGRAM_PAGE_ID = getScriptPropertyValue(
 );
 export const REPLY_LOG_SHEET_NAME = getScriptPropertyValue(
   SCRIPT_PROPERTIES.REPLY_LOG_SHEET_NAME,
+);
+// 画像保存用GoogleドライブフォルダID
+export const IMAGE_TEMP_FOLDER_ID = getScriptPropertyValue(
+  SCRIPT_PROPERTIES.IMAGE_TEMP_FOLDER_ID,
 );

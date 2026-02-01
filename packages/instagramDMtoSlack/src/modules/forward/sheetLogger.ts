@@ -36,9 +36,10 @@ export const writeLog = (result: ProcessResult): void => {
 		const messageText = result.messageText || "";
 		const status = formatProcessStatus(result.status);
 		const details = result.details || result.error || "";
+		const mediaUrls = result.mediaUrls?.join(", ") || "";
 
 		// スプレッドシートに追記
-		// 列構成：タイムスタンプ | 送信者ID | 送信者名 | ユーザー名 | メッセージ | ステータス | 詳細
+		// 列構成：タイムスタンプ | 送信者ID | 送信者名 | ユーザー名 | メッセージ | ステータス | 詳細 | メディアURL
 		sheet.appendRow([
 			timestamp,
 			senderId,
@@ -47,6 +48,7 @@ export const writeLog = (result: ProcessResult): void => {
 			messageText,
 			status,
 			details,
+			mediaUrls,
 		]);
 
 		logInfo("Log written successfully");
