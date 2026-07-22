@@ -31,7 +31,7 @@ export const refreshToken = (): { success: boolean; error?: string } => {
 		const { responseData, statusCode } = fetchData(url, options);
 
 		if (statusCode !== 200 || !responseData) {
-			const error = `Token refresh API failed (status: ${statusCode})`;
+			const error = `Token refresh API failed (status: ${statusCode}) ${JSON.stringify(responseData)}`;
 			logError("Token refresh failed", { statusCode, responseData });
 			return { success: false, error };
 		}
@@ -57,6 +57,20 @@ export const refreshToken = (): { success: boolean; error?: string } => {
 		const errorMessage = error instanceof Error ? error.message : String(error);
 		logError("Token refresh exception", error);
 		return { success: false, error: errorMessage };
+	}
+};
+
+/**
+ * 定期トリガー用: Instagram APIトークンを能動的に更新する
+ * DMトラフィックの有無に関わらず週次で実行し、long-livedトークン（有効期間60日）の失効を防ぐ
+ * 失効前に定期的にrefreshすることで、トークンを継続的に延長する
+ */
+export const scheduledTokenRefresh = (): void => {
+	const result = refreshToken();
+	if (result.success) {
+		logInfo("Scheduled token refresh succeeded");
+	} else {
+		logError("Scheduled token refresh failed", result.error);
 	}
 };
 

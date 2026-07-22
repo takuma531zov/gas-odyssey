@@ -8,6 +8,7 @@ import { handleSlackReply } from "./modules/reply";
 import { handleChallenge } from "./modules/reply/slackVerify";
 import { detectRequestType } from "./router";
 import { triggerAuthorizeScopes } from "./utils/authorize";
+import { scheduledTokenRefresh } from "./utils/tokenManager";
 
 type TextOutput = GoogleAppsScript.Content.TextOutput;
 
@@ -55,3 +56,5 @@ declare const global: { [k: string]: unknown };
 global.doGet = doGet;
 global.doPost = doPost;
 global.authorizeScopes = triggerAuthorizeScopes;
+// 週次の時間主導トリガーから呼び出し、Instagram APIトークンを定期更新して失効を防ぐ
+global.scheduledTokenRefresh = scheduledTokenRefresh;

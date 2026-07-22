@@ -1,2 +1,8 @@
 packages:
   - packages/*
+allowBuilds:
+  '@biomejs/biome': true
+  esbuild: true
+  lefthook: true
+  opencv-build: false
+  opencv4nodejs: false
